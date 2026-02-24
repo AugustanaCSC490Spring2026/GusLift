@@ -52,7 +52,7 @@ export default function LoginScreen() {
         return;
       }
 
-      // ✅ Allowed — go to home screen
+   
       router.replace('/tabs)');
     } catch (err) {
       Alert.alert("Error", "Could not fetch your account info. Try again.");
@@ -81,41 +81,68 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
   },
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    marginBottom: 16,
+  },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  avatarInitial: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: 'bold',
+  },
   title: {
-    fontSize: 42,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#555",
-    marginBottom: 48,
-    textAlign: "center",
+  email: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 32,
   },
-  button: {
-    backgroundColor: "#4285F4",
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+  card: {
+    backgroundColor: '#f0f4ff',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+  },
+  signOutButton: {
+    borderWidth: 1,
+    borderColor: '#ccc',
     borderRadius: 8,
-    width: "100%",
-    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
   },
-  buttonDisabled: {
-    backgroundColor: "#aaa",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  hint: {
-    marginTop: 16,
-    color: "#999",
-    fontSize: 13,
+  signOutText: {
+    color: '#555',
+    fontSize: 15,
   },
 });
