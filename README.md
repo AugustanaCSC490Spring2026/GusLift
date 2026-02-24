@@ -1,50 +1,173 @@
-# Welcome to your Expo app 👋
+## GusLift Monorepo
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This repository contains two main applications:
 
-## Get started
+- **Mobile app**: Expo / React Native app in `apps/mobile`
+- **Web app**: Next.js app in `apps/web`
 
-1. Install dependencies
+Both apps are independent Node projects, each with their own `package.json`.
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## Prerequisites
 
-   ```bash
-   npx expo start
-   ```
+- **Node.js**: Install a recent LTS version (recommended: Node 20+).
+- **npm**: Comes with Node. (You can also use `pnpm`, `yarn`, or `bun` if you prefer, but the examples below use `npm`.)
+- **Git**: To clone and manage this repository.
 
-In the output, you'll find options to open the app in a
+For mobile development you will also need:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **Expo CLI tooling** (installed automatically when you run `npx expo start`)
+- At least one of:
+  - Android Studio + emulator
+  - Xcode + iOS simulator (macOS only)
+  - Expo Go app on a physical device
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## Installation
 
-When you're ready, run:
+Clone the repository and install dependencies for each app.
+
+```bash
+git clone <your-repo-url> GusLift
+cd GusLift
+
+# Install mobile app dependencies
+cd apps/mobile
+npm install
+
+# Install web app dependencies
+cd ../web
+npm install
+```
+
+If you prefer, you can run the installs separately later when you first work with each app.
+
+---
+
+## Running the Mobile App (Expo)
+
+The mobile app lives in `apps/mobile` and is an Expo project.
+
+From the repo root:
+
+```bash
+cd apps/mobile
+npm install        # first time only
+npm run start      # or: npx expo start
+```
+
+Common scripts:
+
+- **Start Metro bundler / Expo**:
+
+  ```bash
+  npm run start
+  ```
+
+- **Run on Android emulator / device**:
+
+  ```bash
+  npm run android
+  ```
+
+- **Run on iOS simulator** (macOS only):
+
+  ```bash
+  npm run ios
+  ```
+
+- **Run in browser (Expo web)**:
+
+  ```bash
+  npm run web
+  ```
+
+Expo will print a QR code and options to open:
+
+- a development build
+- an Android emulator
+- an iOS simulator
+- the Expo Go app on a physical device
+
+### Resetting the mobile starter project
+
+If you want a fresh Expo app without the starter example, from `apps/mobile` run:
 
 ```bash
 npm run reset-project
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+This moves the example into `app-example` and creates a blank `app` directory.
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## Running the Web App (Next.js)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+The web app lives in `apps/web` and is a standard Next.js (App Router) project.
 
-## Join the community
+From the repo root:
 
-Join our community of developers creating universal apps.
+```bash
+cd apps/web
+npm install     # first time only
+npm run dev
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Then open `http://localhost:3000` in your browser.
+
+Available scripts:
+
+- **Development server**:
+
+  ```bash
+  npm run dev
+  ```
+
+- **Production build**:
+
+  ```bash
+  npm run build
+  ```
+
+- **Start production server** (after `npm run build`):
+
+  ```bash
+  npm run start
+  ```
+
+---
+
+## Running Both Apps at the Same Time
+
+Since each app is independent, you can run them in parallel:
+
+1. **Terminal 1 – Mobile app**
+
+   ```bash
+   cd GusLift/apps/mobile
+   npm run start
+   ```
+
+2. **Terminal 2 – Web app**
+
+   ```bash
+   cd GusLift/apps/web
+   npm run dev
+   ```
+
+Use your browser for the web app and Expo tooling (emulator, simulator, or device) for the mobile app.
+
+---
+
+## Project Layout
+
+- `apps/mobile` – Expo / React Native application
+- `apps/web` – Next.js web application
+
+Each app has its own README with more specific framework docs:
+
+- `apps/mobile/README.md` – Expo-specific instructions
+- `apps/web/README.md` – Next.js-specific instructions
+
