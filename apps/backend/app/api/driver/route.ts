@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+type DaySchedule = { start_time: string; end_time: string };
+type DaysJson = Partial<Record<DayKey, DaySchedule>>;
+
 // Create bucket "driver-pictures" in Supabase Dashboard → Storage and allow public read if needed
 const BUCKET_NAME = "driver-pictures";
 
@@ -31,7 +35,7 @@ export async function POST(request: NextRequest) {
     const license_plate = formData.get("license_plate") as string | null;
     const capacityStr = formData.get("capacity") as string | null;
 
-    const scheduleIsDriver = formData.get("schedule_is_driver") as string | null;
+    const isDriverStr = formData.get("is_driver") as string | null;
     const daysStr = formData.get("days") as string | null;
     const pickup_loc = formData.get("pickup_loc") as string | null;
     const dropoff_loc = formData.get("dropoff_loc") as string | null;
@@ -77,7 +81,8 @@ export async function POST(request: NextRequest) {
       picture_url = publicUrl;
     }
 
-    const is_driver = true;
+    const is_driver =
+      isDriverStr === "true" || isDriverStr === "1";
 
     const { error: userError } = await supabase.from("User").upsert(
       {
@@ -98,13 +103,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const capacity = capacityStr != null ? parseInt(capacityStr, 10) : null;
+    let capacity: number | null = null;
+    if (capacityStr != null) {
+      const parsed = parseInt(capacityStr, 10);
+      capacity = Number.isNaN(parsed) ? null : parsed;
+    }
     if (
       make != null ||
       model != null ||
       color != null ||
       license_plate != null ||
-      (capacity != null && !Number.isNaN(capacity))
+      capacity != null
     ) {
       const { error: carError } = await supabase.from("Car").insert({
         user_id: userID.trim(),
@@ -112,7 +121,7 @@ export async function POST(request: NextRequest) {
         model: model?.trim() ?? null,
         color: color?.trim() ?? null,
         license_plate: license_plate?.trim() ?? null,
-        capacity: Number.isNaN(capacity) ? null : capacity,
+        capacity,
       });
 
       if (carError) {
@@ -124,12 +133,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let daysJson: unknown = null;
+    let daysJson: DaysJson | null = null;
     if (daysStr?.trim()) {
       try {
-        daysJson = JSON.parse(daysStr) as unknown;
+        const parsed = JSON.parse(daysStr) as DaysJson;
+        daysJson = parsed;
       } catch {
-        daysJson = daysStr;
+        daysJson = null;
       }
     }
 
@@ -141,12 +151,9 @@ export async function POST(request: NextRequest) {
       daysStr != null;
 
     if (hasSchedule) {
-      const scheduleIsDriverBool =
-        scheduleIsDriver === "true" || scheduleIsDriver === "1";
-
       const { error: scheduleError } = await supabase.from("schedule").insert({
         user_id: userID.trim(),
-        is_driver: scheduleIsDriverBool,
+        is_driver,
         days: daysJson,
         pickup_loc: pickup_loc?.trim() ?? null,
         dropoff_loc: dropoff_loc?.trim() ?? null,
