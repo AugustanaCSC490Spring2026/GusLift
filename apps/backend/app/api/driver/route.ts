@@ -37,10 +37,6 @@ export async function POST(request: NextRequest) {
 
     const isDriverStr = formData.get("is_driver") as string | null;
     const daysStr = formData.get("days") as string | null;
-    const pickup_loc = formData.get("pickup_loc") as string | null;
-    const dropoff_loc = formData.get("dropoff_loc") as string | null;
-    const start_time = formData.get("start_time") as string | null;
-    const end_time = formData.get("end_time") as string | null;
 
     if (!userID?.trim()) {
       return NextResponse.json(
@@ -115,14 +111,19 @@ export async function POST(request: NextRequest) {
       license_plate != null ||
       capacity != null
     ) {
-      const { error: carError } = await supabase.from("Car").insert({
-        user_id: userID.trim(),
-        make: make?.trim() ?? null,
-        model: model?.trim() ?? null,
-        color: color?.trim() ?? null,
-        license_plate: license_plate?.trim() ?? null,
-        capacity,
-      });
+      const { error: carError } = await supabase
+        .from("Car")
+        .upsert(
+          {
+            user_id: userID.trim(),
+            make: make?.trim() ?? null,
+            model: model?.trim() ?? null,
+            color: color?.trim() ?? null,
+            license_plate: license_plate?.trim() ?? null,
+            capacity,
+          },
+          { onConflict: "user_id" }
+        );
 
       if (carError) {
         console.error("Car insert error:", carError);
@@ -143,23 +144,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const hasSchedule =
-      pickup_loc != null ||
-      dropoff_loc != null ||
-      start_time != null ||
-      end_time != null ||
-      daysStr != null;
-
-    if (hasSchedule) {
-      const { error: scheduleError } = await supabase.from("schedule").insert({
-        user_id: userID.trim(),
-        is_driver,
-        days: daysJson,
-        pickup_loc: pickup_loc?.trim() ?? null,
-        dropoff_loc: dropoff_loc?.trim() ?? null,
-        start_time: start_time?.trim() || null,
-        end_time: end_time?.trim() || null,
-      });
+    if (daysJson) {
+      const { error: scheduleError } = await supabase
+        .from("schedule")
+        .upsert(
+          {
+            user_id: userID.trim(),
+            is_driver,
+            days: daysJson,
+          },
+          { onConflict: "user_id" }
+        );
 
       if (scheduleError) {
         console.error("Schedule insert error:", scheduleError);
