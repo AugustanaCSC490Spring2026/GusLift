@@ -38,3 +38,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Supabase / backend env
+apps/backend/.env
+
+# Expo / build artifacts
+.expo/
+apps/mobile/.expo/
+apps/backend/.next/
+
+# Local editor config
+.idea/
