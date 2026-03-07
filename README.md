@@ -1,3 +1,15 @@
+# GusLift
+GusLift is a campus ride-sharing platform designed to help students connect with others who are already driving nearby. The goal is to create a trusted transportation network within the campus community.
+
+## Blog
+Follow our weekly development updates here:
+https://dev.to/guslift
+
+Our team publishes weekly blog posts documenting:
+- development progress
+- technical decisions
+- new features and experiments
+
 ## GusLift Monorepo
 
 This repository contains two main applications:
