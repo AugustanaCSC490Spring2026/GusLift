@@ -4,3 +4,10 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Expo cache
+.expo/web/cache/
+
+# Android generated
+android/app/debug.keystore
+android/gradle/wrapper/gradle-wrapper.jar
