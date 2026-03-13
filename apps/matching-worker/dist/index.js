@@ -12249,7 +12249,7 @@ var MatchingRoom = class {
   async insertRide(driver_id, rider_id) {
     const { location, day, start_time } = this.parseSlotKey();
     const supabase = getSupabase(this.env);
-    await supabase.from("rides").insert({
+    const { data, error } = await supabase.from("rides").insert({
       driver_id,
       rider_id,
       day,
@@ -12257,16 +12257,48 @@ var MatchingRoom = class {
       location,
       status: "accepted",
       completed: false
-    });
+    }).select("id,driver_id,rider_id,day,start_time,location,status,completed,created_at").single();
+    if (error || !data) {
+      throw new Error(error?.message || "Failed to insert accepted ride");
+    }
+    return data;
   }
-  handleDriverOnline(userId, ev) {
+  async fetchRiderProfile(riderId) {
+    const supabase = getSupabase(this.env);
+    const { data, error } = await supabase.from("User").select("id,name,residence,picture_url").eq("id", riderId).single();
+    if (error || !data) {
+      return {
+        id: riderId,
+        name: null,
+        residence: null,
+        picture_url: null
+      };
+    }
+    return data;
+  }
+  async fetchDriverCapacity(driverId) {
+    const supabase = getSupabase(this.env);
+    const { data, error } = await supabase.from("Car").select("capacity").eq("user_id", driverId).single();
+    if (error || !data) {
+      return null;
+    }
+    const row = data;
+    if (typeof row.capacity !== "number" || row.capacity <= 0) {
+      return null;
+    }
+    return row.capacity;
+  }
+  async handleDriverOnline(userId, ev) {
     if (ev.driver_id !== userId)
       return;
-    this.drivers.set(ev.driver_id, { seats_remaining: ev.seats });
+    const seats = await this.fetchDriverCapacity(ev.driver_id);
+    if (!seats)
+      return;
+    this.drivers.set(ev.driver_id, { seats_remaining: seats });
     this.broadcast({
       type: "driver_joined",
       driver_id: ev.driver_id,
-      seats: ev.seats
+      seats
     });
   }
   handleRiderRequest(userId, ev) {
@@ -12282,7 +12314,7 @@ var MatchingRoom = class {
     const idx = this.riders_waiting.findIndex((r) => r.rider_id === ev.rider_id);
     if (idx === -1)
       return;
-    const [rider] = this.riders_waiting.splice(idx, 1);
+    this.riders_waiting.splice(idx, 1);
     this.pending_matches.set(ev.rider_id, ev.driver_id);
     this.broadcast({
       type: "rider_reserved",
@@ -12317,7 +12349,13 @@ var MatchingRoom = class {
       driver_id: ev.driver_id,
       seats_remaining: driver.seats_remaining
     });
-    await this.insertRide(ev.driver_id, ev.rider_id);
+    const ride = await this.insertRide(ev.driver_id, ev.rider_id);
+    const rider = await this.fetchRiderProfile(ev.rider_id);
+    this.sendTo(ev.driver_id, {
+      type: "match_confirmed",
+      ride,
+      rider
+    });
   }
   async handleMessage(userId, raw) {
     let ev;
@@ -12328,7 +12366,7 @@ var MatchingRoom = class {
     }
     switch (ev.type) {
       case "driver_online":
-        this.handleDriverOnline(userId, ev);
+        await this.handleDriverOnline(userId, ev);
         break;
       case "rider_request":
         this.handleRiderRequest(userId, ev);
@@ -12346,7 +12384,7 @@ var MatchingRoom = class {
     ws.addEventListener("message", (event) => {
       const data = event.data;
       if (typeof data === "string") {
-        this.handleMessage(userId, data);
+        void this.handleMessage(userId, data);
       }
     });
     ws.addEventListener("close", () => {

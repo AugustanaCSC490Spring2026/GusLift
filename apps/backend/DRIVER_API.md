@@ -149,3 +149,52 @@ On success (**200**):
 }
 ```
 
+---
+
+## Driver rides endpoint (accepted rides)
+
+### Endpoint
+
+- **Method**: `GET`
+- **Path**: `/api/driver/rides`
+- **Query param**: `driver_id` (required)
+
+### Behavior
+
+- Returns rides for the given `driver_id` where `status = "accepted"`.
+- Ordered by `created_at` descending.
+- Includes rider profile basics (`id`, `name`, `residence`, `picture_url`) for each ride.
+
+### Example request
+
+`GET /api/driver/rides?driver_id=<driver-user-id>`
+
+### Example success response
+
+```json
+{
+  "success": true,
+  "driver_id": "driver-user-id",
+  "count": 1,
+  "rides": [
+    {
+      "id": "ride-id",
+      "driver_id": "driver-user-id",
+      "rider_id": "rider-user-id",
+      "day": "mon",
+      "start_time": "08:00",
+      "location": "AUGIE",
+      "status": "accepted",
+      "completed": false,
+      "created_at": "2026-03-10T10:00:00.000Z",
+      "rider": {
+        "id": "rider-user-id",
+        "name": "Jane Rider",
+        "residence": "Downtown",
+        "picture_url": "https://..."
+      }
+    }
+  ]
+}
+```
+

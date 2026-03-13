@@ -36,9 +36,19 @@ Example:
 
 ## WebSocket events (client → server)
 
-- `driver_online` — `{ type, driver_id, seats }`
+- `driver_online` — `{ type, driver_id }` (seat count is loaded from `Car.capacity` in DB)
 - `rider_request` — `{ type, rider_id }`
 - `select_rider` — `{ type, driver_id, rider_id }`
 - `accept_match` — `{ type, rider_id, driver_id }`
 
-See `ride_matching_cursor_implementation.md` in the backend app for full event and broadcast shapes.
+## WebSocket events (server → client)
+
+- `initial_state` — snapshot of room riders/drivers/pending matches
+- `rider_joined`
+- `rider_reserved`
+- `match_request` (to rider)
+- `rider_removed`
+- `seat_update`
+- `match_confirmed` (to selected driver after rider accepts):
+  - `ride`: accepted ride row (`id`, `driver_id`, `rider_id`, `day`, `start_time`, `location`, `status`, `completed`, `created_at`)
+  - `rider`: rider profile basics (`id`, `name`, `residence`, `picture_url`)

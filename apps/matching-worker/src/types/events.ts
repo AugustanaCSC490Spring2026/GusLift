@@ -2,7 +2,6 @@
 export type DriverOnlineEvent = {
   type: "driver_online";
   driver_id: string;
-  seats: number;
 };
 
 export type RiderRequestEvent = {
@@ -70,6 +69,27 @@ export type SeatUpdateMessage = {
   seats_remaining: number;
 };
 
+export type MatchConfirmedMessage = {
+  type: "match_confirmed";
+  ride: {
+    id: string;
+    driver_id: string;
+    rider_id: string;
+    day: string;
+    start_time: string;
+    location: string;
+    status: string;
+    completed: boolean;
+    created_at?: string;
+  };
+  rider: {
+    id: string;
+    name: string | null;
+    residence: string | null;
+    picture_url: string | null;
+  };
+};
+
 export type ServerMessage =
   | InitialStateMessage
   | DriverJoinedMessage
@@ -77,4 +97,5 @@ export type ServerMessage =
   | RiderReservedMessage
   | MatchRequestMessage
   | RiderRemovedMessage
-  | SeatUpdateMessage;
+  | SeatUpdateMessage
+  | MatchConfirmedMessage;

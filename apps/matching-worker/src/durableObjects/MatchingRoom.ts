@@ -12,6 +12,29 @@ import { getSupabase } from "../db";
 
 const MATCH_TIMEOUT_MS = 30_000;
 
+type RideRow = {
+  id: string;
+  driver_id: string;
+  rider_id: string;
+  day: string;
+  start_time: string;
+  location: string;
+  status: string;
+  completed: boolean;
+  created_at?: string;
+};
+
+type RiderProfile = {
+  id: string;
+  name: string | null;
+  residence: string | null;
+  picture_url: string | null;
+};
+
+type CarRow = {
+  capacity: number | null;
+};
+
 export class MatchingRoom implements DurableObject {
   private drivers: Map<string, DriverState> = new Map();
   private riders_waiting: RiderWaiting[] = [];
@@ -105,27 +128,76 @@ export class MatchingRoom implements DurableObject {
   private async insertRide(
     driver_id: string,
     rider_id: string
-  ): Promise<void> {
+  ): Promise<RideRow> {
     const { location, day, start_time } = this.parseSlotKey();
     const supabase = getSupabase(this.env);
-    await supabase.from("rides").insert({
-      driver_id,
-      rider_id,
-      day,
-      start_time,
-      location,
-      status: "accepted",
-      completed: false,
-    });
+    const { data, error } = await supabase
+      .from("rides")
+      .insert({
+        driver_id,
+        rider_id,
+        day,
+        start_time,
+        location,
+        status: "accepted",
+        completed: false,
+      })
+      .select("id,driver_id,rider_id,day,start_time,location,status,completed,created_at")
+      .single();
+    if (error || !data) {
+      throw new Error(error?.message || "Failed to insert accepted ride");
+    }
+    return data as RideRow;
   }
 
-  private handleDriverOnline(userId: string, ev: DriverOnlineEvent): void {
+  private async fetchRiderProfile(riderId: string): Promise<RiderProfile> {
+    const supabase = getSupabase(this.env);
+    const { data, error } = await supabase
+      .from("User")
+      .select("id,name,residence,picture_url")
+      .eq("id", riderId)
+      .single();
+
+    if (error || !data) {
+      return {
+        id: riderId,
+        name: null,
+        residence: null,
+        picture_url: null,
+      };
+    }
+    return data as RiderProfile;
+  }
+
+  private async fetchDriverCapacity(driverId: string): Promise<number | null> {
+    const supabase = getSupabase(this.env);
+    const { data, error } = await supabase
+      .from("Car")
+      .select("capacity")
+      .eq("user_id", driverId)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    const row = data as CarRow;
+    if (typeof row.capacity !== "number" || row.capacity <= 0) {
+      return null;
+    }
+    return row.capacity;
+  }
+
+  private async handleDriverOnline(userId: string, ev: DriverOnlineEvent): Promise<void> {
     if (ev.driver_id !== userId) return;
-    this.drivers.set(ev.driver_id, { seats_remaining: ev.seats });
+    const seats = await this.fetchDriverCapacity(ev.driver_id);
+    if (!seats) return;
+
+    this.drivers.set(ev.driver_id, { seats_remaining: seats });
     this.broadcast({
       type: "driver_joined",
       driver_id: ev.driver_id,
-      seats: ev.seats,
+      seats,
     });
   }
 
@@ -176,7 +248,14 @@ export class MatchingRoom implements DurableObject {
       seats_remaining: driver.seats_remaining,
     });
 
-    await this.insertRide(ev.driver_id, ev.rider_id);
+    const ride = await this.insertRide(ev.driver_id, ev.rider_id);
+    const rider = await this.fetchRiderProfile(ev.rider_id);
+
+    this.sendTo(ev.driver_id, {
+      type: "match_confirmed",
+      ride,
+      rider,
+    });
   }
 
   private async handleMessage(userId: string, raw: string): Promise<void> {
@@ -188,7 +267,7 @@ export class MatchingRoom implements DurableObject {
     }
     switch (ev.type) {
       case "driver_online":
-        this.handleDriverOnline(userId, ev);
+        await this.handleDriverOnline(userId, ev);
         break;
       case "rider_request":
         this.handleRiderRequest(userId, ev);
@@ -208,7 +287,7 @@ export class MatchingRoom implements DurableObject {
     ws.addEventListener("message", (event) => {
       const data = event.data;
       if (typeof data === "string") {
-        this.handleMessage(userId, data);
+        void this.handleMessage(userId, data);
       }
     });
 
