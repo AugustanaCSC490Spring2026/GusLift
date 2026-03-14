@@ -20,10 +20,10 @@ function getSupabaseWithAuth(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    //  Create supabase client with JWT from request
+
     const supabase = getSupabaseWithAuth(request);
 
-    // Get authenticated user from token
+
     const {
       data: { user },
       error: authError,
@@ -65,16 +65,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: userError.message }, { status: 500 });
     }
 
-   
+    // Upsert so re-registration updates the existing schedule instead of failing
     const { error: scheduleError } = await supabase
       .from("schedule")
-      .insert({
-        user_id: user.id,
-        is_driver: false,
-        days,
-        pickup_loc,
-        dropoff_loc,
-      });
+      .upsert(
+        {
+          user_id: user.id,
+          is_driver: false,
+          days,
+          pickup_loc,
+          dropoff_loc,
+        },
+        { onConflict: "user_id" }
+      );
 
     if (scheduleError) {
       return NextResponse.json(
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7️⃣ Success response
+   
     return NextResponse.json(
       { message: "Rider registered successfully" },
       { status: 200 },
