@@ -34,6 +34,11 @@ yarn-error.log*
 .env*
 apps/backend/.env*
 apps/matching-worker/.dev.vars
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
 
 # vercel
 .vercel
@@ -41,3 +46,15 @@ apps/matching-worker/.dev.vars
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Supabase / backend env
+apps/backend/.env
+
+# Expo / build artifacts
+.expo/
+apps/mobile/.expo/
+apps/backend/.next/
+
+# Local editor config
+.idea/
