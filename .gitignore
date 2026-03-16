@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+apps/backend/.next/
 
 # production
 /build
@@ -31,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+apps/backend/.env*
+apps/matching-worker/.dev.vars
 .env
 .env.local
 .env.*.local
@@ -43,3 +46,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Supabase / backend env
+apps/backend/.env
+
+# Expo / build artifacts
+.expo/
+apps/mobile/.expo/
+apps/backend/.next/
+
+# Local editor config
+.idea/
