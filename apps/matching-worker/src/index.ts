@@ -1,7 +1,7 @@
 import { authenticateRequest } from "./auth";
 import { fetchUserAndSchedule, type Env } from "./db";
-import { resolveMatchingSlotWithOverride, SlotResolveError } from "./slotResolver";
 import { MatchingRoom } from "./durableObjects/MatchingRoom";
+import { resolveMatchingSlotWithOverride, SlotResolveError } from "./slotResolver";
 
 export { MatchingRoom };
 

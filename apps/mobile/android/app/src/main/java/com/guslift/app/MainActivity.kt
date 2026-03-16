@@ -1,4 +1,4 @@
-package com.anonymous.guslift
+package com.guslift.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

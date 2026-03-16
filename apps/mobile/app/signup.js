@@ -84,6 +84,8 @@ export default function Signup() {
         return;
       }
 
+      console.log("Google user signed in:", data?.id);
+
       await AsyncStorage.setItem(
         "@user",
         JSON.stringify({ ...data, savedAt: Date.now() })
