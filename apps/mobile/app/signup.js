@@ -77,6 +77,12 @@ export default function Signup() {
           return;
         }
 
+        // Log any previously saved Google user id so engineers can grab it.
+        if (parsed?.id) {
+          // eslint-disable-next-line no-console
+          console.log("[GusLift] Existing Google user id (from storage):", parsed.id);
+        }
+
         const sevenDays = 7 * 24 * 60 * 60 * 1000;
         const isExpired = Date.now() - parsed.savedAt > sevenDays;
         if (!isExpired) {
@@ -112,6 +118,12 @@ export default function Signup() {
       const data = await res.json();
       const email = (data?.email || "").toLowerCase();
 
+      // Log the Google user id (sub) for debugging / seeding.
+      if (data?.id) {
+        // eslint-disable-next-line no-console
+        console.log("[GusLift] Google user id (sub):", data.id);
+      }
+
       if (!email.endsWith(`@${SCHOOL_DOMAIN}`)) {
         setLoading(false);
         setDeniedEmail(data.email);
@@ -125,6 +137,15 @@ export default function Signup() {
         "@user",
         JSON.stringify({ ...data, savedAt: Date.now() }),
       );
+
+      // Surface the id once to make it very easy to copy.
+      if (data?.id) {
+        Alert.alert(
+          "Google user id",
+          `Copy this id for seeding:\n\n${data.id}`,
+          [{ text: "OK" }],
+        );
+      }
 
       setLoading(false);
       router.replace("/role");
