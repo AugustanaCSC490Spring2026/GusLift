@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to GusLift!</Text>
-      <Text style={styles.subtitle}>You're signed in.</Text>
+      <Text style={styles.subtitle}>You&apos;re signed in.</Text>
     </View>
   );
 }
