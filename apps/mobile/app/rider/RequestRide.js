@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -27,9 +28,7 @@ export default function RequestRide() {
   const [manualTime, setManualTime] = useState("");
   const [manualFieldError, setManualFieldError] = useState(null);
 
-  useEffect(() => {
-    loadSchedule();
-  }, []);
+  useEffect(() => { loadSchedule(); }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -63,7 +62,7 @@ export default function RequestRide() {
       setDropoffLoc(scheduleData?.[0]?.dropoff_loc ?? null);
       setResidence(userData?.[0]?.residence ?? null);
     } catch (_) {
-      // leave blank
+      /* leave blank */
     } finally {
       setLoading(false);
     }
@@ -116,6 +115,8 @@ export default function RequestRide() {
       </View>
     );
   }
+
+  const isSetupComplete = pickupLoc && dropoffLoc;
 
   return (
     <View style={styles.outer}>
@@ -343,20 +344,28 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 16,
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 },
+
+  body: { flex: 1, padding: 20, gap: 14 },
+
+  // Trip card
+  tripCard: {
+    backgroundColor: "#fff", borderRadius: 18, padding: 20,
+    borderWidth: 1, borderColor: "#f0f0f0",
+    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
+  tripRow: { flexDirection: "row", gap: 14, paddingVertical: 10 },
+  tripDotWrap: { width: 20, alignItems: "center", paddingTop: 3 },
+  tripDotFilled: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#1a3a6b" },
+  tripLine: {
+    width: 2, flex: 1, backgroundColor: "#e2e8f0",
+    marginTop: 4, marginBottom: -10, minHeight: 28,
   },
-  label: {
-    fontSize: 15,
-    color: "#6b7280",
-    fontWeight: "500",
+  tripDotOutline: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 2, borderColor: "#1a3a6b",
   },
   value: {
     fontSize: 15,
@@ -378,4 +387,23 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
   },
+  infoText: { flex: 1, fontSize: 13, color: "#3b4e7a", lineHeight: 19 },
+
+  // Edit link
+  editLink: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    alignSelf: "flex-start", paddingVertical: 4,
+  },
+  editLinkText: { fontSize: 13, color: "#1a3a6b", fontWeight: "600" },
+
+  // Footer
+  footer: { padding: 20, paddingBottom: 36 },
+  requestBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: "#1a3a6b", borderRadius: 16, paddingVertical: 17, gap: 10,
+    shadowColor: "#1a3a6b", shadowOpacity: 0.35, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 }, elevation: 7,
+  },
+  requestBtnDisabled: { opacity: 0.45 },
+  requestBtnText: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },
 });

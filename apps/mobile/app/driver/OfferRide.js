@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -10,26 +11,19 @@ import {
   View,
 } from "react-native";
 
-
-
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-function getCurrentWeekday() {
-  return WEEKDAYS[new Date().getUTCDay()];
-}
+function getCurrentWeekday() { return WEEKDAYS[new Date().getUTCDay()]; }
 
 function subtractMinutes(timeStr, minutes) {
   const [h, m] = timeStr.split(":").map(Number);
   const total = h * 60 + m - minutes;
   const clipped = Math.max(0, total);
-  const hh = String(Math.floor(clipped / 60)).padStart(2, "0");
-  const mm = String(clipped % 60).padStart(2, "0");
-  return `${hh}:${mm}`;
+  return `${String(Math.floor(clipped / 60)).padStart(2, "0")}:${String(clipped % 60).padStart(2, "0")}`;
 }
 
 function formatTime12h(timeStr) {
@@ -49,9 +43,7 @@ export default function OfferRide() {
   const [classEnd, setClassEnd] = useState(null);
   const [pickupTime, setPickupTime] = useState("");
 
-  useEffect(() => {
-    loadSchedule();
-  }, []);
+  useEffect(() => { loadSchedule(); }, []);
 
   async function loadSchedule() {
     try {
@@ -116,13 +108,12 @@ export default function OfferRide() {
       const todaySchedule = days?.[today];
       const startTime = todaySchedule?.start_time ?? null;
       const endTime = todaySchedule?.end_time ?? null;
-
       setFrom(residence);
       setClassStart(startTime);
       setClassEnd(endTime);
       setPickupTime(startTime ? subtractMinutes(startTime, 15) : "");
     } catch (_) {
-      // leave defaults blank
+      /* leave defaults */
     } finally {
       setLoading(false);
     }
@@ -131,12 +122,7 @@ export default function OfferRide() {
   function handleOffer() {
     router.push({
       pathname: "/driver/DriverWaitingRoom",
-      params: {
-        from: from ?? "",
-        pickupTime,
-        classStart: classStart ?? "",
-        classEnd: classEnd ?? "",
-      },
+      params: { from: from ?? "", pickupTime, classStart: classStart ?? "", classEnd: classEnd ?? "" },
     });
   }
 
@@ -148,173 +134,194 @@ export default function OfferRide() {
     );
   }
 
-
   return (
-    <View style={styles.container}>
-      {/* X button top left */}
-      <TouchableOpacity
-        onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.replace("/home");
-          }
-        }}
-        style={styles.closeButton}
-      >
-        <Text style={styles.closeText}>✕</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.header}>Offer a Ride</Text>
-
-      <View style={styles.card}>
-        {/* From */}
-        <View style={styles.row}>
-          <Text style={styles.label}>From</Text>
-          <Text style={styles.value}>{from ?? "—"}</Text>
+    <View style={styles.root}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/home");
+              }
+            }}
+            style={styles.backBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="chevron-back" size={20} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Offer a Ride</Text>
+          <View style={{ width: 36 }} />
         </View>
-        <View style={styles.divider} />
+        <Text style={styles.headerSub}>Today's trip details</Text>
+      </View>
 
-        {/* Class Starts */}
-        <View style={styles.row}>
-          <Text style={styles.label}>Class Starts</Text>
-          <Text style={styles.value}>{formatTime12h(classStart)}</Text>
+      {/* Trip card */}
+      <View style={styles.body}>
+        <View style={styles.tripCard}>
+          {/* From */}
+          <View style={styles.tripRow}>
+            <View style={styles.tripDotWrap}>
+              <View style={styles.tripDotFilled} />
+              <View style={styles.tripLine} />
+            </View>
+            <View style={styles.tripInfo}>
+              <Text style={styles.tripRowLabel}>Pickup from</Text>
+              <Text style={styles.tripRowValue}>{from ?? "—"}</Text>
+            </View>
+          </View>
+
+          {/* To */}
+          <View style={styles.tripRow}>
+            <View style={styles.tripDotWrap}>
+              <View style={styles.tripDotOutline} />
+            </View>
+            <View style={styles.tripInfo}>
+              <Text style={styles.tripRowLabel}>Drop off at</Text>
+              <Text style={styles.tripRowValue}>Augustana College</Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.divider} />
 
-        {/* Class End */}
-        <View style={styles.row}>
-          <Text style={styles.label}>Class End</Text>
-          <Text style={styles.value}>{formatTime12h(classEnd)}</Text>
+        {/* Times card */}
+        <View style={styles.timesCard}>
+          <View style={styles.timeRow}>
+            <View style={styles.timeIconWrap}>
+              <Ionicons name="school-outline" size={18} color="#1a3a6b" />
+            </View>
+            <View style={styles.timeInfo}>
+              <Text style={styles.timeLabel}>Class window</Text>
+              <Text style={styles.timeValue}>
+                {formatTime12h(classStart)} → {formatTime12h(classEnd)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.timeDivider} />
+
+          <View style={styles.timeRow}>
+            <View style={styles.timeIconWrap}>
+              <Ionicons name="time-outline" size={18} color="#1a3a6b" />
+            </View>
+            <View style={styles.timeInfo}>
+              <Text style={styles.timeLabel}>Pick up riders at</Text>
+              <TextInput
+                style={styles.timeInput}
+                value={pickupTime}
+                onChangeText={setPickupTime}
+                placeholder="HH:MM"
+                placeholderTextColor="#94a3b8"
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+            <Text style={styles.editHint}>Edit</Text>
+          </View>
         </View>
-        <View style={styles.divider} />
 
-        {/* Pick Up Time — editable */}
-        <View style={styles.row}>
-          <Text style={styles.label}>Pick Up Time</Text>
-          <TextInput
-            style={styles.input}
-            value={pickupTime}
-            onChangeText={setPickupTime}
-            placeholder="HH:MM"
-            placeholderTextColor="#9ca3af"
-            keyboardType="numbers-and-punctuation"
-          />
+        {/* Info note */}
+        <View style={styles.noteRow}>
+          <Ionicons name="information-circle-outline" size={15} color="#64748b" />
+          <Text style={styles.noteText}>
+            Riders will be matched based on your location and pickup time.
+          </Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.offerButton}
-        onPress={handleOffer}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.offerButtonText}>Offer Ride</Text>
-      </TouchableOpacity>
+      {/* CTA */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.offerBtn} onPress={handleOffer} activeOpacity={0.88}>
+          <Ionicons name="navigate" size={20} color="#fff" />
+          <Text style={styles.offerBtnText}>Offer Ride</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f6f1",
-    padding: 24,
-    paddingTop: 56,
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f8f6f1",
-    padding: 24,
-    gap: 12,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  closeText: {
-    fontSize: 16,
-    color: "#374151",
-    fontWeight: "600",
-  },
+  root: { flex: 1, backgroundColor: "#f7f5f0" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f7f5f0" },
+
+  // Header
   header: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 24,
+    backgroundColor: "#0f1f3d", paddingTop: 56,
+    paddingHorizontal: 20, paddingBottom: 24, gap: 4, overflow: "hidden",
   },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    marginBottom: 32,
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center", justifyContent: "center",
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 },
+
+  // Body
+  body: { flex: 1, padding: 20, gap: 14 },
+
+  // Trip card (Uber-style vertical line)
+  tripCard: {
+    backgroundColor: "#fff", borderRadius: 18, padding: 20, gap: 0,
+    borderWidth: 1, borderColor: "#f0f0f0",
+    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
+  tripRow: { flexDirection: "row", gap: 14, paddingVertical: 10 },
+  tripDotWrap: { width: 20, alignItems: "center", paddingTop: 3 },
+  tripDotFilled: {
+    width: 12, height: 12, borderRadius: 6, backgroundColor: "#1a3a6b",
   },
-  label: {
-    fontSize: 15,
-    color: "#6b7280",
-    fontWeight: "500",
+  tripLine: {
+    width: 2, flex: 1, backgroundColor: "#e2e8f0",
+    marginTop: 4, marginBottom: -10, minHeight: 28,
   },
-  value: {
-    fontSize: 15,
-    color: "#1f2937",
-    fontWeight: "600",
-    maxWidth: "60%",
-    textAlign: "right",
+  tripDotOutline: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 2, borderColor: "#1a3a6b",
   },
-  input: {
-    fontSize: 15,
-    color: "#1a3a6b",
-    fontWeight: "600",
-    textAlign: "right",
-    minWidth: 70,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1a3a6b",
-    paddingBottom: 2,
+  tripInfo: { flex: 1, gap: 2 },
+  tripRowLabel: { fontSize: 11, fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 },
+  tripRowValue: { fontSize: 16, fontWeight: "700", color: "#0a1628" },
+
+  // Times card
+  timesCard: {
+    backgroundColor: "#fff", borderRadius: 18, padding: 18,
+    borderWidth: 1, borderColor: "#f0f0f0",
+    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
-  offerButton: {
-    backgroundColor: "#1a3a6b",
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: "center",
+  timeRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  timeIconWrap: {
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: "#eef2ff", alignItems: "center", justifyContent: "center",
   },
-  offerButtonDisabled: {
-    opacity: 0.6,
+  timeInfo: { flex: 1 },
+  timeLabel: { fontSize: 11, fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 },
+  timeValue: { fontSize: 16, fontWeight: "700", color: "#0a1628", marginTop: 2 },
+  timeInput: {
+    fontSize: 16, fontWeight: "700", color: "#1a3a6b", marginTop: 2,
+    borderBottomWidth: 1.5, borderBottomColor: "#1a3a6b", paddingBottom: 2,
   },
-  offerButtonText: {
-    color: "#ffffff",
-    fontSize: 17,
-    fontWeight: "700",
+  editHint: { fontSize: 12, color: "#94a3b8", fontWeight: "500" },
+  timeDivider: { height: 1, backgroundColor: "#f1f5f9", marginVertical: 14 },
+
+  // Note
+  noteRow: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: "#f8faff", borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: "#e0e8ff",
   },
-  successTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1f2937",
+  noteText: { flex: 1, fontSize: 12, color: "#64748b", lineHeight: 18 },
+
+  // Footer
+  footer: { padding: 20, paddingBottom: 36 },
+  offerBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: "#1a3a6b", borderRadius: 16, paddingVertical: 17, gap: 10,
+    shadowColor: "#1a3a6b", shadowOpacity: 0.35, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 }, elevation: 7,
   },
-  successSub: {
-    fontSize: 15,
-    color: "#4b5563",
-    textAlign: "center",
-  },
+  offerBtnText: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },
 });

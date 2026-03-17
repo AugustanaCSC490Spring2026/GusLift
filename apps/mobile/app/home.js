@@ -2,7 +2,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function Home() {
   const router = useRouter();
@@ -21,444 +27,372 @@ export default function Home() {
         setDriverSetupComplete(Boolean(parsed?.driverSetupComplete));
         setRiderSetupComplete(Boolean(parsed?.riderSetupComplete));
         setUserName(parsed?.given_name ?? parsed?.name?.split(" ")[0] ?? null);
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     }
     loadUser();
   }, []);
 
-  const isDriver = role === "driver";
-  const isRider = role === "rider";
-
   function getGreeting() {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
     return "Good evening";
   }
 
+  function getFormattedDate() {
+    const now = new Date();
+    return now.toLocaleDateString("en-US", {
+      weekday: "long", month: "short", day: "numeric",
+    });
+  }
+
+  const isDriver = role === "driver";
+  const isRider = role === "rider";
+
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
+    <View style={styles.root}>
+      {/* ── Dark header ── */}
       <View style={styles.header}>
+        <View style={styles.circle1} />
+        <View style={styles.circle2} />
+
         <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.greeting}>
-              {getGreeting()}{userName ? `, ${userName}` : ""}
-            </Text>
-            <Text style={styles.subGreeting}>Where are you headed today?</Text>
+          <View style={styles.logoMark}>
+            <Ionicons name="car-sport" size={18} color="#fff" />
           </View>
-          <View style={styles.logoMini}>
-            <Ionicons name="car-sport" size={20} color="#ffffff" />
-          </View>
+          <Text style={styles.dateText}>{getFormattedDate()}</Text>
         </View>
 
+        <Text style={styles.greeting}>
+          {getGreeting()}{userName ? `,` : ""}
+        </Text>
+        {userName && <Text style={styles.greetingName}>{userName} 👋</Text>}
+
         {role && (
-          <View style={styles.roleBadge}>
-            <Ionicons
-              name={isDriver ? "car-sport-outline" : "walk-outline"}
-              size={13}
-              color="#1a3a6b"
-            />
-            <Text style={styles.roleBadgeText}>
-              {isDriver ? "Driver" : "Rider"}
-            </Text>
+          <View style={styles.rolePill}>
+            <View style={[styles.roleDot, { backgroundColor: isDriver ? "#22c55e" : "#4f8ef7" }]} />
+            <Text style={styles.rolePillText}>{isDriver ? "Driver" : "Rider"}</Text>
           </View>
         )}
       </View>
 
-      {/* Driver actions */}
-      {isDriver && (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Your actions</Text>
-          <View style={styles.cards}>
-            <TouchableOpacity
-              style={styles.primaryCard}
-              onPress={() => router.push("/driver/OfferRide")}
-              activeOpacity={0.85}
-            >
-              <View style={styles.primaryCardIcon}>
-                <Ionicons name="navigate" size={26} color="#ffffff" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.primaryCardTitle}>Offer a Ride</Text>
-                <Text style={styles.primaryCardSub}>
-                  Go online and match with riders heading to campus
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.6)" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryCard}
-              onPress={() => router.push("/driver/DriverSetup")}
-              activeOpacity={0.85}
-            >
-              <View style={styles.secondaryCardIcon}>
-                <Ionicons
-                  name={driverSetupComplete ? "checkmark-circle" : "settings-outline"}
-                  size={24}
-                  color={driverSetupComplete ? "#22c55e" : "#1a3a6b"}
-                />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.secondaryCardTitle}>
-                  {driverSetupComplete ? "Update Driver Profile" : "Complete Driver Setup"}
-                </Text>
-                <Text style={styles.secondaryCardSub}>
-                  {driverSetupComplete
-                    ? "Edit your vehicle info or schedule"
-                    : "Add your car details and availability"}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryCard}
-              onPress={() => router.push("/driver/ScheduledRidesDriver")}
-              activeOpacity={0.85}
-            >
-              <View style={styles.secondaryCardIcon}>
-                <Ionicons name="calendar-outline" size={24} color="#1a3a6b" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.secondaryCardTitle}>Upcoming Rides</Text>
-                <Text style={styles.secondaryCardSub}>
-                  View your confirmed rides for the week
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Rider actions */}
-      {isRider && (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Your actions</Text>
-          <View style={styles.cards}>
-            {!riderSetupComplete && (
+      {/* ── Light body ── */}
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── DRIVER FLOW ── */}
+        {isDriver && (
+          <>
+            {/* Setup warning */}
+            {!driverSetupComplete && (
               <TouchableOpacity
-                style={styles.setupPromptCard}
-                onPress={() => router.push("/rider/RiderSetup")}
+                style={styles.warningBanner}
+                onPress={() => router.push("/driver/DriverSetup")}
                 activeOpacity={0.85}
               >
-                <View style={styles.setupPromptIcon}>
-                  <Ionicons name="alert-circle" size={22} color="#d97706" />
-                </View>
-                <View style={styles.cardContent}>
-                  <Text style={styles.setupPromptTitle}>Complete Rider Setup</Text>
-                  <Text style={styles.setupPromptSub}>
-                    Add your pickup location and schedule to start getting rides
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#d97706" />
+                <Ionicons name="alert-circle" size={18} color="#d97706" />
+                <Text style={styles.warningBannerText}>
+                  Complete your driver setup to start offering rides
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#d97706" />
               </TouchableOpacity>
             )}
 
+            {/* Primary CTA */}
             <TouchableOpacity
               style={styles.primaryCard}
+              onPress={() => router.push("/driver/OfferRide")}
+              activeOpacity={0.88}
+            >
+              <View style={styles.primaryCardInner}>
+                <View style={styles.primaryIconWrap}>
+                  <Ionicons name="navigate" size={28} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.primaryCardLabel}>Ready to drive?</Text>
+                  <Text style={styles.primaryCardTitle}>Go Online</Text>
+                  <Text style={styles.primaryCardSub}>
+                    Match with riders heading to campus
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.primaryCardFooter}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.onlineText}>Tap to go online</Text>
+                <Ionicons name="arrow-forward-circle" size={22} color="rgba(255,255,255,0.7)" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Secondary grid */}
+            <View style={styles.grid}>
+              <TouchableOpacity
+                style={styles.gridCard}
+                onPress={() => router.push("/driver/DriverSetup")}
+                activeOpacity={0.85}
+              >
+                <View style={styles.gridIconWrap}>
+                  <Ionicons
+                    name={driverSetupComplete ? "checkmark-circle" : "settings-outline"}
+                    size={22}
+                    color={driverSetupComplete ? "#22c55e" : "#1a3a6b"}
+                  />
+                </View>
+                <Text style={styles.gridCardTitle}>
+                  {driverSetupComplete ? "My Profile" : "Setup"}
+                </Text>
+                <Text style={styles.gridCardSub}>
+                  {driverSetupComplete ? "Edit vehicle & schedule" : "Add vehicle info"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.gridCard}
+                onPress={() => router.push("/driver/ScheduledRidesDriver")}
+                activeOpacity={0.85}
+              >
+                <View style={styles.gridIconWrap}>
+                  <Ionicons name="calendar-outline" size={22} color="#1a3a6b" />
+                </View>
+                <Text style={styles.gridCardTitle}>My Rides</Text>
+                <Text style={styles.gridCardSub}>View upcoming rides</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* ── RIDER FLOW ── */}
+        {isRider && (
+          <>
+            {/* Setup warning */}
+            {!riderSetupComplete && (
+              <TouchableOpacity
+                style={styles.warningBanner}
+                onPress={() => router.push("/rider/RiderSetup")}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="alert-circle" size={18} color="#d97706" />
+                <Text style={styles.warningBannerText}>
+                  Add your pickup location to start requesting rides
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#d97706" />
+              </TouchableOpacity>
+            )}
+
+            {/* Uber-style "Where to?" */}
+            <TouchableOpacity
+              style={styles.whereToBtn}
               onPress={() => router.push("/rider/RequestRide")}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
             >
-              <View style={styles.primaryCardIcon}>
-                <Ionicons name="location" size={26} color="#ffffff" />
+              <View style={styles.whereToIcon}>
+                <Ionicons name="search" size={20} color="#1a3a6b" />
               </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.primaryCardTitle}>Request a Ride</Text>
-                <Text style={styles.primaryCardSub}>
-                  Find a driver heading to campus right now
-                </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.whereToLabel}>Where to?</Text>
+                <Text style={styles.whereToSub}>Request a ride to campus</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.6)" />
+              <View style={styles.whereToArrow}>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+              </View>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.secondaryCard}
-              onPress={() => router.push("/rider/RiderSetup")}
-              activeOpacity={0.85}
-            >
-              <View style={styles.secondaryCardIcon}>
-                <Ionicons
-                  name={riderSetupComplete ? "checkmark-circle" : "settings-outline"}
-                  size={24}
-                  color={riderSetupComplete ? "#22c55e" : "#1a3a6b"}
-                />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.secondaryCardTitle}>
-                  {riderSetupComplete ? "Update Rider Profile" : "Rider Setup"}
+            {/* Secondary grid */}
+            <View style={styles.grid}>
+              <TouchableOpacity
+                style={styles.gridCard}
+                onPress={() => router.push("/rider/RiderSetup")}
+                activeOpacity={0.85}
+              >
+                <View style={styles.gridIconWrap}>
+                  <Ionicons
+                    name={riderSetupComplete ? "checkmark-circle" : "settings-outline"}
+                    size={22}
+                    color={riderSetupComplete ? "#22c55e" : "#1a3a6b"}
+                  />
+                </View>
+                <Text style={styles.gridCardTitle}>
+                  {riderSetupComplete ? "My Profile" : "Setup"}
                 </Text>
-                <Text style={styles.secondaryCardSub}>
-                  {riderSetupComplete
-                    ? "Edit your pickup location or schedule"
-                    : "Set your pickup location and schedule"}
+                <Text style={styles.gridCardSub}>
+                  {riderSetupComplete ? "Edit pickup & schedule" : "Add pickup info"}
                 </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-            </TouchableOpacity>
+              </TouchableOpacity>
 
+              <TouchableOpacity
+                style={styles.gridCard}
+                onPress={() => router.push("/rider/ScheduledRidesRider")}
+                activeOpacity={0.85}
+              >
+                <View style={styles.gridIconWrap}>
+                  <Ionicons name="calendar-outline" size={22} color="#1a3a6b" />
+                </View>
+                <Text style={styles.gridCardTitle}>My Rides</Text>
+                <Text style={styles.gridCardSub}>View upcoming rides</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* ── NO ROLE ── */}
+        {!role && (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="person-circle-outline" size={52} color="#cbd5e1" />
+            </View>
+            <Text style={styles.emptyTitle}>Choose your role</Text>
+            <Text style={styles.emptySub}>
+              Tell us how you'll be using GusLift
+            </Text>
             <TouchableOpacity
-              style={styles.secondaryCard}
-              onPress={() => router.push("/rider/ScheduledRidesRider")}
+              style={styles.emptyBtn}
+              onPress={() => router.replace("/role")}
               activeOpacity={0.85}
             >
-              <View style={styles.secondaryCardIcon}>
-                <Ionicons name="calendar-outline" size={24} color="#1a3a6b" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.secondaryCardTitle}>Upcoming Rides</Text>
-                <Text style={styles.secondaryCardSub}>
-                  View your confirmed rides for the week
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+              <Text style={styles.emptyBtnText}>Get Started</Text>
+              <Ionicons name="arrow-forward" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
-        </View>
-      )}
-
-      {/* Not set up yet */}
-      {!role && (
-        <View style={styles.emptyState}>
-          <Ionicons name="person-circle-outline" size={56} color="#cbd5e1" />
-          <Text style={styles.emptyTitle}>You're signed in</Text>
-          <Text style={styles.emptySub}>
-            Go back and choose your role to get started.
-          </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
-            onPress={() => router.replace("/role")}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.emptyButtonText}>Choose Role</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </ScrollView>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: "#f8f6f1",
-  },
-  container: {
-    padding: 24,
-    paddingTop: 56,
-    paddingBottom: 40,
-    gap: 28,
-  },
+  root: { flex: 1, backgroundColor: "#f7f5f0" },
 
   // Header
   header: {
-    gap: 12,
+    backgroundColor: "#0f1f3d",
+    paddingTop: 56,
+    paddingHorizontal: 24,
+    paddingBottom: 28,
+    gap: 4,
+    overflow: "hidden",
+  },
+  circle1: {
+    position: "absolute", width: 260, height: 260, borderRadius: 130,
+    backgroundColor: "rgba(79,142,247,0.08)", top: -60, right: -60,
+  },
+  circle2: {
+    position: "absolute", width: 160, height: 160, borderRadius: 80,
+    backgroundColor: "rgba(255,255,255,0.03)", bottom: -40, left: 20,
   },
   headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between", marginBottom: 12,
   },
-  greeting: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#0f172a",
-    letterSpacing: -0.3,
+  logoMark: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "#1a3a6b", alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  subGreeting: {
-    fontSize: 15,
-    color: "#64748b",
-    marginTop: 2,
+  dateText: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontWeight: "500" },
+  greeting: { fontSize: 16, color: "rgba(255,255,255,0.6)", fontWeight: "500" },
+  greetingName: {
+    fontSize: 30, fontWeight: "800", color: "#ffffff",
+    letterSpacing: -0.5, marginTop: 2,
   },
-  logoMini: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: "#1a3a6b",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#1a3a6b",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+  rolePill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 5, paddingHorizontal: 12,
+    borderRadius: 999, alignSelf: "flex-start", marginTop: 10,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#dbeafe",
-    paddingVertical: 5,
-    paddingHorizontal: 11,
-    borderRadius: 999,
-    alignSelf: "flex-start",
-  },
-  roleBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#1a3a6b",
-  },
+  roleDot: { width: 7, height: 7, borderRadius: 4 },
+  rolePillText: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
 
-  // Section
-  section: {
-    gap: 12,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#94a3b8",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  cards: {
-    gap: 12,
-  },
+  // Body
+  body: { flex: 1 },
+  bodyContent: { padding: 20, gap: 14, paddingBottom: 40 },
 
-  // Primary card (filled navy)
+  // Warning banner
+  warningBanner: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "#fffbeb", borderRadius: 14,
+    paddingVertical: 13, paddingHorizontal: 16,
+    borderWidth: 1.5, borderColor: "#fde68a",
+  },
+  warningBannerText: { flex: 1, fontSize: 13, color: "#92400e", fontWeight: "500", lineHeight: 18 },
+
+  // Primary driver card
   primaryCard: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "#1a3a6b",
-    borderRadius: 18,
-    padding: 20,
-    gap: 16,
-    shadowColor: "#1a3a6b",
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    borderRadius: 22, padding: 22, gap: 18,
+    shadowColor: "#1a3a6b", shadowOpacity: 0.35,
+    shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 8,
   },
-  primaryCardIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
+  primaryCardInner: { flexDirection: "row", gap: 16, alignItems: "flex-start" },
+  primaryIconWrap: {
+    width: 56, height: 56, borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
   },
-  primaryCardTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#ffffff",
+  primaryCardLabel: { fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8 },
+  primaryCardTitle: { fontSize: 24, fontWeight: "800", color: "#fff", letterSpacing: -0.3, marginTop: 2 },
+  primaryCardSub: { fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 3, lineHeight: 18 },
+  primaryCardFooter: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 14,
   },
-  primaryCardSub: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.68)",
-    lineHeight: 18,
-    marginTop: 2,
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22c55e" },
+  onlineText: { flex: 1, fontSize: 13, color: "rgba(255,255,255,0.55)", fontWeight: "500" },
+
+  // "Where to?" rider button
+  whereToBtn: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#fff", borderRadius: 18, padding: 18, gap: 14,
+    borderWidth: 1.5, borderColor: "#e2e8f0",
+    shadowColor: "#000", shadowOpacity: 0.06,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  },
+  whereToIcon: {
+    width: 48, height: 48, borderRadius: 14,
+    backgroundColor: "#eef2ff", alignItems: "center", justifyContent: "center",
+  },
+  whereToLabel: { fontSize: 20, fontWeight: "800", color: "#0a1628", letterSpacing: -0.3 },
+  whereToSub: { fontSize: 13, color: "#64748b", marginTop: 2 },
+  whereToArrow: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: "#1a3a6b", alignItems: "center", justifyContent: "center",
   },
 
-  // Secondary card (white)
-  secondaryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 18,
-    padding: 18,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: "#f0f0f0",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  // Grid
+  grid: { flexDirection: "row", gap: 12 },
+  gridCard: {
+    flex: 1, backgroundColor: "#fff", borderRadius: 18, padding: 16, gap: 6,
+    borderWidth: 1, borderColor: "#f0f0f0",
+    shadowColor: "#000", shadowOpacity: 0.04,
+    shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  secondaryCardIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#f0f4ff",
-    alignItems: "center",
-    justifyContent: "center",
+  gridIconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "#f0f4ff", alignItems: "center", justifyContent: "center",
+    marginBottom: 4,
   },
-  secondaryCardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0f172a",
-  },
-  secondaryCardSub: {
-    fontSize: 13,
-    color: "#64748b",
-    lineHeight: 18,
-    marginTop: 2,
-  },
-
-  cardContent: {
-    flex: 1,
-  },
-
-  // Setup prompt card
-  setupPromptCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fffbeb",
-    borderRadius: 18,
-    padding: 18,
-    gap: 14,
-    borderWidth: 1.5,
-    borderColor: "#fde68a",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  setupPromptIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#fef3c7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  setupPromptTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#92400e",
-  },
-  setupPromptSub: {
-    fontSize: 13,
-    color: "#b45309",
-    lineHeight: 18,
-    marginTop: 2,
-  },
+  gridCardTitle: { fontSize: 14, fontWeight: "700", color: "#0a1628" },
+  gridCardSub: { fontSize: 12, color: "#64748b", lineHeight: 17 },
 
   // Empty state
   emptyState: {
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 40,
+    alignItems: "center", gap: 10,
+    paddingVertical: 60,
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#0f172a",
+  emptyIconWrap: {
+    width: 80, height: 80, borderRadius: 24,
+    backgroundColor: "#f1f5f9", alignItems: "center", justifyContent: "center",
+    marginBottom: 4,
   },
-  emptySub: {
-    fontSize: 14,
-    color: "#64748b",
-    textAlign: "center",
-    lineHeight: 21,
+  emptyTitle: { fontSize: 22, fontWeight: "700", color: "#0a1628" },
+  emptySub: { fontSize: 14, color: "#64748b", textAlign: "center", lineHeight: 21 },
+  emptyBtn: {
+    marginTop: 8, flexDirection: "row", alignItems: "center",
+    backgroundColor: "#1a3a6b", paddingVertical: 13, paddingHorizontal: 28,
+    borderRadius: 14, gap: 8,
   },
-  emptyButton: {
-    marginTop: 8,
-    backgroundColor: "#1a3a6b",
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-  },
-  emptyButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
+  emptyBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
