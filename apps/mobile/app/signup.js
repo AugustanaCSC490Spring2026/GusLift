@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import { useRouter } from "expo-router";
@@ -14,9 +15,6 @@ import {
   View,
 } from "react-native";
 
-//Tech Tutorial Followed: https://www.youtube.com/watch?v=BDeKTPQzvR4&t=584s
-//Got help from Claude to handle errors properly for redirects and to check for stored user session on app load.
-
 WebBrowser.maybeCompleteAuthSession();
 const SCHOOL_DOMAIN = "augustana.edu";
 
@@ -29,8 +27,7 @@ export default function Signup() {
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
   const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
-  const webRedirectUriOverride =
-    process.env.EXPO_PUBLIC_GOOGLE_REDIRECT_URI_WEB;
+  const webRedirectUriOverride = process.env.EXPO_PUBLIC_GOOGLE_REDIRECT_URI_WEB;
   const platformClientId = Platform.select({
     web: webClientId,
     android: androidClientId,
@@ -76,13 +73,9 @@ export default function Signup() {
           await AsyncStorage.removeItem("@user");
           return;
         }
-
-        // Log any previously saved Google user id so engineers can grab it.
         if (parsed?.id) {
-          // eslint-disable-next-line no-console
           console.log("[GusLift] Existing Google user id (from storage):", parsed.id);
         }
-
         const sevenDays = 7 * 24 * 60 * 60 * 1000;
         const isExpired = Date.now() - parsed.savedAt > sevenDays;
         if (!isExpired) {
@@ -90,10 +83,6 @@ export default function Signup() {
             router.push("/role");
             return;
           }
-
-          // Always send returning users to the home screen.
-          // From there they can choose driver/rider flows,
-          // and we can show setup prompts without hard-locking navigation.
           router.replace("/home");
         } else {
           await AsyncStorage.removeItem("@user");
@@ -115,28 +104,20 @@ export default function Signup() {
       });
       const data = await res.json();
       const email = (data?.email || "").toLowerCase();
-
-      // Log the Google user id (sub) for debugging / seeding.
       if (data?.id) {
-        // eslint-disable-next-line no-console
         console.log("[GusLift] Google user id (sub):", data.id);
       }
-
       if (!email.endsWith(`@${SCHOOL_DOMAIN}`)) {
         setLoading(false);
         setDeniedEmail(data.email);
         setAccessDenied(true);
         return;
       }
-
       console.log("Google user signed in:", data?.id);
-
       await AsyncStorage.setItem(
         "@user",
         JSON.stringify({ ...data, savedAt: Date.now() }),
       );
-
-      // Surface the id once to make it very easy to copy.
       if (data?.id) {
         Alert.alert(
           "Google user id",
@@ -144,7 +125,6 @@ export default function Signup() {
           [{ text: "OK" }],
         );
       }
-
       setLoading(false);
       router.push("/role");
     } catch {
@@ -162,10 +142,7 @@ export default function Signup() {
         fetchUserInfo(token);
       } else {
         setLoading(false);
-        Alert.alert(
-          "Sign-in Error",
-          "No access token returned. Please try again.",
-        );
+        Alert.alert("Sign-in Error", "No access token returned. Please try again.");
       }
     }
     if (response?.type === "error") {
@@ -174,17 +151,20 @@ export default function Signup() {
     }
   }, [response, fetchUserInfo]);
 
-  // Wrong email screen
   if (accessDenied) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Sorry!</Text>
-        <Text style={styles.subtitle}>
-          {deniedEmail} is not associated with @{SCHOOL_DOMAIN}.{"\n\n"}
-          Please sign in with your Augie email.
+        <View style={styles.errorIconWrap}>
+          <Ionicons name="lock-closed-outline" size={40} color="#1a3a6b" />
+        </View>
+        <Text style={styles.errorTitle}>Access Restricted</Text>
+        <Text style={styles.errorBody}>
+          <Text style={styles.errorEmail}>{deniedEmail}</Text>
+          {" "}is not an Augustana email.{"\n"}Please sign in with your{" "}
+          <Text style={styles.errorHighlight}>@augustana.edu</Text> account.
         </Text>
         <TouchableOpacity
-          style={styles.button}
+          style={styles.retryButton}
           onPress={() => {
             setAccessDenied(false);
             setDeniedEmail("");
@@ -192,65 +172,83 @@ export default function Signup() {
           }}
           activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>Try Again with Augie Email</Text>
+          <Ionicons name="refresh-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+          <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // Sign up screen
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign Up</Text>
-      <Text style={styles.subtitle}>
-        Sign in with your Augustana Google account.
-      </Text>
-      {isGoogleClientMissing ? (
-        <Text style={styles.errorText}>
-          Google sign-in is not configured for {platformName}. Set{" "}
-          {expectedClientEnvVar} in apps/mobile/.env and restart Expo.
-        </Text>
-      ) : !request ? (
-        <Text style={styles.errorText}>
-          Preparing Google sign-in request...
-        </Text>
-      ) : null}
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={async () => {
-          if (isGoogleClientMissing) {
-            Alert.alert(
-              "Configuration Error",
-              `Missing ${expectedClientEnvVar} for ${platformName}. Add it in apps/mobile/.env and restart Expo with --clear.`,
-            );
-            return;
-          }
+      {/* Brand hero */}
+      <View style={styles.hero}>
+        <View style={styles.logoWrap}>
+          <Ionicons name="car-sport" size={36} color="#ffffff" />
+        </View>
+        <Text style={styles.brand}>GusLift</Text>
+        <Text style={styles.tagline}>Rides for Augustana, by Augustana</Text>
+      </View>
 
-          if (!request) {
-            Alert.alert(
-              "Google Sign-In Not Ready",
-              "Auth request is still initializing. If this keeps happening, restart Expo with --clear and verify your Google OAuth redirect settings.",
-            );
-            return;
-          }
+      {/* Auth card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Welcome back</Text>
+        <Text style={styles.cardSubtitle}>
+          Sign in with your Augustana Google account to continue.
+        </Text>
 
-          try {
-            setLoading(true);
-            await promptAsync();
-          } catch {
-            setLoading(false);
-            Alert.alert("Sign-in Error", "Could not start Google sign-in.");
-          }
-        }}
-        disabled={loading}
-        activeOpacity={0.8}
-      >
-        {loading ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text style={styles.buttonText}>Continue with Google</Text>
+        {isGoogleClientMissing && (
+          <View style={styles.warningBox}>
+            <Ionicons name="warning-outline" size={16} color="#92400e" />
+            <Text style={styles.warningText}>
+              Google sign-in not configured for {platformName}. Set{" "}
+              {expectedClientEnvVar} in .env and restart Expo.
+            </Text>
+          </View>
         )}
-      </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.googleButton, loading && styles.googleButtonDisabled]}
+          onPress={async () => {
+            if (isGoogleClientMissing) {
+              Alert.alert(
+                "Configuration Error",
+                `Missing ${expectedClientEnvVar} for ${platformName}.`,
+              );
+              return;
+            }
+            if (!request) {
+              Alert.alert("Not Ready", "Auth request is still initializing. Please wait.");
+              return;
+            }
+            try {
+              setLoading(true);
+              await promptAsync();
+            } catch {
+              setLoading(false);
+              Alert.alert("Sign-in Error", "Could not start Google sign-in.");
+            }
+          }}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <ActivityIndicator color="#1a3a6b" />
+          ) : (
+            <>
+              <View style={styles.googleIconWrap}>
+                <Ionicons name="logo-google" size={20} color="#4285F4" />
+              </View>
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.badge}>
+          <Ionicons name="shield-checkmark-outline" size={13} color="#1a3a6b" />
+          <Text style={styles.badgeText}>Restricted to @augustana.edu accounts</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -258,42 +256,179 @@ export default function Signup() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f8f6f1",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f6f1",
     padding: 24,
-    gap: 12,
+    gap: 24,
   },
-  title: {
-    fontSize: 28,
+
+  // Hero
+  hero: {
+    alignItems: "center",
+    gap: 10,
+  },
+  logoWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: "#1a3a6b",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#1a3a6b",
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  brand: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: "#0f172a",
+    letterSpacing: -0.5,
+  },
+  tagline: {
+    fontSize: 15,
+    color: "#64748b",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+
+  // Auth card
+  card: {
+    width: "100%",
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 24,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  cardTitle: {
+    fontSize: 20,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0f172a",
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 21,
+    marginTop: -8,
+  },
+
+  // Warning
+  warningBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#fef3c7",
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#92400e",
+    lineHeight: 18,
+  },
+
+  // Google button
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  googleIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: "#f8faff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+
+  // Badge
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginTop: -4,
+  },
+  badgeText: {
+    fontSize: 12,
+    color: "#64748b",
+  },
+
+  // Access denied
+  errorIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#0f172a",
     textAlign: "center",
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#4b5563",
+  errorBody: {
+    fontSize: 15,
+    color: "#64748b",
     textAlign: "center",
-    marginBottom: 14,
     lineHeight: 24,
   },
-  button: {
-    backgroundColor: "#1a3a6b",
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 10,
+  errorEmail: {
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+  errorHighlight: {
+    fontWeight: "600",
+    color: "#1a3a6b",
+  },
+  retryButton: {
+    flexDirection: "row",
     alignItems: "center",
-    width: "100%",
+    backgroundColor: "#1a3a6b",
+    paddingVertical: 13,
+    paddingHorizontal: 28,
+    borderRadius: 12,
   },
-  buttonDisabled: { opacity: 0.5 },
-  errorText: {
-    color: "#991b1b",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  buttonText: {
+  retryButtonText: {
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
   },
 });

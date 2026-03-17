@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,61 +19,25 @@ const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const FIELD_CONFIG = {
-  carModel: {
-    label: "Car Model",
-    placeholder: "Tap to enter make, model, year, and color",
+  residence: {
+    label: "Residence Hall / Home",
+    placeholder: "e.g. Andreen Hall, Off Campus",
+    icon: "home-outline",
     keyboardType: "default",
   },
-  licensePlate: {
-    label: "License Plate",
-    placeholder: "Tap to enter license plate",
+  pickupLoc: {
+    label: "Pickup Location",
+    placeholder: "e.g. Andreen Hall front entrance",
+    icon: "location-outline",
     keyboardType: "default",
   },
-  seatsAvailable: {
-    label: "Seats Available",
-    placeholder: "Tap to enter seats available",
-    keyboardType: "numeric",
-  },
-  residenceLocation: {
-    label: "Residence Hall / Off Campus",
-    placeholder: "Tap to enter residence hall or off-campus location",
+  dropoffLoc: {
+    label: "Dropoff Location",
+    placeholder: "e.g. Olin Center, Main entrance",
+    icon: "flag-outline",
     keyboardType: "default",
   },
 };
-
-const EMPTY_CAR_DETAILS = {
-  make: "",
-  model: "",
-  year: "",
-  color: "",
-};
-
-const CAR_DETAIL_FIELDS = [
-  {
-    key: "make",
-    label: "Make",
-    placeholder: "e.g. Toyota",
-    keyboardType: "default",
-  },
-  {
-    key: "model",
-    label: "Model",
-    placeholder: "e.g. Camry",
-    keyboardType: "default",
-  },
-  {
-    key: "year",
-    label: "Year",
-    placeholder: "e.g. 2021",
-    keyboardType: "numeric",
-  },
-  {
-    key: "color",
-    label: "Color",
-    placeholder: "e.g. Silver",
-    keyboardType: "default",
-  },
-];
 
 const WEEKDAY_FIELDS = [
   { key: "mon", label: "Monday" },
@@ -103,25 +67,27 @@ function cloneWeeklySchedule(schedule) {
   );
 }
 
-function buildCarSummary(details) {
-  const parts = [details?.year, details?.color, details?.make, details?.model]
-    .map((part) => (part || "").trim())
-    .filter(Boolean);
-  return parts.join(" ");
+function formatTime12h(timeValue) {
+  if (!timeValue) return "Select";
+  const [hoursRaw, minutesRaw] = String(timeValue).split(":");
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeValue;
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  return `${displayHour}:${String(minutes).padStart(2, "0")} ${period}`;
 }
 
-export default function DriverSetup() {
+export default function RiderSetup() {
   const router = useRouter();
 
-  const [carDetails, setCarDetails] = useState({ ...EMPTY_CAR_DETAILS });
-  const [carDetailsDraft, setCarDetailsDraft] = useState({
-    ...EMPTY_CAR_DETAILS,
-  });
-  const [licensePlate, setLicensePlate] = useState("");
-  const [seatsAvailable, setSeatsAvailable] = useState("");
-  const [residenceLocation, setResidenceLocation] = useState("");
+  const [residence, setResidence] = useState("");
+  const [pickupLoc, setPickupLoc] = useState("");
+  const [dropoffLoc, setDropoffLoc] = useState("");
+
   const [activeField, setActiveField] = useState(null);
   const [draftValue, setDraftValue] = useState("");
+
   const [weeklySchedule, setWeeklySchedule] = useState(() =>
     cloneWeeklySchedule(EMPTY_WEEKLY_SCHEDULE),
   );
@@ -132,58 +98,14 @@ export default function DriverSetup() {
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [activeTimeField, setActiveTimeField] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const submitInFlightRef = useRef(false);
-
-  const fieldValues = {
-    licensePlate,
-    seatsAvailable,
-    residenceLocation,
-  };
-  const carModel = buildCarSummary(carDetails);
-  const isCarDetailsComplete = Object.values(carDetails).every((value) =>
-    value.trim(),
-  );
 
   const scheduleEntryCount = Object.values(weeklySchedule).filter(
     (entry) => entry?.enabled && entry?.start_time && entry?.end_time,
   ).length;
 
-  function formatTime12h(timeValue) {
-    if (!timeValue) return "Select";
-    const [hoursRaw, minutesRaw] = String(timeValue).split(":");
-    const hours = Number(hoursRaw);
-    const minutes = Number(minutesRaw);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeValue;
-    const period = hours >= 12 ? "PM" : "AM";
-    const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-    return `${displayHour}:${String(minutes).padStart(2, "0")} ${period}`;
-  }
-
-  function openTimePicker(dayKey, field) {
-    setActiveTimeField({ dayKey, field });
-    setTimePickerVisible(true);
-  }
-
-  function selectTimeValue(value) {
-    if (!activeTimeField) return;
-    setScheduleDraft((prev) => ({
-      ...prev,
-      [activeTimeField.dayKey]: {
-        ...(prev[activeTimeField.dayKey] || {}),
-        [activeTimeField.field]: value,
-      },
-    }));
-    setTimePickerVisible(false);
-    setActiveTimeField(null);
-  }
+  const fieldValues = { residence, pickupLoc, dropoffLoc };
 
   function openFieldInput(fieldKey) {
-    if (fieldKey === "carModel") {
-      setCarDetailsDraft({ ...carDetails });
-      setActiveField(fieldKey);
-      return;
-    }
-
     setDraftValue(fieldValues[fieldKey] ?? "");
     setActiveField(fieldKey);
   }
@@ -191,40 +113,14 @@ export default function DriverSetup() {
   function closeFieldInput() {
     setActiveField(null);
     setDraftValue("");
-    setCarDetailsDraft({ ...carDetails });
   }
 
   function saveFieldInput() {
-    if (!activeField) {
-      return;
-    }
-
-    if (activeField === "carModel") {
-      const cleanedDetails = Object.fromEntries(
-        Object.entries(carDetailsDraft).map(([key, value]) => [
-          key,
-          value.trim(),
-        ]),
-      );
-      setCarDetails(cleanedDetails);
-      closeFieldInput();
-      return;
-    }
-
-    let value = draftValue.trim();
-    if (activeField === "seatsAvailable") {
-      // Keep seats as digits only so values like "4abc" never persist in UI state.
-      value = value.replace(/\D+/g, "");
-    }
-
-    if (activeField === "licensePlate") {
-      setLicensePlate(value);
-    } else if (activeField === "seatsAvailable") {
-      setSeatsAvailable(value);
-    } else if (activeField === "residenceLocation") {
-      setResidenceLocation(value);
-    }
-
+    if (!activeField) return;
+    const value = draftValue.trim();
+    if (activeField === "residence") setResidence(value);
+    else if (activeField === "pickupLoc") setPickupLoc(value);
+    else if (activeField === "dropoffLoc") setDropoffLoc(value);
     closeFieldInput();
   }
 
@@ -256,38 +152,35 @@ export default function DriverSetup() {
     setScheduleModalVisible(false);
   }
 
+  function openTimePicker(dayKey, field) {
+    setActiveTimeField({ dayKey, field });
+    setTimePickerVisible(true);
+  }
+
+  function selectTimeValue(value) {
+    if (!activeTimeField) return;
+    setScheduleDraft((prev) => ({
+      ...prev,
+      [activeTimeField.dayKey]: {
+        ...(prev[activeTimeField.dayKey] || {}),
+        [activeTimeField.field]: value,
+      },
+    }));
+    setTimePickerVisible(false);
+    setActiveTimeField(null);
+  }
+
   async function handleContinue() {
-    if (
-      !isCarDetailsComplete ||
-      !licensePlate.trim() ||
-      !seatsAvailable.trim() ||
-      !residenceLocation.trim()
-    ) {
-      Alert.alert("Missing info", "Please fill out all driver setup fields.");
+    if (!residence.trim() || !pickupLoc.trim() || !dropoffLoc.trim()) {
+      Alert.alert("Missing info", "Please fill out all fields.");
       return;
     }
 
     if (!BACKEND_URL) {
       Alert.alert(
         "Backend URL missing",
-        "Set BACKEND_URL in apps/mobile/.env and restart Expo.",
+        "Set EXPO_PUBLIC_BACKEND_URL in apps/mobile/.env and restart Expo.",
       );
-      return;
-    }
-
-    const seatsRaw = seatsAvailable.trim();
-    if (!/^\d+$/.test(seatsRaw)) {
-      Alert.alert("Invalid seats", "Seats available must be a whole number from 1 to 8.");
-      return;
-    }
-
-    const parsedSeats = Number(seatsRaw);
-    if (
-      Number.isNaN(parsedSeats) ||
-      parsedSeats < 1 ||
-      parsedSeats > 8
-    ) {
-      Alert.alert("Invalid seats", "Seats available must be a number from 1 to 8.");
       return;
     }
 
@@ -298,7 +191,7 @@ export default function DriverSetup() {
       if (!entry.start_time || !entry.end_time) {
         Alert.alert(
           "Missing schedule time",
-          "Each enabled day must have both start and end times selected.",
+          "Each enabled day needs both start and end times.",
         );
         return;
       }
@@ -311,21 +204,14 @@ export default function DriverSetup() {
     if (Object.keys(daysPayload).length === 0) {
       Alert.alert(
         "Missing schedule",
-        "Please enable at least one weekday and select its start/end times.",
+        "Please enable at least one weekday and set its times.",
       );
       return;
     }
 
-    if (submitInFlightRef.current) {
-      return;
-    }
-    submitInFlightRef.current = true;
-
-    let finishedOk = false;
     try {
       setSubmitting(true);
       const stored = await AsyncStorage.getItem("@user");
-
       if (!stored) {
         Alert.alert("Session missing", "Please sign in again.");
         router.replace("/signup");
@@ -335,82 +221,70 @@ export default function DriverSetup() {
       const parsed = JSON.parse(stored);
       const userId = String(parsed?.id || "").trim();
       if (!userId) {
-        Alert.alert("Session error", "Google user id is missing. Please sign in again.");
+        Alert.alert("Session error", "Google user id missing. Please sign in again.");
         router.replace("/signup");
         return;
       }
 
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
-      const formData = new FormData();
-      formData.append("userID", userId);
-      formData.append("name", String(parsed?.name || "").trim());
-      formData.append("residence", residenceLocation.trim());
-      formData.append("make", carDetails.make.trim());
-      formData.append("model", carDetails.model.trim());
-      formData.append("color", carDetails.color.trim());
-      formData.append("license_plate", licensePlate.trim());
-      formData.append("capacity", String(parsedSeats));
-      formData.append("is_driver", "true");
-      formData.append("days", JSON.stringify(daysPayload));
+      const payload = {
+        userID: userId,
+        name: String(parsed?.name || "").trim(),
+        residence: residence.trim(),
+        picture_url: parsed?.picture || null,
+        days: daysPayload,
+        pickup_loc: pickupLoc.trim(),
+        dropoff_loc: dropoffLoc.trim(),
+      };
 
-      const response = await fetch(`${normalizedBackendUrl}/api/driver`, {
+      const response = await fetch(`${normalizedBackendUrl}/api/rider`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       const responseBody = await response.json().catch(() => ({}));
       if (!response.ok) {
         const errorMessage =
-          responseBody?.error ||
-          responseBody?.details ||
-          "Failed to register driver profile.";
+          responseBody?.error || "Failed to register rider profile.";
         Alert.alert("Registration failed", String(errorMessage));
         return;
       }
 
-      const updated = {
-        ...parsed,
-        driverSetupComplete: true,
-      };
-
+      const updated = { ...parsed, riderSetupComplete: true };
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
-      finishedOk = true;
-      router.replace("/driver/OfferRide");
+      router.replace("/home");
     } catch {
-      Alert.alert("Error", "Could not save driver info. Try again.");
+      Alert.alert("Error", "Could not save rider info. Try again.");
     } finally {
-      submitInFlightRef.current = false;
-      if (!finishedOk) {
-        setSubmitting(false);
-      }
+      setSubmitting(false);
     }
   }
 
-  const FIELD_ICONS = {
-    carModel: "car-outline",
-    licensePlate: "card-outline",
-    seatsAvailable: "people-outline",
-    residenceLocation: "home-outline",
-  };
-
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Header */}
       <View style={styles.headerSection}>
         <View style={styles.headerIcon}>
-          <Ionicons name="car-sport" size={24} color="#ffffff" />
+          <Ionicons name="walk" size={24} color="#ffffff" />
         </View>
-        <Text style={styles.title}>Driver Setup</Text>
-        <Text style={styles.subtitle}>Tell us about your vehicle and availability.</Text>
+        <Text style={styles.title}>Rider Setup</Text>
+        <Text style={styles.subtitle}>
+          Tell us where you need rides so we can match you with drivers.
+        </Text>
       </View>
 
       {/* Fields */}
       <View style={styles.fieldsGroup}>
         {[
-          { key: "carModel", value: carModel },
-          { key: "licensePlate", value: licensePlate },
-          { key: "seatsAvailable", value: seatsAvailable },
-          { key: "residenceLocation", value: residenceLocation },
+          { key: "residence", value: residence },
+          { key: "pickupLoc", value: pickupLoc },
+          { key: "dropoffLoc", value: dropoffLoc },
         ].map(({ key, value }) => (
           <TouchableOpacity
             key={key}
@@ -420,7 +294,7 @@ export default function DriverSetup() {
           >
             <View style={[styles.fieldIconWrap, value && styles.fieldIconWrapFilled]}>
               <Ionicons
-                name={FIELD_ICONS[key]}
+                name={FIELD_CONFIG[key].icon}
                 size={18}
                 color={value ? "#1a3a6b" : "#94a3b8"}
               />
@@ -435,6 +309,7 @@ export default function DriverSetup() {
           </TouchableOpacity>
         ))}
 
+        {/* Schedule field */}
         <TouchableOpacity
           style={[styles.fieldButton, scheduleEntryCount > 0 && styles.fieldButtonFilled]}
           onPress={openScheduleInput}
@@ -452,20 +327,20 @@ export default function DriverSetup() {
             <Text style={[styles.fieldValue, scheduleEntryCount === 0 && styles.fieldPlaceholder]}>
               {scheduleEntryCount > 0
                 ? `${scheduleEntryCount} day${scheduleEntryCount > 1 ? "s" : ""} added`
-                : "Tap to add your semester schedule"}
+                : "Tap to set your class schedule"}
             </Text>
           </View>
-          {scheduleEntryCount > 0 && (
+          {scheduleEntryCount > 0 ? (
             <View style={styles.scheduleCount}>
               <Text style={styles.scheduleCountText}>{scheduleEntryCount}</Text>
             </View>
-          )}
-          {scheduleEntryCount === 0 && (
+          ) : (
             <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
           )}
         </TouchableOpacity>
       </View>
 
+      {/* Continue button */}
       <TouchableOpacity
         style={[styles.button, submitting && styles.buttonDisabled]}
         onPress={handleContinue}
@@ -476,12 +351,13 @@ export default function DriverSetup() {
           <ActivityIndicator color="#ffffff" />
         ) : (
           <>
-            <Text style={styles.buttonText}>Continue</Text>
+            <Text style={styles.buttonText}>Get Started</Text>
             <Ionicons name="arrow-forward" size={18} color="#ffffff" />
           </>
         )}
       </TouchableOpacity>
 
+      {/* Field input modal */}
       <Modal
         visible={Boolean(activeField)}
         transparent
@@ -491,45 +367,17 @@ export default function DriverSetup() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
-              {activeField ? FIELD_CONFIG[activeField].label : ""}
+              {activeField ? FIELD_CONFIG[activeField]?.label : ""}
             </Text>
-            {activeField === "carModel" ? (
-              <View style={styles.carDetailsGroup}>
-                {CAR_DETAIL_FIELDS.map((field, index) => (
-                  <View key={field.key} style={styles.carDetailRow}>
-                    <Text style={styles.scheduleInputLabel}>{field.label}</Text>
-                    <TextInput
-                      style={styles.modalInput}
-                      value={carDetailsDraft[field.key]}
-                      onChangeText={(value) =>
-                        setCarDetailsDraft((prev) => ({
-                          ...prev,
-                          [field.key]: value,
-                        }))
-                      }
-                      autoFocus={index === 0}
-                      placeholder={field.placeholder}
-                      keyboardType={field.keyboardType}
-                    />
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <TextInput
-                style={styles.modalInput}
-                value={draftValue}
-                onChangeText={setDraftValue}
-                autoFocus
-                placeholder={
-                  activeField ? FIELD_CONFIG[activeField].placeholder : ""
-                }
-                keyboardType={
-                  activeField
-                    ? FIELD_CONFIG[activeField].keyboardType
-                    : "default"
-                }
-              />
-            )}
+            <TextInput
+              style={styles.modalInput}
+              value={draftValue}
+              onChangeText={setDraftValue}
+              autoFocus
+              placeholder={activeField ? FIELD_CONFIG[activeField]?.placeholder : ""}
+              placeholderTextColor="#94a3b8"
+              keyboardType={activeField ? FIELD_CONFIG[activeField]?.keyboardType : "default"}
+            />
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
@@ -550,6 +398,7 @@ export default function DriverSetup() {
         </View>
       </Modal>
 
+      {/* Schedule modal */}
       <Modal
         visible={scheduleModalVisible}
         transparent
@@ -560,7 +409,7 @@ export default function DriverSetup() {
           <View style={styles.scheduleModalCard}>
             <Text style={styles.modalTitle}>Weekly Schedule</Text>
             <Text style={styles.scheduleSubtitle}>
-              Select start/end times for each day you are driving.
+              Select the days and times you need rides to campus.
             </Text>
             <ScrollView
               style={styles.scheduleList}
@@ -579,46 +428,34 @@ export default function DriverSetup() {
                           [day.key]: {
                             ...(prev[day.key] || {}),
                             enabled: value,
-                            start_time: value
-                              ? prev[day.key]?.start_time || ""
-                              : "",
-                            end_time: value
-                              ? prev[day.key]?.end_time || ""
-                              : "",
+                            start_time: value ? prev[day.key]?.start_time || "" : "",
+                            end_time: value ? prev[day.key]?.end_time || "" : "",
                           },
                         }))
                       }
+                      trackColor={{ true: "#1a3a6b" }}
                     />
                   </View>
                   <View style={styles.timeRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.timeButton,
-                        !scheduleDraft[day.key]?.enabled && styles.timeButtonDisabled,
-                      ]}
-                      disabled={!scheduleDraft[day.key]?.enabled}
-                      onPress={() => openTimePicker(day.key, "start_time")}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.timeButtonLabel}>Start</Text>
-                      <Text style={styles.timeButtonValue}>
-                        {formatTime12h(scheduleDraft[day.key]?.start_time || "")}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.timeButton,
-                        !scheduleDraft[day.key]?.enabled && styles.timeButtonDisabled,
-                      ]}
-                      disabled={!scheduleDraft[day.key]?.enabled}
-                      onPress={() => openTimePicker(day.key, "end_time")}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.timeButtonLabel}>End</Text>
-                      <Text style={styles.timeButtonValue}>
-                        {formatTime12h(scheduleDraft[day.key]?.end_time || "")}
-                      </Text>
-                    </TouchableOpacity>
+                    {["start_time", "end_time"].map((field) => (
+                      <TouchableOpacity
+                        key={field}
+                        style={[
+                          styles.timeButton,
+                          !scheduleDraft[day.key]?.enabled && styles.timeButtonDisabled,
+                        ]}
+                        disabled={!scheduleDraft[day.key]?.enabled}
+                        onPress={() => openTimePicker(day.key, field)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.timeButtonLabel}>
+                          {field === "start_time" ? "Start" : "End"}
+                        </Text>
+                        <Text style={styles.timeButtonValue}>
+                          {formatTime12h(scheduleDraft[day.key]?.[field] || "")}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </View>
               ))}
@@ -643,6 +480,7 @@ export default function DriverSetup() {
         </View>
       </Modal>
 
+      {/* Time picker modal */}
       <Modal
         visible={timePickerVisible}
         transparent
@@ -685,16 +523,19 @@ export default function DriverSetup() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scroll: {
     flex: 1,
     backgroundColor: "#f8f6f1",
-    justifyContent: "center",
+  },
+  container: {
     padding: 24,
+    paddingTop: 56,
+    paddingBottom: 40,
     gap: 20,
   },
 
@@ -702,6 +543,7 @@ const styles = StyleSheet.create({
   headerSection: {
     alignItems: "center",
     gap: 8,
+    marginBottom: 4,
   },
   headerIcon: {
     width: 52,
@@ -731,7 +573,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 
-  // Fields group
+  // Fields
   fieldsGroup: {
     gap: 10,
   },
@@ -800,7 +642,7 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
 
-  // Button
+  // Continue button
   button: {
     flexDirection: "row",
     alignItems: "center",
@@ -816,17 +658,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     elevation: 5,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
+  buttonDisabled: { opacity: 0.7 },
   buttonText: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "700",
   },
+
+  // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(17, 24, 39, 0.45)",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -834,43 +676,40 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
-  },
-  carDetailsGroup: {
-    gap: 10,
-  },
-  carDetailRow: {
-    gap: 6,
+    borderRadius: 18,
+    padding: 20,
+    gap: 14,
   },
   scheduleModalCard: {
     width: "100%",
     maxHeight: "85%",
     backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 18,
+    padding: 20,
+    gap: 12,
+  },
+  timePickerCard: {
+    width: "100%",
+    maxHeight: "80%",
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    padding: 20,
     gap: 12,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#111827",
+    color: "#0f172a",
   },
   scheduleSubtitle: {
-    fontSize: 14,
-    color: "#4b5563",
-    lineHeight: 20,
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 19,
+    marginTop: -4,
   },
-  scheduleList: {
-    maxHeight: 320,
-  },
-  scheduleListContent: {
-    gap: 10,
-  },
-  scheduleRow: {
-    gap: 6,
-  },
+  scheduleList: { maxHeight: 320 },
+  scheduleListContent: { gap: 12 },
+  scheduleRow: { gap: 8 },
   dayHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -879,94 +718,57 @@ const styles = StyleSheet.create({
   scheduleDay: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0f172a",
   },
-  scheduleInputLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#4b5563",
-  },
-  timeRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  timeRow: { flexDirection: "row", gap: 10 },
   timeButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: "#e2e8f0",
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
     backgroundColor: "#ffffff",
     gap: 2,
   },
-  timeButtonDisabled: {
-    opacity: 0.45,
-  },
+  timeButtonDisabled: { opacity: 0.4 },
   timeButtonLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#94a3b8",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   timeButtonValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0f172a",
   },
   modalInput: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    fontSize: 16,
-    color: "#111827",
+    fontSize: 15,
+    color: "#0f172a",
   },
-  modalActions: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  modalActions: { flexDirection: "row", gap: 10 },
   modalButton: {
     flex: 1,
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: "center",
   },
-  cancelButton: {
-    backgroundColor: "#e5e7eb",
-  },
-  saveButton: {
-    backgroundColor: "#1a3a6b",
-  },
-  cancelButtonText: {
-    color: "#1f2937",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  saveButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  timePickerCard: {
-    width: "100%",
-    maxHeight: "80%",
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
-  },
-  timePickerList: {
-    maxHeight: 340,
-  },
-  timePickerListContent: {
-    gap: 8,
-  },
+  cancelButton: { backgroundColor: "#f1f5f9" },
+  saveButton: { backgroundColor: "#1a3a6b" },
+  cancelButtonText: { color: "#475569", fontSize: 15, fontWeight: "600" },
+  saveButtonText: { color: "#ffffff", fontSize: 15, fontWeight: "600" },
+  timePickerList: { maxHeight: 340 },
+  timePickerListContent: { gap: 6 },
   timeOption: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#f1f5f9",
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -974,13 +776,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  timeOptionText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  timeOptionRaw: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
+  timeOptionText: { fontSize: 15, fontWeight: "600", color: "#0f172a" },
+  timeOptionRaw: { fontSize: 12, color: "#94a3b8" },
 });
