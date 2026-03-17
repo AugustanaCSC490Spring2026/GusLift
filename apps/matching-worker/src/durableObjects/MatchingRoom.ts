@@ -33,6 +33,7 @@ type RiderProfile = {
 
 type CarRow = {
   capacity: number | null;
+  created_at?: string | null;
 };
 
 export class MatchingRoom implements DurableObject {
@@ -173,15 +174,16 @@ export class MatchingRoom implements DurableObject {
     const supabase = getSupabase(this.env);
     const { data, error } = await supabase
       .from("Car")
-      .select("capacity")
+      .select("capacity,created_at")
       .eq("user_id", driverId)
-      .single();
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    if (error || !data) {
+    if (error || !data || data.length === 0) {
       return null;
     }
 
-    const row = data as CarRow;
+    const row = data[0] as CarRow;
     if (typeof row.capacity !== "number" || row.capacity <= 0) {
       return null;
     }
@@ -319,8 +321,8 @@ export class MatchingRoom implements DurableObject {
     const server = pair[1];
     server.accept();
 
-    this.sendInitialState(userId);
     this.handleConnection(server, userId);
+    this.sendInitialState(userId);
 
     return new Response(null, {
       status: 101,
