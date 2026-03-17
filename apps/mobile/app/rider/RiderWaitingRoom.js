@@ -50,15 +50,15 @@ export default function RiderWaitingRoom() {
   useEffect(() => {
     const pulse1 = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.5, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.5, duration: 1000, useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: false }),
       ])
     );
     const pulse2 = Animated.loop(
       Animated.sequence([
         Animated.delay(400),
-        Animated.timing(pulse2Anim, { toValue: 1.8, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulse2Anim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulse2Anim, { toValue: 1.8, duration: 1000, useNativeDriver: false }),
+        Animated.timing(pulse2Anim, { toValue: 1, duration: 1000, useNativeDriver: false }),
       ])
     );
     pulse1.start();

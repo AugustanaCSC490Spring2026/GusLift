@@ -29,8 +29,8 @@ export default function DriverWaitingRoom() {
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.4, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.4, duration: 900, useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
       ])
     );
     pulse.start();

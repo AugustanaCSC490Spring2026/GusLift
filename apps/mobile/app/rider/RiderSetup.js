@@ -268,6 +268,16 @@ export default function RiderSetup() {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
+      {/* Back button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.replace("/home")}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="chevron-back" size={20} color="#1a3a6b" />
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
+
       {/* Header */}
       <View style={styles.headerSection}>
         <View style={styles.headerIcon}>
@@ -538,6 +548,28 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 20,
   },
+
+  backButton: {
+    position: "absolute",
+    top: 52,
+    left: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  backText: { fontSize: 14, fontWeight: "600", color: "#1a3a6b" },
 
   // Header
   headerSection: {

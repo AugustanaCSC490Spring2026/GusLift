@@ -3,6 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +18,8 @@ export default function Home() {
   const [driverSetupComplete, setDriverSetupComplete] = useState(false);
   const [riderSetupComplete, setRiderSetupComplete] = useState(false);
   const [userName, setUserName] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
+  const [profileVisible, setProfileVisible] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -27,6 +31,7 @@ export default function Home() {
         setDriverSetupComplete(Boolean(parsed?.driverSetupComplete));
         setRiderSetupComplete(Boolean(parsed?.riderSetupComplete));
         setUserName(parsed?.given_name ?? parsed?.name?.split(" ")[0] ?? null);
+        setUserEmail(parsed?.email ?? null);
       } catch { /* ignore */ }
     }
     loadUser();
@@ -49,6 +54,21 @@ export default function Home() {
   const isDriver = role === "driver";
   const isRider = role === "rider";
 
+  async function handleLogout() {
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("@user");
+          setProfileVisible(false);
+          router.replace("/signup");
+        },
+      },
+    ]);
+  }
+
   return (
     <View style={styles.root}>
       {/* ── Dark header ── */}
@@ -60,7 +80,16 @@ export default function Home() {
           <View style={styles.logoMark}>
             <Ionicons name="car-sport" size={18} color="#fff" />
           </View>
-          <Text style={styles.dateText}>{getFormattedDate()}</Text>
+          <View style={styles.headerTopRight}>
+            <Text style={styles.dateText}>{getFormattedDate()}</Text>
+            <TouchableOpacity
+              style={styles.profileBtn}
+              onPress={() => setProfileVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="person-circle-outline" size={22} color="rgba(255,255,255,0.8)" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.greeting}>
@@ -256,6 +285,86 @@ export default function Home() {
           </View>
         )}
       </ScrollView>
+
+      {/* Profile / Settings modal */}
+      <Modal
+        visible={profileVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setProfileVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setProfileVisible(false)}
+        >
+          <View style={styles.profileSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.sheetHandle} />
+
+            {/* User info */}
+            <View style={styles.profileHeader}>
+              <View style={styles.profileAvatar}>
+                <Ionicons name="person" size={28} color="#1a3a6b" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.profileName}>{userName ?? "Augustana Student"}</Text>
+                <Text style={styles.profileEmail}>{userEmail ?? ""}</Text>
+              </View>
+              {role && (
+                <View style={styles.profileRolePill}>
+                  <Text style={styles.profileRoleText}>{isDriver ? "Driver" : "Rider"}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.sheetDivider} />
+
+            {/* Options */}
+            <TouchableOpacity
+              style={styles.sheetRow}
+              onPress={() => {
+                setProfileVisible(false);
+                router.push(isDriver ? "/driver/DriverSetup" : "/rider/RiderSetup");
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.sheetRowIcon}>
+                <Ionicons name="settings-outline" size={20} color="#1a3a6b" />
+              </View>
+              <Text style={styles.sheetRowText}>Edit Profile & Setup</Text>
+              <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetRow}
+              onPress={() => {
+                setProfileVisible(false);
+                router.push("/role");
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.sheetRowIcon}>
+                <Ionicons name="swap-horizontal-outline" size={20} color="#1a3a6b" />
+              </View>
+              <Text style={styles.sheetRowText}>Switch Role</Text>
+              <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+            </TouchableOpacity>
+
+            <View style={styles.sheetDivider} />
+
+            <TouchableOpacity
+              style={styles.sheetRow}
+              onPress={handleLogout}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.sheetRowIcon, styles.sheetRowIconDanger]}>
+                <Ionicons name="log-out-outline" size={20} color="#dc2626" />
+              </View>
+              <Text style={styles.sheetRowTextDanger}>Log Out</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -284,12 +393,21 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     justifyContent: "space-between", marginBottom: 12,
   },
+  headerTopRight: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+  },
   logoMark: {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: "#1a3a6b", alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
   dateText: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontWeight: "500" },
+  profileBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  },
   greeting: { fontSize: 16, color: "rgba(255,255,255,0.6)", fontWeight: "500" },
   greetingName: {
     fontSize: 30, fontWeight: "800", color: "#ffffff",
@@ -376,6 +494,52 @@ const styles = StyleSheet.create({
   },
   gridCardTitle: { fontSize: 14, fontWeight: "700", color: "#0a1628" },
   gridCardSub: { fontSize: 12, color: "#64748b", lineHeight: 17 },
+
+  // Profile modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(10,22,40,0.5)",
+    justifyContent: "flex-end",
+  },
+  profileSheet: {
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 36,
+    gap: 4,
+  },
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: "#e2e8f0", alignSelf: "center", marginBottom: 16,
+  },
+  profileHeader: {
+    flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 8,
+  },
+  profileAvatar: {
+    width: 56, height: 56, borderRadius: 18,
+    backgroundColor: "#dbeafe", alignItems: "center", justifyContent: "center",
+  },
+  profileName: { fontSize: 17, fontWeight: "700", color: "#0a1628" },
+  profileEmail: { fontSize: 13, color: "#64748b", marginTop: 2 },
+  profileRolePill: {
+    backgroundColor: "#dbeafe", paddingVertical: 4,
+    paddingHorizontal: 12, borderRadius: 999,
+  },
+  profileRoleText: { fontSize: 12, fontWeight: "700", color: "#1a3a6b" },
+  sheetDivider: { height: 1, backgroundColor: "#f1f5f9", marginVertical: 8 },
+  sheetRow: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingVertical: 14,
+  },
+  sheetRowIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "#f0f4ff", alignItems: "center", justifyContent: "center",
+  },
+  sheetRowIconDanger: { backgroundColor: "#fef2f2" },
+  sheetRowText: { flex: 1, fontSize: 15, fontWeight: "600", color: "#0a1628" },
+  sheetRowTextDanger: { flex: 1, fontSize: 15, fontWeight: "600", color: "#dc2626" },
 
   // Empty state
   emptyState: {
