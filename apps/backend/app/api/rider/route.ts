@@ -6,10 +6,20 @@ import { NextRequest, NextResponse } from "next/server";
  * so we can verify the authenticated user.
  */
 function getSupabaseWithAuth(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL is required.");
+  }
+  if (!supabaseKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required.");
+  }
+
+  return createClient(supabaseUrl, supabaseKey, {
     global: {
       headers: {
         Authorization: request.headers.get("Authorization") || "",
@@ -18,24 +28,33 @@ function getSupabaseWithAuth(request: NextRequest) {
   });
 }
 
+async function resolveUserId(request: NextRequest, userIDFromBody?: string) {
+  const fromBody = userIDFromBody?.trim();
+  if (fromBody) return fromBody;
+
+  const fromHeader = request.headers.get("x-user-id")?.trim();
+  if (fromHeader) return fromHeader;
+
+  const fromQuery = request.nextUrl.searchParams.get("userID")?.trim();
+  if (fromQuery) return fromQuery;
+
+  const supabase = getSupabaseWithAuth(request);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user?.id) return null;
+  return user.id;
+}
+
 export async function POST(request: NextRequest) {
   try {
-
     const supabase = getSupabaseWithAuth(request);
-
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
 
     const {
+      userID,
       name,
       residence,
       picture_url,
@@ -52,9 +71,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const resolvedUserId = await resolveUserId(request, userID);
+    if (!resolvedUserId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
 
     const { error: userError } = await supabase.from("User").upsert({
-      id: user.id,
+      id: resolvedUserId,
       name,
       residence,
       picture_url,
@@ -70,7 +94,7 @@ export async function POST(request: NextRequest) {
       .from("schedule")
       .upsert(
         {
-          user_id: user.id,
+          user_id: resolvedUserId,
           is_driver: false,
           days,
           pickup_loc,

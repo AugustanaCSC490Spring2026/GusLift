@@ -1,2 +1,2 @@
 - Make provision for rider reject button.
-- 
+- rider joinging DO first doesnt show on drivers side

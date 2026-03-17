@@ -459,8 +459,9 @@ export async function GET(request: NextRequest) {
               <span>Lab only</span>
             </div>
             <div class="subtitle">
-              Quickly register test riders &amp; drivers against the
-              <code>/api/driver</code> endpoint using a Google user id.
+              Quickly register test riders &amp; drivers against
+              <code>/api/rider</code> and <code>/api/driver</code> using a
+              Google user id.
             </div>
             <div class="pill-row">
               <div class="pill pill--accent">Next.js API route</div>
@@ -553,15 +554,44 @@ export async function GET(request: NextRequest) {
                 <input type="checkbox" id="tueEnabled" />
                 Tue
               </label>
-              <input type="time" id="tueStart" />
-              <input type="time" id="tueEnd" />
+              <select id="tueStart">
+                <option value="">Select start</option>
+              </select>
+              <select id="tueEnd">
+                <option value="">Select end</option>
+              </select>
 
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);">
                 <input type="checkbox" id="wedEnabled" />
                 Wed
               </label>
-              <input type="time" id="wedStart" />
-              <input type="time" id="wedEnd" />
+              <select id="wedStart">
+                <option value="">Select start</option>
+              </select>
+              <select id="wedEnd">
+                <option value="">Select end</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="riderFields">
+            <div class="field">
+              <label for="pickup_loc">Pickup location</label>
+              <input
+                id="pickup_loc"
+                name="pickup_loc"
+                type="text"
+                placeholder="e.g. Erikson Hall"
+              />
+            </div>
+            <div class="field">
+              <label for="dropoff_loc">Dropoff location</label>
+              <input
+                id="dropoff_loc"
+                name="dropoff_loc"
+                type="text"
+                placeholder="e.g. Olin Hall"
+              />
             </div>
           </div>
 
@@ -636,17 +666,18 @@ export async function GET(request: NextRequest) {
             <div class="label">Result</div>
             <div class="pill-mini">
               <span class="muted">Target</span>
-              <strong>/api/driver</strong>
+              <strong id="targetPath">/api/rider</strong>
             </div>
           </div>
           <a
+            id="targetLink"
             class="secondary-link"
-            href="/api/driver"
+            href="/api/rider"
             target="_blank"
             rel="noreferrer"
           >
-            <span>Inspect raw handler</span>
-            <code>GET /api/driver</code>
+            <span>Open endpoint</span>
+            <code id="targetEndpointCode">POST /api/rider</code>
           </a>
         </div>
 
@@ -672,13 +703,43 @@ export async function GET(request: NextRequest) {
       (function () {
         const roleSwitcher = document.getElementById("roleSwitcher");
         const isDriverInput = document.getElementById("isDriverInput");
+        const riderFields = document.getElementById("riderFields");
         const driverFields = document.getElementById("driverFields");
+        const targetPath = document.getElementById("targetPath");
+        const targetLink = document.getElementById("targetLink");
+        const targetEndpointCode = document.getElementById("targetEndpointCode");
         const submitLabel = document.getElementById("submitLabel");
         const form = document.getElementById("seedForm");
         const status = document.getElementById("status");
         const log = document.getElementById("log");
 
         let currentRole = "rider";
+
+        function buildTimeSlots(stepMinutes = 15) {
+          const values = [];
+          for (let total = 0; total < 24 * 60; total += stepMinutes) {
+            const hh = String(Math.floor(total / 60)).padStart(2, "0");
+            const mm = String(total % 60).padStart(2, "0");
+            values.push(hh + ":" + mm);
+          }
+          return values;
+        }
+
+        function hydrateTimeSelect(selectId, options) {
+          const select = document.getElementById(selectId);
+          if (!select) return;
+          options.forEach((value) => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+          });
+        }
+
+        const timeSlots = buildTimeSlots(15);
+        ["tueStart", "tueEnd", "wedStart", "wedEnd"].forEach((id) => {
+          hydrateTimeSelect(id, timeSlots);
+        });
 
         function setRole(role) {
           currentRole = role;
@@ -690,8 +751,14 @@ export async function GET(request: NextRequest) {
 
           const isDriver = role === "driver";
           isDriverInput.value = isDriver ? "true" : "false";
+          riderFields.style.display = isDriver ? "none" : "grid";
           driverFields.style.display = isDriver ? "grid" : "none";
           submitLabel.textContent = isDriver ? "Register driver" : "Register rider";
+          targetPath.textContent = isDriver ? "/api/driver" : "/api/rider";
+          targetLink.href = isDriver ? "/api/driver" : "/api/rider";
+          targetEndpointCode.textContent = isDriver
+            ? "POST /api/driver"
+            : "POST /api/rider";
 
           setStatus(
             "idle",
@@ -773,23 +840,69 @@ export async function GET(request: NextRequest) {
 
           const fd = new FormData(form);
           const dayKeys = Object.keys(days);
-          if (dayKeys.length > 0) {
-            fd.set("days", JSON.stringify(days));
-          } else {
-            fd.delete("days");
-          }
-
-          setStatus("idle", "Sending request to /api/driver …");
-          appendLogEntry("Sending FormData to /api/driver", {
-            role: currentRole,
-            userID: userId,
-          });
+          const isDriver = currentRole === "driver";
 
           try {
-            const res = await fetch("/api/driver", {
-              method: "POST",
-              body: fd,
-            });
+            let res;
+            if (isDriver) {
+              if (dayKeys.length > 0) {
+                fd.set("days", JSON.stringify(days));
+              } else {
+                fd.delete("days");
+              }
+
+              setStatus("idle", "Sending request to /api/driver …");
+              appendLogEntry("Sending FormData to /api/driver", {
+                role: currentRole,
+                userID: userId,
+              });
+
+              res = await fetch("/api/driver", {
+                method: "POST",
+                body: fd,
+              });
+            } else {
+              const name = (document.getElementById("name").value || "").trim();
+              const residence = (document.getElementById("residence").value || "").trim();
+              const pickup_loc = (document.getElementById("pickup_loc").value || "").trim();
+              const dropoff_loc = (document.getElementById("dropoff_loc").value || "").trim();
+
+              if (!name || !residence || dayKeys.length === 0 || !pickup_loc || !dropoff_loc) {
+                setStatus(
+                  "error",
+                  "Rider registration requires name, residence, pickup, dropoff, and at least one schedule day."
+                );
+                appendLogEntry("Validation error", {
+                  name: Boolean(name),
+                  residence: Boolean(residence),
+                  pickup_loc: Boolean(pickup_loc),
+                  dropoff_loc: Boolean(dropoff_loc),
+                  hasSchedule: dayKeys.length > 0,
+                });
+                return;
+              }
+
+              setStatus("idle", "Sending request to /api/rider …");
+              appendLogEntry("Sending JSON to /api/rider", {
+                role: currentRole,
+                userID: userId,
+              });
+
+              const payload = {
+                userID: userId,
+                name,
+                residence,
+                days,
+                pickup_loc,
+                dropoff_loc,
+              };
+
+              res = await fetch("/api/rider", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+            }
 
             const contentType = res.headers.get("content-type") || "";
             let body;

@@ -1,5 +1,5 @@
 import { useMatching } from "../../context/MatchingContext";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -8,7 +8,8 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export default function AvailableDrivers() {
   const router = useRouter();
-  const { send, onMessage, userId, disconnect } = useMatching();
+  const { driverId: initialDriverId } = useLocalSearchParams();
+  const { connect, send, onMessage, userId, disconnect } = useMatching();
   const [matchedDriver, setMatchedDriver] = useState(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -23,15 +24,17 @@ export default function AvailableDrivers() {
         setMatchedDriver(null);
         setConfirming(false);
       }
-      if (msg.type === "match_confirmed") {
-        router.replace({
-          pathname: "/rider/RiderMatchedScreen",
-          params: { rideId: msg.ride?.id ?? "" },
-        });
-      }
     });
     return () => unsubscribe?.();
   }, [userId]);
+
+  useEffect(() => {
+    if (initialDriverId) {
+      void fetchDriverInfo(initialDriverId).then((driver) => {
+        setMatchedDriver({ ...driver, driver_id: initialDriverId });
+      });
+    }
+  }, [initialDriverId]);
 
   async function fetchDriverInfo(driverId) {
     try {
@@ -57,10 +60,47 @@ export default function AvailableDrivers() {
     }
   }
 
-  function handleConfirm() {
+  async function waitForAcceptedRide(driverId) {
+    if (!driverId || !userId) return null;
+    // Supabase REST for this table is exposed as /rest/v1/Rides
+    const endpoint =
+      `${SUPABASE_URL}/rest/v1/Rides?rider_id=eq.${userId}` +
+      `&driver_id=eq.${driverId}&status=eq.accepted&select=id&order=created_at.desc&limit=1`;
+    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
+    for (let i = 0; i < 8; i += 1) {
+      try {
+        const res = await fetch(endpoint, { headers });
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows[0]?.id) return rows[0].id;
+      } catch (_) {}
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+
+    return null;
+  }
+
+  async function handleConfirm() {
     if (!matchedDriver) return;
     setConfirming(true);
     send({ type: "accept_match", rider_id: userId, driver_id: matchedDriver.driver_id });
+    const rideId = await waitForAcceptedRide(matchedDriver.driver_id);
+    setConfirming(false);
+    router.replace({
+      pathname: "/rider/ScheduledRidesRider",
+      params: rideId ? { rideId } : undefined,
+    });
+  }
+
+  async function handleRejectAndKeepSearching() {
+    setConfirming(true);
+    disconnect();
+    const id = await connect();
+    if (id) {
+      send({ type: "rider_request", rider_id: id });
+      setMatchedDriver(null);
+    }
+    setConfirming(false);
   }
 
   function handleCancel() {
@@ -121,6 +161,14 @@ export default function AvailableDrivers() {
             ) : (
               <Text style={styles.confirmArrow}>→</Text>
             )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.rejectButton}
+            onPress={handleRejectAndKeepSearching}
+            activeOpacity={0.8}
+            disabled={confirming}
+          >
+            <Text style={styles.rejectButtonText}>Reject and keep searching</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -247,5 +295,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#1a3a6b",
     fontWeight: "700",
+  },
+  rejectButton: {
+    backgroundColor: "#e5e7eb",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  rejectButtonText: {
+    color: "#374151",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

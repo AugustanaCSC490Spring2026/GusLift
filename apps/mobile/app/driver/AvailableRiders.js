@@ -7,15 +7,6 @@ import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Placeholder riders for UI testing — replaced by live WebSocket data once worker is connected
-const MOCK_RIDERS = [
-  { rider_id: "1", name: "Alex Johnson", picture_url: null, rating: 4.8 },
-  { rider_id: "2", name: "Maria Garcia", picture_url: null, rating: 4.5 },
-  { rider_id: "3", name: "James Lee", picture_url: null, rating: 4.9 },
-  { rider_id: "4", name: "Sophie Brown", picture_url: null, rating: 4.2 },
-  { rider_id: "5", name: "Chris Wilson", picture_url: null, rating: 4.7 },
-];
-
 function RiderCard({ rider, isPending, onPress }) {
   return (
     <TouchableOpacity
@@ -48,8 +39,8 @@ function RiderCard({ rider, isPending, onPress }) {
 
 export default function AvailableRidersScreen() {
   const router = useRouter();
-  const { send, onMessage, userId } = useMatching();
-  const [riders, setRiders] = useState(MOCK_RIDERS);
+  const { send, onMessage, userId, disconnect } = useMatching();
+  const [riders, setRiders] = useState([]);
   const [pendingRiderIds, setPendingRiderIds] = useState(new Set());
   const [capacity, setCapacity] = useState(4);
   const [seatsUsed, setSeatsUsed] = useState(0);
@@ -62,29 +53,39 @@ export default function AvailableRidersScreen() {
         { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
       )
         .then((r) => r.json())
-        .then((data) => { if (data?.[0]?.capacity) setCapacity(data[0].capacity); })
+        .then((data) => {
+          const raw = data?.[0]?.capacity;
+          const parsed = typeof raw === "number" ? raw : Number(raw);
+          if (Number.isFinite(parsed) && parsed > 0) {
+            setCapacity(parsed);
+          }
+        })
         .catch(() => {});
     }
 
     // Listen on shared WebSocket
     const unsubscribe = onMessage((msg) => {
-      if (msg.type === "initial_state") setRiders(msg.riders);
-      if (msg.type === "rider_joined") setRiders((prev) => [...prev, msg.rider]);
+      if (msg.type === "initial_state") setRiders(msg.riders ?? []);
+      if (msg.type === "rider_joined") {
+        setRiders((prev) => {
+          if (prev.some((r) => r.rider_id === msg.rider?.rider_id)) return prev;
+          return [...prev, msg.rider];
+        });
+      }
       if (msg.type === "rider_removed") {
         setRiders((prev) => prev.filter((r) => r.rider_id !== msg.rider_id));
         setPendingRiderIds((prev) => { const s = new Set(prev); s.delete(msg.rider_id); return s; });
       }
+      if (msg.type === "seat_update" && msg.driver_id === userId) {
+        if (typeof capacity === "number") {
+          const nextUsed = Math.max(0, capacity - (msg.seats_remaining ?? capacity));
+          setSeatsUsed(nextUsed);
+        }
+      }
       if (msg.type === "match_confirmed") {
         setSeatsUsed((prev) => prev + 1);
         setPendingRiderIds((prev) => { const s = new Set(prev); s.delete(msg.rider?.id); return s; });
-        router.push({
-          pathname: "/driver/DriverMatchedScreen",
-          params: {
-            riderName: msg.rider?.name ?? "",
-            riderPic: msg.rider?.picture_url ?? "",
-            rideId: msg.ride?.id ?? "",
-          },
-        });
+        router.push("/driver/ScheduledRidesDriver");
       }
     });
 
@@ -107,7 +108,13 @@ export default function AvailableRidersScreen() {
     <View style={styles.container}>
       {/* Header row */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.replace("/home")} style={styles.closeButton}>
+        <TouchableOpacity
+          onPress={() => {
+            disconnect();
+            router.replace("/home");
+          }}
+          style={styles.closeButton}
+        >
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
 

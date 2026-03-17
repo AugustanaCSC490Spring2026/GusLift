@@ -10,13 +10,16 @@ import type {
 import type { DriverState, RiderWaiting } from "../types/state";
 import { getSupabase } from "../db";
 
-const MATCH_TIMEOUT_MS = 30_000;
+// How long a driver has to confirm a match before the rider is returned
+// to the waiting queue. Increased to 4 minutes for demo stability.
+const MATCH_TIMEOUT_MS = 4 * 60 * 1000; // 240_000 ms
 
 type RideRow = {
   id: string;
   driver_id: string;
   rider_id: string;
   day: string;
+  ride_date: string;
   start_time: string;
   location: string;
   status: string;
@@ -69,11 +72,19 @@ export class MatchingRoom implements DurableObject {
     }
   }
 
-  private sendInitialState(userId: string): void {
-    const riders = this.riders_waiting.map((r) => ({
-      rider_id: r.rider_id,
-      joined_at: r.joined_at,
-    }));
+  private async sendInitialState(userId: string): Promise<void> {
+    const riderProfiles = await Promise.all(
+      this.riders_waiting.map((r) => this.fetchRiderProfile(r.rider_id))
+    );
+    const riders = this.riders_waiting.map((r, idx) => {
+      const profile = riderProfiles[idx];
+      return {
+        rider_id: r.rider_id,
+        joined_at: r.joined_at,
+        name: profile?.name ?? null,
+        picture_url: profile?.picture_url ?? null,
+      };
+    });
     const drivers = Array.from(this.drivers.entries()).map(([driver_id, s]) => ({
       driver_id,
       seats_remaining: s.seats_remaining,
@@ -104,13 +115,19 @@ export class MatchingRoom implements DurableObject {
       const driverId = this.pending_matches.get(riderId);
       if (driverId != null) {
         this.pending_matches.delete(riderId);
+        const joined_at = Date.now();
         this.riders_waiting.push({
           rider_id: riderId,
-          joined_at: Date.now(),
+          joined_at,
         });
         this.broadcast({
           type: "rider_joined",
-          rider: { rider_id: riderId, joined_at: Date.now() },
+          rider: {
+            rider_id: riderId,
+            joined_at,
+            name: null,
+            picture_url: null,
+          },
         });
       }
     }, MATCH_TIMEOUT_MS);
@@ -130,20 +147,28 @@ export class MatchingRoom implements DurableObject {
     driver_id: string,
     rider_id: string
   ): Promise<RideRow> {
-    const { location, day, start_time } = this.parseSlotKey();
+    const { location, start_time } = this.parseSlotKey();
+    // Normalize start_time to a valid Postgres time value.
+    // Our slot key sometimes stores just "HH" (e.g. "09"); Postgres `time`
+    // expects at least "HH:MM", so default missing minutes to ":00".
+    const dbStartTime =
+      start_time && !start_time.includes(":") ? `${start_time}:00` : start_time;
+    // Map the slot into a concrete date for ride_date. For now, use "today" in UTC.
+    const ride_date = new Date().toISOString().slice(0, 10);
     const supabase = getSupabase(this.env);
     const { data, error } = await supabase
-      .from("rides")
+      .from("Rides")
       .insert({
         driver_id,
         rider_id,
-        day,
-        start_time,
+        ride_date,
+        start_time: dbStartTime,
         location,
         status: "accepted",
-        completed: false,
       })
-      .select("id,driver_id,rider_id,day,start_time,location,status,completed,created_at")
+      .select(
+        "id,driver_id,rider_id,ride_date,start_time,location,status,created_at"
+      )
       .single();
     if (error || !data) {
       throw new Error(error?.message || "Failed to insert accepted ride");
@@ -203,11 +228,26 @@ export class MatchingRoom implements DurableObject {
     });
   }
 
-  private handleRiderRequest(userId: string, ev: RiderRequestEvent): void {
+  private async handleRiderRequest(
+    userId: string,
+    ev: RiderRequestEvent
+  ): Promise<void> {
     if (ev.rider_id !== userId) return;
-    const rider: RiderWaiting = { rider_id: ev.rider_id, joined_at: Date.now() };
+    const rider: RiderWaiting = {
+      rider_id: ev.rider_id,
+      joined_at: Date.now(),
+    };
     this.riders_waiting.push(rider);
-    this.broadcast({ type: "rider_joined", rider });
+    const profile = await this.fetchRiderProfile(ev.rider_id);
+    this.broadcast({
+      type: "rider_joined",
+      rider: {
+        rider_id: rider.rider_id,
+        joined_at: rider.joined_at,
+        name: profile.name,
+        picture_url: profile.picture_url,
+      },
+    });
   }
 
   private handleSelectRider(userId: string, ev: SelectRiderEvent): void {
@@ -272,7 +312,7 @@ export class MatchingRoom implements DurableObject {
         await this.handleDriverOnline(userId, ev);
         break;
       case "rider_request":
-        this.handleRiderRequest(userId, ev);
+        await this.handleRiderRequest(userId, ev);
         break;
       case "select_rider":
         this.handleSelectRider(userId, ev);
@@ -322,7 +362,7 @@ export class MatchingRoom implements DurableObject {
     server.accept();
 
     this.handleConnection(server, userId);
-    this.sendInitialState(userId);
+    await this.sendInitialState(userId);
 
     return new Response(null, {
       status: 101,

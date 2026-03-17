@@ -5,10 +5,20 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Create a Supabase client that forwards the user's JWT
 function getSupabaseWithAuth(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL is required.");
+  }
+  if (!supabaseKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required.");
+  }
+
+  return createClient(supabaseUrl, supabaseKey, {
     global: {
       headers: {
         Authorization: request.headers.get("Authorization") || "",
@@ -17,18 +27,29 @@ function getSupabaseWithAuth(request: NextRequest) {
   });
 }
 
+async function resolveUserId(request: NextRequest) {
+  const fromHeader = request.headers.get("x-user-id")?.trim();
+  if (fromHeader) return fromHeader;
+
+  const fromQuery = request.nextUrl.searchParams.get("userID")?.trim();
+  if (fromQuery) return fromQuery;
+
+  const supabase = getSupabaseWithAuth(request);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user?.id) return null;
+  return user.id;
+}
+
 // GET /api/rider/schedule?day=mon
 export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseWithAuth(request);
-
-    // 1) Auth: who is this user?
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -48,7 +69,7 @@ export async function GET(request: NextRequest) {
     const { data: rows, error: scheduleError } = await supabase
       .from("schedule")
       .select("days, pickup_loc, dropoff_loc")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("is_driver", false)
       .limit(1);
 

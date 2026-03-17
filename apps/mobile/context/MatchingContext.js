@@ -14,7 +14,15 @@ export function MatchingProvider({ children }) {
     return () => listenersRef.current.delete(handler);
   }
 
-  async function connect() {
+  function normalizeWsUrl(rawUrl) {
+    if (!rawUrl) return null;
+    if (rawUrl.startsWith("ws://") || rawUrl.startsWith("wss://")) return rawUrl;
+    if (rawUrl.startsWith("http://")) return `ws://${rawUrl.slice("http://".length)}`;
+    if (rawUrl.startsWith("https://")) return `wss://${rawUrl.slice("https://".length)}`;
+    return null;
+  }
+
+  async function connect(options = {}) {
     if (wsRef.current) return userIdRef.current; // already connected
 
     const stored = await AsyncStorage.getItem("@user");
@@ -25,7 +33,19 @@ export function MatchingProvider({ children }) {
     userIdRef.current = user.id;
 
     return new Promise((resolve) => {
-      const wsUrl = `${process.env.EXPO_PUBLIC_MATCHING_WORKER_URL}?token=${user.id}`;
+      const baseUrl = normalizeWsUrl(process.env.EXPO_PUBLIC_MATCHING_WORKER_URL);
+      if (!baseUrl) {
+        resolve(null);
+        return;
+      }
+
+      const url = new URL(baseUrl);
+      url.searchParams.set("token", user.id);
+      if (options?.location) url.searchParams.set("location", options.location);
+      if (options?.time) url.searchParams.set("time", options.time);
+      if (options?.day) url.searchParams.set("day", options.day);
+
+      const wsUrl = url.toString();
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

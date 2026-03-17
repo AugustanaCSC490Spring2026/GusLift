@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
 
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 type DaySchedule = { start_time: string; end_time: string };
@@ -14,7 +13,7 @@ function getSupabase() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
     );
   }
   return createClient(url, serviceKey);
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (!userID?.trim()) {
       return NextResponse.json(
         { error: "userID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -49,8 +48,7 @@ export async function POST(request: NextRequest) {
 
     let picture_url: string | null = null;
     if (picture && picture.size > 0) {
-      const ext =
-        picture.name.split(".").pop()?.toLowerCase() || "jpg";
+      const ext = picture.name.split(".").pop()?.toLowerCase() || "jpg";
       const safeExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext)
         ? ext
         : "jpg";
@@ -67,7 +65,7 @@ export async function POST(request: NextRequest) {
         console.error("Storage upload error:", uploadError);
         return NextResponse.json(
           { error: "Failed to upload image", details: uploadError.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -77,8 +75,7 @@ export async function POST(request: NextRequest) {
       picture_url = publicUrl;
     }
 
-    const is_driver =
-      isDriverStr === "true" || isDriverStr === "1";
+    const is_driver = isDriverStr === "true" || isDriverStr === "1";
 
     const { error: userError } = await supabase.from("User").upsert(
       {
@@ -88,21 +85,34 @@ export async function POST(request: NextRequest) {
         picture_url,
         is_driver,
       },
-      { onConflict: "id" }
+      { onConflict: "id" },
     );
 
     if (userError) {
       console.error("User upsert error:", userError);
       return NextResponse.json(
         { error: "Failed to save user", details: userError.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     let capacity: number | null = null;
-    if (capacityStr != null) {
-      const parsed = parseInt(capacityStr, 10);
-      capacity = Number.isNaN(parsed) ? null : parsed;
+    if (capacityStr != null && capacityStr.trim() !== "") {
+      const normalized = capacityStr.trim();
+      if (!/^\d+$/.test(normalized)) {
+        return NextResponse.json(
+          { error: "capacity must be a whole number" },
+          { status: 400 },
+        );
+      }
+      const parsed = Number(normalized);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 8) {
+        return NextResponse.json(
+          { error: "capacity must be an integer between 1 and 8" },
+          { status: 400 },
+        );
+      }
+      capacity = parsed;
     }
     if (
       make != null ||
@@ -111,25 +121,21 @@ export async function POST(request: NextRequest) {
       license_plate != null ||
       capacity != null
     ) {
-      const { error: carError } = await supabase
-        .from("Car")
-        .upsert(
-          {
-            user_id: userID.trim(),
-            make: make?.trim() ?? null,
-            model: model?.trim() ?? null,
-            color: color?.trim() ?? null,
-            license_plate: license_plate?.trim() ?? null,
-            capacity,
-          },
-          { onConflict: "user_id" }
-        );
+      // user_id is intentionally non-unique to support multiple cars per driver.
+      const { error: carError } = await supabase.from("Car").insert({
+        user_id: userID.trim(),
+        make: make?.trim() ?? null,
+        model: model?.trim() ?? null,
+        color: color?.trim() ?? null,
+        license_plate: license_plate?.trim() ?? null,
+        capacity,
+      });
 
       if (carError) {
         console.error("Car insert error:", carError);
         return NextResponse.json(
           { error: "Failed to save car", details: carError.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
@@ -145,22 +151,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (daysJson) {
-      const { error: scheduleError } = await supabase
-        .from("schedule")
-        .upsert(
-          {
-            user_id: userID.trim(),
-            is_driver,
-            days: daysJson,
-          },
-          { onConflict: "user_id" }
-        );
+      const { error: scheduleError } = await supabase.from("schedule").upsert(
+        {
+          user_id: userID.trim(),
+          is_driver,
+          days: daysJson,
+        },
+        { onConflict: "user_id" },
+      );
 
       if (scheduleError) {
         console.error("Schedule insert error:", scheduleError);
         return NextResponse.json(
           { error: "Failed to save schedule", details: scheduleError.message },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
@@ -176,7 +180,7 @@ export async function POST(request: NextRequest) {
       {
         error: err instanceof Error ? err.message : "Internal server error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

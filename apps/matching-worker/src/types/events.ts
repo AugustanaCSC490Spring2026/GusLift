@@ -30,7 +30,12 @@ export type ClientEvent =
 /** Broadcast / server -> client messages */
 export type InitialStateMessage = {
   type: "initial_state";
-  riders: Array<{ rider_id: string; joined_at: number }>;
+  riders: Array<{
+    rider_id: string;
+    joined_at: number;
+    name: string | null;
+    picture_url: string | null;
+  }>;
   drivers: Array<{ driver_id: string; seats_remaining: number }>;
   pending_matches: Array<{ rider_id: string; driver_id: string }>;
 };
@@ -43,7 +48,12 @@ export type DriverJoinedMessage = {
 
 export type RiderJoinedMessage = {
   type: "rider_joined";
-  rider: { rider_id: string; joined_at: number };
+  rider: {
+    rider_id: string;
+    joined_at: number;
+    name: string | null;
+    picture_url: string | null;
+  };
 };
 
 export type RiderReservedMessage = {

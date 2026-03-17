@@ -10,8 +10,8 @@ import {
   View,
 } from "react-native";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const BACKEND_URL =
+  process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const DAY_LABELS = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday",
@@ -65,29 +65,29 @@ export default function ScheduledRidesDriver() {
       if (!stored) return;
       const user = JSON.parse(stored);
 
-      // Fetch accepted, incomplete rides for this driver
-      const ridesRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/rides?driver_id=eq.${user.id}&status=eq.accepted&completed=eq.false&select=id,day,start_time,location,rider_id`,
-        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-      );
-      const rides = await ridesRes.json();
-      if (!rides?.length) { setGroups([]); return; }
+      if (!BACKEND_URL) {
+        setGroups([]);
+        return;
+      }
 
-      // Fetch rider profiles
-      const riderIds = [...new Set(rides.map((r) => r.rider_id))];
-      const ridersRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/User?id=in.(${riderIds.join(",")})&select=id,name,residence,picture_url`,
-        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-      );
-      const ridersData = await ridersRes.json();
-      const ridersMap = Object.fromEntries(ridersData.map((r) => [r.id, r]));
+      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
+      const url = `${normalizedBackendUrl}/api/driver/rides?driver_id=${encodeURIComponent(
+        user.id,
+      )}`;
+      const res = await fetch(url);
 
-      const ridesWithRiders = rides.map((ride) => ({
-        ...ride,
-        rider: ridersMap[ride.rider_id] ?? { id: ride.rider_id, name: null, residence: null, picture_url: null },
-      }));
-
-      setGroups(groupRides(ridesWithRiders));
+      if (!res.ok) {
+        setGroups([]);
+        return;
+      }
+      const payload = await res.json();
+      const rides = payload?.rides ?? [];
+      if (!rides.length) {
+        setGroups([]);
+        return;
+      }
+      const grouped = groupRides(rides);
+      setGroups(grouped);
     } catch (_) {
     } finally {
       setLoading(false);
@@ -121,7 +121,7 @@ export default function ScheduledRidesDriver() {
               activeOpacity={0.75}
               onPress={() =>
                 router.push({
-                  pathname: "/driver/RideDetailDriver",
+                  pathname: "/driver/RideDetail",
                   params: {
                     day: group.day,
                     start_time: group.start_time,
