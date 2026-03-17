@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -55,18 +54,9 @@ export default function Home() {
   const isRider = role === "rider";
 
   async function handleLogout() {
-    Alert.alert("Log Out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log Out",
-        style: "destructive",
-        onPress: async () => {
-          await AsyncStorage.removeItem("@user");
-          setProfileVisible(false);
-          router.replace("/signup");
-        },
-      },
-    ]);
+    await AsyncStorage.removeItem("@user");
+    setProfileVisible(false);
+    router.replace("/signup");
   }
 
   return (
