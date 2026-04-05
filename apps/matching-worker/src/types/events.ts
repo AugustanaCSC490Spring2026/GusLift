@@ -21,22 +21,51 @@ export type AcceptMatchEvent = {
   driver_id: string;
 };
 
+/** Rider declines a pending match_request; returns rider to the waiting queue */
+export type RejectMatchEvent = {
+  type: "reject_match";
+  rider_id: string;
+  driver_id: string;
+};
+
 export type ClientEvent =
   | DriverOnlineEvent
   | RiderRequestEvent
   | SelectRiderEvent
-  | AcceptMatchEvent;
+  | AcceptMatchEvent
+  | RejectMatchEvent;
+
+/** Shared shape for car info on the wire */
+export type CarDetailsWire = {
+  make: string | null;
+  model: string | null;
+  color: string | null;
+  license_plate: string | null;
+};
+
+export type RiderWaitingWire = {
+  rider_id: string;
+  joined_at: number;
+  name: string | null;
+  picture_url: string | null;
+  /** schedule.dropoff_loc */
+  to_location: string | null;
+};
+
+export type DriverWaitingWire = {
+  driver_id: string;
+  seats_remaining: number;
+  name: string | null;
+  picture_url: string | null;
+  to_location: string | null;
+  car: CarDetailsWire | null;
+};
 
 /** Broadcast / server -> client messages */
 export type InitialStateMessage = {
   type: "initial_state";
-  riders: Array<{
-    rider_id: string;
-    joined_at: number;
-    name: string | null;
-    picture_url: string | null;
-  }>;
-  drivers: Array<{ driver_id: string; seats_remaining: number }>;
+  riders: RiderWaitingWire[];
+  drivers: DriverWaitingWire[];
   pending_matches: Array<{ rider_id: string; driver_id: string }>;
 };
 
@@ -44,16 +73,15 @@ export type DriverJoinedMessage = {
   type: "driver_joined";
   driver_id: string;
   seats: number;
+  name: string | null;
+  picture_url: string | null;
+  to_location: string | null;
+  car: CarDetailsWire | null;
 };
 
 export type RiderJoinedMessage = {
   type: "rider_joined";
-  rider: {
-    rider_id: string;
-    joined_at: number;
-    name: string | null;
-    picture_url: string | null;
-  };
+  rider: RiderWaitingWire;
 };
 
 export type RiderReservedMessage = {
@@ -62,10 +90,22 @@ export type RiderReservedMessage = {
   driver_id: string;
 };
 
+export type MatchRejectedMessage = {
+  type: "match_rejected";
+  rider_id: string;
+  driver_id: string;
+};
+
 export type MatchRequestMessage = {
   type: "match_request";
   driver_id: string;
   rider_id: string;
+  driver: {
+    name: string | null;
+    picture_url: string | null;
+    to_location: string | null;
+    car: CarDetailsWire | null;
+  };
 };
 
 export type RiderRemovedMessage = {
@@ -97,6 +137,7 @@ export type MatchConfirmedMessage = {
     name: string | null;
     residence: string | null;
     picture_url: string | null;
+    to_location: string | null;
   };
 };
 
@@ -105,6 +146,7 @@ export type ServerMessage =
   | DriverJoinedMessage
   | RiderJoinedMessage
   | RiderReservedMessage
+  | MatchRejectedMessage
   | MatchRequestMessage
   | RiderRemovedMessage
   | SeatUpdateMessage

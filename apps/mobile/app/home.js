@@ -82,6 +82,14 @@ export default function Home() {
           </TouchableOpacity>
         </View>
       )}
+
+      <TouchableOpacity
+        style={styles.testingLink}
+        onPress={() => router.push("/role")}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.testingLinkText}>Testing: switch role</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -136,5 +144,14 @@ const styles = StyleSheet.create({
     color: "#1f2937",
     fontSize: 16,
     fontWeight: "700",
+  },
+  testingLink: {
+    marginTop: 28,
+    paddingVertical: 8,
+  },
+  testingLinkText: {
+    color: "#6b7280",
+    fontSize: 14,
+    textDecorationLine: "underline",
   },
 });

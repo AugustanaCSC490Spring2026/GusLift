@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -131,6 +131,7 @@ export default function DriverSetup() {
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [activeTimeField, setActiveTimeField] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const submitInFlightRef = useRef(false);
 
   const fieldValues = {
     licensePlate,
@@ -314,6 +315,12 @@ export default function DriverSetup() {
       return;
     }
 
+    if (submitInFlightRef.current) {
+      return;
+    }
+    submitInFlightRef.current = true;
+
+    let finishedOk = false;
     try {
       setSubmitting(true);
       const stored = await AsyncStorage.getItem("@user");
@@ -366,11 +373,15 @@ export default function DriverSetup() {
       };
 
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
+      finishedOk = true;
       router.replace("/driver/OfferRide");
     } catch {
       Alert.alert("Error", "Could not save driver info. Try again.");
     } finally {
-      setSubmitting(false);
+      submitInFlightRef.current = false;
+      if (!finishedOk) {
+        setSubmitting(false);
+      }
     }
   }
 

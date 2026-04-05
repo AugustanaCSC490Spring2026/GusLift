@@ -1,6 +1,6 @@
-# Welcome to your Expo app 👋
+# GusLift Mobile (Expo)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+React Native app for GusLift (Expo Router). This README covers **project-specific** setup; for generic Expo docs, see [expo.dev](https://docs.expo.dev/).
 
 ## Get started
 
@@ -10,41 +10,58 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Configure environment variables (see below).
+
+3. Start the app
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+## Environment variables
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Set these for local development (e.g. `.env` with Expo’s `EXPO_PUBLIC_*` convention):
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| Variable | Purpose |
+|----------|---------|
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL (REST, auth) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `EXPO_PUBLIC_MATCHING_WORKER_URL` | Matching worker base URL (`https://…` or `wss://…` — `MatchingContext` normalizes to WebSocket) |
 
-## Get a fresh project
+Without `EXPO_PUBLIC_MATCHING_WORKER_URL`, matching `connect()` will not open a socket.
 
-When you're ready, run:
+## Rider: requesting rides
+
+**Request a Ride** (`app/rider/RequestRide.js`) supports two paths:
+
+1. **Custom pickup time (manual / one-off)** — Shown first on the screen. The rider enters pickup location, optional “going to” (display only), and **24h time** (`HH:MM`). This is for trips not tied to “first class of the day” on the schedule (e.g. leaving class, heading home). Navigation passes `matchMode=manual`, `from`, `to`, and `time` into the waiting room.
+
+2. **Match using your schedule** — Uses saved pickup/dropoff from `schedule` and the worker’s default slot for **today’s first class**. Navigation passes `matchMode=schedule`.
+
+**Rider waiting room** (`app/rider/RiderWaitingRoom.js`):
+
+- **`matchMode=manual`**: connects with `location` + `time` query params immediately (after a GET preflight inside `MatchingContext`).
+- **`matchMode=schedule`**: connects using schedule-based resolution; if the worker reports **manual time required** (no block for today), the UI prompts for location/time and retries.
+
+**MatchingContext** (`context/MatchingContext.js`): `connect({ location, time, day })` runs a **GET** to the worker with the same query string as the WebSocket, then upgrades. Returns `{ ok, userId }`, `{ needsManualTime, message }`, or `{ ok: false, error }`.
+
+## Driver flow
+
+Driver screens use the same `connect()` helper (e.g. `app/driver/DriverWaitingRoom.js`) and can pass `location` + `time` when offering a ride with explicit pickup time.
+
+---
+
+## Expo starter notes
+
+This project was created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app). You can reset the starter example:
 
 ```bash
 npm run reset-project
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+This moves the example into `app-example` and creates a blank `app` directory.
 
 ## Learn more
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [Expo documentation](https://docs.expo.dev/)
+- [Expo Router](https://docs.expo.dev/router/introduction)

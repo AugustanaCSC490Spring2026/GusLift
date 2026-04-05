@@ -6,8 +6,9 @@ import type {
   RiderRequestEvent,
   SelectRiderEvent,
   AcceptMatchEvent,
+  RejectMatchEvent,
 } from "../types/events";
-import type { DriverState, RiderWaiting } from "../types/state";
+import type { CarDetails, DriverState, RiderWaiting } from "../types/state";
 import { getSupabase } from "../db";
 
 // How long a driver has to confirm a match before the rider is returned
@@ -32,9 +33,15 @@ type RiderProfile = {
   name: string | null;
   residence: string | null;
   picture_url: string | null;
+  /** schedule.dropoff_loc */
+  to_location: string | null;
 };
 
 type CarRow = {
+  make: string | null;
+  model: string | null;
+  color: string | null;
+  license_plate: string | null;
   capacity: number | null;
   created_at?: string | null;
 };
@@ -83,11 +90,16 @@ export class MatchingRoom implements DurableObject {
         joined_at: r.joined_at,
         name: profile?.name ?? null,
         picture_url: profile?.picture_url ?? null,
+        to_location: profile?.to_location ?? null,
       };
     });
     const drivers = Array.from(this.drivers.entries()).map(([driver_id, s]) => ({
       driver_id,
       seats_remaining: s.seats_remaining,
+      name: s.name,
+      picture_url: s.picture_url,
+      to_location: s.to_location,
+      car: s.car,
     }));
     const pending_matches = Array.from(this.pending_matches.entries()).map(
       ([rider_id, driver_id]) => ({ rider_id, driver_id })
@@ -111,25 +123,29 @@ export class MatchingRoom implements DurableObject {
   private scheduleMatchTimeout(riderId: string): void {
     this.clearMatchTimeout(riderId);
     const id = setTimeout(() => {
-      this.matchTimeouts.delete(riderId);
-      const driverId = this.pending_matches.get(riderId);
-      if (driverId != null) {
-        this.pending_matches.delete(riderId);
-        const joined_at = Date.now();
-        this.riders_waiting.push({
-          rider_id: riderId,
-          joined_at,
-        });
-        this.broadcast({
-          type: "rider_joined",
-          rider: {
+      void (async () => {
+        this.matchTimeouts.delete(riderId);
+        const driverId = this.pending_matches.get(riderId);
+        if (driverId != null) {
+          this.pending_matches.delete(riderId);
+          const joined_at = Date.now();
+          this.riders_waiting.push({
             rider_id: riderId,
             joined_at,
-            name: null,
-            picture_url: null,
-          },
-        });
-      }
+          });
+          const profile = await this.fetchRiderProfile(riderId);
+          this.broadcast({
+            type: "rider_joined",
+            rider: {
+              rider_id: riderId,
+              joined_at,
+              name: profile.name,
+              picture_url: profile.picture_url,
+              to_location: profile.to_location,
+            },
+          });
+        }
+      })();
     }, MATCH_TIMEOUT_MS);
     this.matchTimeouts.set(riderId, id);
   }
@@ -178,54 +194,111 @@ export class MatchingRoom implements DurableObject {
 
   private async fetchRiderProfile(riderId: string): Promise<RiderProfile> {
     const supabase = getSupabase(this.env);
-    const { data, error } = await supabase
-      .from("User")
-      .select("id,name,residence,picture_url")
-      .eq("id", riderId)
-      .single();
+    const [userRes, schedRes] = await Promise.all([
+      supabase
+        .from("User")
+        .select("id,name,residence,picture_url")
+        .eq("id", riderId)
+        .single(),
+      supabase
+        .from("schedule")
+        .select("dropoff_loc")
+        .eq("user_id", riderId)
+        .order("created_at", { ascending: true })
+        .limit(1),
+    ]);
 
-    if (error || !data) {
+    const schedRows = schedRes.data as { dropoff_loc: string | null }[] | null;
+    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
+
+    if (userRes.error || !userRes.data) {
       return {
         id: riderId,
         name: null,
         residence: null,
         picture_url: null,
+        to_location,
       };
     }
-    return data as RiderProfile;
+    const u = userRes.data as {
+      id: string;
+      name: string | null;
+      residence: string | null;
+      picture_url: string | null;
+    };
+    return { ...u, to_location };
   }
 
-  private async fetchDriverCapacity(driverId: string): Promise<number | null> {
+  /**
+   * Loads driver User + Car + schedule dropoff for WebSocket payloads.
+   * Returns null if the driver has no car or invalid seat capacity.
+   */
+  private async fetchDriverPublicInfo(driverId: string): Promise<DriverState | null> {
     const supabase = getSupabase(this.env);
-    const { data, error } = await supabase
-      .from("Car")
-      .select("capacity,created_at")
-      .eq("user_id", driverId)
-      .order("created_at", { ascending: false })
-      .limit(1);
+    const [userRes, carRes, schedRes] = await Promise.all([
+      supabase.from("User").select("name,picture_url").eq("id", driverId).single(),
+      supabase
+        .from("Car")
+        .select("make,model,color,license_plate,capacity,created_at")
+        .eq("user_id", driverId)
+        .order("created_at", { ascending: false })
+        .limit(1),
+      supabase
+        .from("schedule")
+        .select("dropoff_loc")
+        .eq("user_id", driverId)
+        .order("created_at", { ascending: true })
+        .limit(1),
+    ]);
 
-    if (error || !data || data.length === 0) {
+    const carRows = carRes.data as CarRow[] | null;
+    const row = carRows?.[0];
+    const cap = row?.capacity;
+    const seats =
+      typeof cap === "number" && cap > 0 ? cap : typeof cap === "string" ? Number(cap) : NaN;
+    if (!row || !Number.isFinite(seats) || seats <= 0) {
       return null;
     }
 
-    const row = data[0] as CarRow;
-    if (typeof row.capacity !== "number" || row.capacity <= 0) {
-      return null;
-    }
-    return row.capacity;
+    const user = userRes.data as { name: string | null; picture_url: string | null } | null;
+    const schedRows = schedRes.data as { dropoff_loc: string | null }[] | null;
+    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
+
+    const car: CarDetails | null = {
+      make: row.make,
+      model: row.model,
+      color: row.color,
+      license_plate: row.license_plate,
+    };
+
+    return {
+      seats_remaining: seats,
+      name: user?.name ?? null,
+      picture_url: user?.picture_url ?? null,
+      to_location,
+      car,
+    };
   }
 
   private async handleDriverOnline(userId: string, ev: DriverOnlineEvent): Promise<void> {
     if (ev.driver_id !== userId) return;
-    const seats = await this.fetchDriverCapacity(ev.driver_id);
-    if (!seats) return;
+    const state = await this.fetchDriverPublicInfo(ev.driver_id);
+    if (!state) return;
 
-    this.drivers.set(ev.driver_id, { seats_remaining: seats });
+    this.drivers.set(ev.driver_id, state);
     this.broadcast({
       type: "driver_joined",
       driver_id: ev.driver_id,
-      seats,
+      seats: state.seats_remaining,
+      name: state.name,
+      picture_url: state.picture_url,
+      to_location: state.to_location,
+      car: state.car,
     });
+    // initial_state on websocket open is often delivered before the app registers
+    // any MatchingContext listeners, so it is dropped. Re-send after driver_online
+    // when the client is listening.
+    await this.sendInitialState(userId);
   }
 
   private async handleRiderRequest(
@@ -246,12 +319,15 @@ export class MatchingRoom implements DurableObject {
         joined_at: rider.joined_at,
         name: profile.name,
         picture_url: profile.picture_url,
+        to_location: profile.to_location,
       },
     });
   }
 
   private handleSelectRider(userId: string, ev: SelectRiderEvent): void {
     if (ev.driver_id !== userId) return;
+    const ds = this.drivers.get(ev.driver_id);
+    if (!ds) return;
     const idx = this.riders_waiting.findIndex((r) => r.rider_id === ev.rider_id);
     if (idx === -1) return;
     this.riders_waiting.splice(idx, 1);
@@ -265,6 +341,12 @@ export class MatchingRoom implements DurableObject {
       type: "match_request",
       driver_id: ev.driver_id,
       rider_id: ev.rider_id,
+      driver: {
+        name: ds.name,
+        picture_url: ds.picture_url,
+        to_location: ds.to_location,
+        car: ds.car,
+      },
     });
     this.scheduleMatchTimeout(ev.rider_id);
   }
@@ -296,7 +378,46 @@ export class MatchingRoom implements DurableObject {
     this.sendTo(ev.driver_id, {
       type: "match_confirmed",
       ride,
-      rider,
+      rider: {
+        id: rider.id,
+        name: rider.name,
+        residence: rider.residence,
+        picture_url: rider.picture_url,
+        to_location: rider.to_location,
+      },
+    });
+  }
+
+  private async handleRejectMatch(userId: string, ev: RejectMatchEvent): Promise<void> {
+    if (ev.rider_id !== userId) return;
+    const driverId = this.pending_matches.get(ev.rider_id);
+    if (driverId !== ev.driver_id) return;
+
+    this.pending_matches.delete(ev.rider_id);
+    this.clearMatchTimeout(ev.rider_id);
+
+    const joined_at = Date.now();
+    this.riders_waiting.push({
+      rider_id: ev.rider_id,
+      joined_at,
+    });
+
+    const profile = await this.fetchRiderProfile(ev.rider_id);
+
+    this.broadcast({
+      type: "match_rejected",
+      rider_id: ev.rider_id,
+      driver_id: ev.driver_id,
+    });
+    this.broadcast({
+      type: "rider_joined",
+      rider: {
+        rider_id: ev.rider_id,
+        joined_at,
+        name: profile.name,
+        picture_url: profile.picture_url,
+        to_location: profile.to_location,
+      },
     });
   }
 
@@ -319,6 +440,9 @@ export class MatchingRoom implements DurableObject {
         break;
       case "accept_match":
         await this.handleAcceptMatch(userId, ev);
+        break;
+      case "reject_match":
+        await this.handleRejectMatch(userId, ev);
         break;
     }
   }

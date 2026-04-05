@@ -1,11 +1,27 @@
 ## GusLift Monorepo
 
-This repository contains two main applications:
+This repository contains:
 
 - **Mobile app**: Expo / React Native app in `apps/mobile`
 - **Web app**: Next.js app in `apps/web`
+- **Matching worker**: Cloudflare Worker + Durable Object in `apps/matching-worker` (real-time driver–rider matching by time/location slot)
 
-Both apps are independent Node projects, each with their own `package.json`.
+Each app is an independent Node project with its own `package.json` (the worker uses Wrangler).
+
+---
+
+## Matching (rides)
+
+Matching runs on the **matching worker**. Slots look like `LOCATION:weekday:HH:MM` (for example `AUGIE:mon:08:00`). The worker loads the user’s **schedule** from Supabase when resolving a slot; if there is **no class block for today**, clients can still match by passing **manual** `location` and `time` query parameters (Uber-style one-off requests). Accepted rides are written to the Supabase **`Rides`** table.
+
+**Mobile (riders)** use **Request a Ride** (`apps/mobile/app/rider/RequestRide.js`):
+
+1. **Custom pickup time** — Enter pickup location, optional destination label, and time (`HH:MM`). Use this for trips that are not covered by “first class of the day” matching (for example leaving class or heading home).
+2. **Or match using your schedule** — Uses the saved route; pickup time follows the scheduled **first class (today)** slot.
+
+The app’s `MatchingContext` performs a **GET preflight** on the worker (same URL/query as the WebSocket) before upgrading, so the UI can detect when a **manual time** is required without failing the WebSocket handshake.
+
+See **`apps/matching-worker/README.md`** for HTTP preflight, query parameters, and WebSocket events. See **`apps/mobile/README.md`** for rider env vars (`EXPO_PUBLIC_MATCHING_WORKER_URL`, etc.).
 
 ---
 
@@ -165,9 +181,11 @@ Use your browser for the web app and Expo tooling (emulator, simulator, or devic
 
 - `apps/mobile` – Expo / React Native application
 - `apps/web` – Next.js web application
+- `apps/matching-worker` – Cloudflare Worker + Durable Object for matching WebSockets
 
 Each app has its own README with more specific framework docs:
 
-- `apps/mobile/README.md` – Expo-specific instructions
+- `apps/mobile/README.md` – Expo-specific instructions and GusLift rider matching notes
 - `apps/web/README.md` – Next.js-specific instructions
+- `apps/matching-worker/README.md` – Worker setup, slot resolution, HTTP preflight, WebSocket protocol
 
