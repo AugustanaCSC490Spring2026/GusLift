@@ -43,9 +43,9 @@ export default function Role() {
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
 
       if (role === "driver") {
-        router.replace("/driver/DriverSetup");
+        router.push("/driver/DriverSetup");
       } else {
-        router.replace("/home");
+        router.push("/home");
       }
     } catch {
       Alert.alert("Error", "Could not save your role. Try again.");

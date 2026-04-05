@@ -1,6 +1,47 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
+// .wrangler/tmp/bundle-WpGQw3/checked-fetch.js
+var urls = /* @__PURE__ */ new Set();
+function checkURL(request, init) {
+  const url = request instanceof URL ? request : new URL(
+    (typeof request === "string" ? new Request(request, init) : request).url
+  );
+  if (url.port && url.port !== "443" && url.protocol === "https:") {
+    if (!urls.has(url.toString())) {
+      urls.add(url.toString());
+      console.warn(
+        `WARNING: known issue with \`fetch()\` requests to custom HTTPS ports in published Workers:
+ - ${url.toString()} - the custom port will be ignored when the Worker is published using the \`wrangler deploy\` command.
+`
+      );
+    }
+  }
+}
+__name(checkURL, "checkURL");
+globalThis.fetch = new Proxy(globalThis.fetch, {
+  apply(target, thisArg, argArray) {
+    const [request, init] = argArray;
+    checkURL(request, init);
+    return Reflect.apply(target, thisArg, argArray);
+  }
+});
+
+// .wrangler/tmp/bundle-WpGQw3/strip-cf-connecting-ip-header.js
+function stripCfConnectingIPHeader(input, init) {
+  const request = new Request(input, init);
+  request.headers.delete("CF-Connecting-IP");
+  return request;
+}
+__name(stripCfConnectingIPHeader, "stripCfConnectingIPHeader");
+globalThis.fetch = new Proxy(globalThis.fetch, {
+  apply(target, thisArg, argArray) {
+    return Reflect.apply(target, thisArg, [
+      stripCfConnectingIPHeader.apply(null, argArray)
+    ]);
+  }
+});
+
 // src/auth.ts
 function authenticateRequest(request) {
   const auth = request.headers.get("Authorization");
@@ -12115,17 +12156,12 @@ var MatchingRoom = class {
         rider_id: r.rider_id,
         joined_at: r.joined_at,
         name: profile?.name ?? null,
-        picture_url: profile?.picture_url ?? null,
-        to_location: profile?.to_location ?? null
+        picture_url: profile?.picture_url ?? null
       };
     });
     const drivers = Array.from(this.drivers.entries()).map(([driver_id, s]) => ({
       driver_id,
-      seats_remaining: s.seats_remaining,
-      name: s.name,
-      picture_url: s.picture_url,
-      to_location: s.to_location,
-      car: s.car
+      seats_remaining: s.seats_remaining
     }));
     const pending_matches = Array.from(this.pending_matches.entries()).map(
       ([rider_id, driver_id]) => ({ rider_id, driver_id })
@@ -12147,29 +12183,25 @@ var MatchingRoom = class {
   scheduleMatchTimeout(riderId) {
     this.clearMatchTimeout(riderId);
     const id = setTimeout(() => {
-      void (async () => {
-        this.matchTimeouts.delete(riderId);
-        const driverId = this.pending_matches.get(riderId);
-        if (driverId != null) {
-          this.pending_matches.delete(riderId);
-          const joined_at = Date.now();
-          this.riders_waiting.push({
+      this.matchTimeouts.delete(riderId);
+      const driverId = this.pending_matches.get(riderId);
+      if (driverId != null) {
+        this.pending_matches.delete(riderId);
+        const joined_at = Date.now();
+        this.riders_waiting.push({
+          rider_id: riderId,
+          joined_at
+        });
+        this.broadcast({
+          type: "rider_joined",
+          rider: {
             rider_id: riderId,
-            joined_at
-          });
-          const profile = await this.fetchRiderProfile(riderId);
-          this.broadcast({
-            type: "rider_joined",
-            rider: {
-              rider_id: riderId,
-              joined_at,
-              name: profile.name,
-              picture_url: profile.picture_url,
-              to_location: profile.to_location
-            }
-          });
-        }
-      })();
+            joined_at,
+            name: null,
+            picture_url: null
+          }
+        });
+      }
     }, MATCH_TIMEOUT_MS);
     this.matchTimeouts.set(riderId, id);
   }
@@ -12203,76 +12235,41 @@ var MatchingRoom = class {
   }
   async fetchRiderProfile(riderId) {
     const supabase = getSupabase(this.env);
-    const [userRes, schedRes] = await Promise.all([
-      supabase.from("User").select("id,name,residence,picture_url").eq("id", riderId).single(),
-      supabase.from("schedule").select("dropoff_loc").eq("user_id", riderId).order("created_at", { ascending: true }).limit(1)
-    ]);
-    const schedRows = schedRes.data;
-    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
-    if (userRes.error || !userRes.data) {
+    const { data, error } = await supabase.from("User").select("id,name,residence,picture_url").eq("id", riderId).single();
+    if (error || !data) {
       return {
         id: riderId,
         name: null,
         residence: null,
-        picture_url: null,
-        to_location
+        picture_url: null
       };
     }
-    const u = userRes.data;
-    return { ...u, to_location };
+    return data;
   }
-  /**
-   * Loads driver User + Car + schedule dropoff for WebSocket payloads.
-   * Returns null if the driver has no car or invalid seat capacity.
-   */
-  async fetchDriverPublicInfo(driverId) {
+  async fetchDriverCapacity(driverId) {
     const supabase = getSupabase(this.env);
-    const [userRes, carRes, schedRes] = await Promise.all([
-      supabase.from("User").select("name,picture_url").eq("id", driverId).single(),
-      supabase.from("Car").select("make,model,color,license_plate,capacity,created_at").eq("user_id", driverId).order("created_at", { ascending: false }).limit(1),
-      supabase.from("schedule").select("dropoff_loc").eq("user_id", driverId).order("created_at", { ascending: true }).limit(1)
-    ]);
-    const carRows = carRes.data;
-    const row = carRows?.[0];
-    const cap = row?.capacity;
-    const seats = typeof cap === "number" && cap > 0 ? cap : typeof cap === "string" ? Number(cap) : NaN;
-    if (!row || !Number.isFinite(seats) || seats <= 0) {
+    const { data, error } = await supabase.from("Car").select("capacity,created_at").eq("user_id", driverId).order("created_at", { ascending: false }).limit(1);
+    if (error || !data || data.length === 0) {
       return null;
     }
-    const user = userRes.data;
-    const schedRows = schedRes.data;
-    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
-    const car = {
-      make: row.make,
-      model: row.model,
-      color: row.color,
-      license_plate: row.license_plate
-    };
-    return {
-      seats_remaining: seats,
-      name: user?.name ?? null,
-      picture_url: user?.picture_url ?? null,
-      to_location,
-      car
-    };
+    const row = data[0];
+    if (typeof row.capacity !== "number" || row.capacity <= 0) {
+      return null;
+    }
+    return row.capacity;
   }
   async handleDriverOnline(userId, ev) {
     if (ev.driver_id !== userId)
       return;
-    const state = await this.fetchDriverPublicInfo(ev.driver_id);
-    if (!state)
+    const seats = await this.fetchDriverCapacity(ev.driver_id);
+    if (!seats)
       return;
-    this.drivers.set(ev.driver_id, state);
+    this.drivers.set(ev.driver_id, { seats_remaining: seats });
     this.broadcast({
       type: "driver_joined",
       driver_id: ev.driver_id,
-      seats: state.seats_remaining,
-      name: state.name,
-      picture_url: state.picture_url,
-      to_location: state.to_location,
-      car: state.car
+      seats
     });
-    await this.sendInitialState(userId);
   }
   async handleRiderRequest(userId, ev) {
     if (ev.rider_id !== userId)
@@ -12289,16 +12286,12 @@ var MatchingRoom = class {
         rider_id: rider.rider_id,
         joined_at: rider.joined_at,
         name: profile.name,
-        picture_url: profile.picture_url,
-        to_location: profile.to_location
+        picture_url: profile.picture_url
       }
     });
   }
   handleSelectRider(userId, ev) {
     if (ev.driver_id !== userId)
-      return;
-    const ds = this.drivers.get(ev.driver_id);
-    if (!ds)
       return;
     const idx = this.riders_waiting.findIndex((r) => r.rider_id === ev.rider_id);
     if (idx === -1)
@@ -12313,13 +12306,7 @@ var MatchingRoom = class {
     this.sendTo(ev.rider_id, {
       type: "match_request",
       driver_id: ev.driver_id,
-      rider_id: ev.rider_id,
-      driver: {
-        name: ds.name,
-        picture_url: ds.picture_url,
-        to_location: ds.to_location,
-        car: ds.car
-      }
+      rider_id: ev.rider_id
     });
     this.scheduleMatchTimeout(ev.rider_id);
   }
@@ -12349,43 +12336,7 @@ var MatchingRoom = class {
     this.sendTo(ev.driver_id, {
       type: "match_confirmed",
       ride,
-      rider: {
-        id: rider.id,
-        name: rider.name,
-        residence: rider.residence,
-        picture_url: rider.picture_url,
-        to_location: rider.to_location
-      }
-    });
-  }
-  async handleRejectMatch(userId, ev) {
-    if (ev.rider_id !== userId)
-      return;
-    const driverId = this.pending_matches.get(ev.rider_id);
-    if (driverId !== ev.driver_id)
-      return;
-    this.pending_matches.delete(ev.rider_id);
-    this.clearMatchTimeout(ev.rider_id);
-    const joined_at = Date.now();
-    this.riders_waiting.push({
-      rider_id: ev.rider_id,
-      joined_at
-    });
-    const profile = await this.fetchRiderProfile(ev.rider_id);
-    this.broadcast({
-      type: "match_rejected",
-      rider_id: ev.rider_id,
-      driver_id: ev.driver_id
-    });
-    this.broadcast({
-      type: "rider_joined",
-      rider: {
-        rider_id: ev.rider_id,
-        joined_at,
-        name: profile.name,
-        picture_url: profile.picture_url,
-        to_location: profile.to_location
-      }
+      rider
     });
   }
   async handleMessage(userId, raw) {
@@ -12407,9 +12358,6 @@ var MatchingRoom = class {
         break;
       case "accept_match":
         await this.handleAcceptMatch(userId, ev);
-        break;
-      case "reject_match":
-        await this.handleRejectMatch(userId, ev);
         break;
     }
   }
@@ -12474,9 +12422,7 @@ function resolveMatchingSlot(schedule, location) {
   const day = getCurrentWeekday();
   const daySchedule = schedule?.[day];
   if (!daySchedule?.start_time) {
-    throw new ManualSlotRequiredError(
-      `No schedule for today (${day}). Pass location and time to match without a saved schedule.`
-    );
+    throw new SlotResolveError(`No schedule for today (${day})`);
   }
   const startTime = daySchedule.start_time;
   return `${location}:${day}:${startTime}`;
@@ -12523,55 +12469,16 @@ var SlotResolveError = class extends Error {
   }
 };
 __name(SlotResolveError, "SlotResolveError");
-var ManualSlotRequiredError = class extends SlotResolveError {
-  constructor(message) {
-    super(message);
-    this.name = "ManualSlotRequiredError";
-  }
-};
-__name(ManualSlotRequiredError, "ManualSlotRequiredError");
 
 // src/index.ts
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" }
-  });
-}
-__name(json, "json");
 var src_default = {
   async fetch(request, env, _ctx) {
     const userId = authenticateRequest(request);
     if (!userId) {
-      return json({ error: "Unauthorized" }, 401);
-    }
-    const isWebSocket = request.headers.get("Upgrade")?.toLowerCase() === "websocket";
-    if (request.method === "GET" && !isWebSocket) {
-      try {
-        const { residence, schedule } = await fetchUserAndSchedule(env, userId);
-        const url = new URL(request.url);
-        const slot2 = resolveMatchingSlotWithOverride(schedule, residence, {
-          location: url.searchParams.get("location"),
-          time: url.searchParams.get("time"),
-          day: url.searchParams.get("day")
-        });
-        return json({ ok: true, slot: slot2 });
-      } catch (e) {
-        if (e instanceof ManualSlotRequiredError) {
-          return json({
-            ok: false,
-            needsManualTime: true,
-            message: e.message
-          });
-        }
-        if (e instanceof SlotResolveError) {
-          return json({ ok: false, error: e.message }, 400);
-        }
-        if (e instanceof Error && e.name === "AuthError") {
-          return json({ error: e.message }, 401);
-        }
-        throw e;
-      }
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
     }
     let slot;
     try {
@@ -12583,21 +12490,17 @@ var src_default = {
         day: url.searchParams.get("day")
       });
     } catch (e) {
-      if (e instanceof ManualSlotRequiredError) {
-        return json(
-          {
-            ok: false,
-            needsManualTime: true,
-            message: e.message
-          },
-          422
-        );
-      }
       if (e instanceof SlotResolveError) {
-        return json({ ok: false, error: e.message }, 400);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
       }
       if (e instanceof Error && e.name === "AuthError") {
-        return json({ error: e.message }, 401);
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
       }
       throw e;
     }
@@ -12615,8 +12518,177 @@ var src_default = {
     return stub.fetch(forwardedRequest);
   }
 };
+
+// node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
+var drainBody = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx) => {
+  try {
+    return await middlewareCtx.next(request, env);
+  } finally {
+    try {
+      if (request.body !== null && !request.bodyUsed) {
+        const reader = request.body.getReader();
+        while (!(await reader.read()).done) {
+        }
+      }
+    } catch (e) {
+      console.error("Failed to drain the unused request body.", e);
+    }
+  }
+}, "drainBody");
+var middleware_ensure_req_body_drained_default = drainBody;
+
+// node_modules/wrangler/templates/middleware/middleware-miniflare3-json-error.ts
+function reduceError(e) {
+  return {
+    name: e?.name,
+    message: e?.message ?? String(e),
+    stack: e?.stack,
+    cause: e?.cause === void 0 ? void 0 : reduceError(e.cause)
+  };
+}
+__name(reduceError, "reduceError");
+var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx) => {
+  try {
+    return await middlewareCtx.next(request, env);
+  } catch (e) {
+    const error = reduceError(e);
+    return Response.json(error, {
+      status: 500,
+      headers: { "MF-Experimental-Error-Stack": "true" }
+    });
+  }
+}, "jsonError");
+var middleware_miniflare3_json_error_default = jsonError;
+
+// .wrangler/tmp/bundle-WpGQw3/middleware-insertion-facade.js
+var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
+  middleware_ensure_req_body_drained_default,
+  middleware_miniflare3_json_error_default
+];
+var middleware_insertion_facade_default = src_default;
+
+// node_modules/wrangler/templates/middleware/common.ts
+var __facade_middleware__ = [];
+function __facade_register__(...args) {
+  __facade_middleware__.push(...args.flat());
+}
+__name(__facade_register__, "__facade_register__");
+function __facade_invokeChain__(request, env, ctx, dispatch, middlewareChain) {
+  const [head2, ...tail] = middlewareChain;
+  const middlewareCtx = {
+    dispatch,
+    next(newRequest, newEnv) {
+      return __facade_invokeChain__(newRequest, newEnv, ctx, dispatch, tail);
+    }
+  };
+  return head2(request, env, ctx, middlewareCtx);
+}
+__name(__facade_invokeChain__, "__facade_invokeChain__");
+function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
+  return __facade_invokeChain__(request, env, ctx, dispatch, [
+    ...__facade_middleware__,
+    finalMiddleware
+  ]);
+}
+__name(__facade_invoke__, "__facade_invoke__");
+
+// .wrangler/tmp/bundle-WpGQw3/middleware-loader.entry.ts
+var __Facade_ScheduledController__ = class {
+  constructor(scheduledTime, cron, noRetry) {
+    this.scheduledTime = scheduledTime;
+    this.cron = cron;
+    this.#noRetry = noRetry;
+  }
+  #noRetry;
+  noRetry() {
+    if (!(this instanceof __Facade_ScheduledController__)) {
+      throw new TypeError("Illegal invocation");
+    }
+    this.#noRetry();
+  }
+};
+__name(__Facade_ScheduledController__, "__Facade_ScheduledController__");
+function wrapExportedHandler(worker) {
+  if (__INTERNAL_WRANGLER_MIDDLEWARE__ === void 0 || __INTERNAL_WRANGLER_MIDDLEWARE__.length === 0) {
+    return worker;
+  }
+  for (const middleware of __INTERNAL_WRANGLER_MIDDLEWARE__) {
+    __facade_register__(middleware);
+  }
+  const fetchDispatcher = /* @__PURE__ */ __name(function(request, env, ctx) {
+    if (worker.fetch === void 0) {
+      throw new Error("Handler does not export a fetch() function.");
+    }
+    return worker.fetch(request, env, ctx);
+  }, "fetchDispatcher");
+  return {
+    ...worker,
+    fetch(request, env, ctx) {
+      const dispatcher = /* @__PURE__ */ __name(function(type, init) {
+        if (type === "scheduled" && worker.scheduled !== void 0) {
+          const controller = new __Facade_ScheduledController__(
+            Date.now(),
+            init.cron ?? "",
+            () => {
+            }
+          );
+          return worker.scheduled(controller, env, ctx);
+        }
+      }, "dispatcher");
+      return __facade_invoke__(request, env, ctx, dispatcher, fetchDispatcher);
+    }
+  };
+}
+__name(wrapExportedHandler, "wrapExportedHandler");
+function wrapWorkerEntrypoint(klass) {
+  if (__INTERNAL_WRANGLER_MIDDLEWARE__ === void 0 || __INTERNAL_WRANGLER_MIDDLEWARE__.length === 0) {
+    return klass;
+  }
+  for (const middleware of __INTERNAL_WRANGLER_MIDDLEWARE__) {
+    __facade_register__(middleware);
+  }
+  return class extends klass {
+    #fetchDispatcher = (request, env, ctx) => {
+      this.env = env;
+      this.ctx = ctx;
+      if (super.fetch === void 0) {
+        throw new Error("Entrypoint class does not define a fetch() function.");
+      }
+      return super.fetch(request);
+    };
+    #dispatcher = (type, init) => {
+      if (type === "scheduled" && super.scheduled !== void 0) {
+        const controller = new __Facade_ScheduledController__(
+          Date.now(),
+          init.cron ?? "",
+          () => {
+          }
+        );
+        return super.scheduled(controller);
+      }
+    };
+    fetch(request) {
+      return __facade_invoke__(
+        request,
+        this.env,
+        this.ctx,
+        this.#dispatcher,
+        this.#fetchDispatcher
+      );
+    }
+  };
+}
+__name(wrapWorkerEntrypoint, "wrapWorkerEntrypoint");
+var WRAPPED_ENTRY;
+if (typeof middleware_insertion_facade_default === "object") {
+  WRAPPED_ENTRY = wrapExportedHandler(middleware_insertion_facade_default);
+} else if (typeof middleware_insertion_facade_default === "function") {
+  WRAPPED_ENTRY = wrapWorkerEntrypoint(middleware_insertion_facade_default);
+}
+var middleware_loader_entry_default = WRAPPED_ENTRY;
 export {
   MatchingRoom,
-  src_default as default
+  __INTERNAL_WRANGLER_MIDDLEWARE__,
+  middleware_loader_entry_default as default
 };
 //# sourceMappingURL=index.js.map

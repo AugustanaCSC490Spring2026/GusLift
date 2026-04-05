@@ -38,7 +38,9 @@ export function resolveMatchingSlot(
   const day = getCurrentWeekday();
   const daySchedule = schedule?.[day];
   if (!daySchedule?.start_time) {
-    throw new SlotResolveError(`No schedule for today (${day})`);
+    throw new ManualSlotRequiredError(
+      `No schedule for today (${day}). Pass location and time to match without a saved schedule.`
+    );
   }
   const startTime = daySchedule.start_time;
   return `${location}:${day}:${startTime}`;
@@ -101,5 +103,13 @@ export class SlotResolveError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SlotResolveError";
+  }
+}
+
+/** No entry for today in schedule — client should collect one-time location + time (Uber-style). */
+export class ManualSlotRequiredError extends SlotResolveError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ManualSlotRequiredError";
   }
 }

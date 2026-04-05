@@ -87,7 +87,7 @@ export default function Signup() {
         const isExpired = Date.now() - parsed.savedAt > sevenDays;
         if (!isExpired) {
           if (!parsed.role) {
-            router.replace("/role");
+            router.push("/role");
             return;
           }
 
@@ -146,7 +146,7 @@ export default function Signup() {
       }
 
       setLoading(false);
-      router.replace("/role");
+      router.push("/role");
     } catch {
       setLoading(false);
       Alert.alert("Error", "Could not fetch your Google profile. Try again.", [

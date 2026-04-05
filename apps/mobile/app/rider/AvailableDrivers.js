@@ -16,7 +16,24 @@ export default function AvailableDrivers() {
   useEffect(() => {
     const unsubscribe = onMessage(async (msg) => {
       if (msg.type === "match_request") {
-        const driver = await fetchDriverInfo(msg.driver_id);
+        let driver;
+        if (msg.driver) {
+          const d = msg.driver;
+          const carParts = d.car
+            ? [
+                [d.car.color, d.car.make, d.car.model].filter(Boolean).join(" ").trim(),
+                d.car.license_plate,
+              ].filter(Boolean)
+            : [];
+          driver = {
+            name: d.name,
+            picture_url: d.picture_url,
+            to_location: d.to_location ?? null,
+            car: carParts.length ? carParts.join(" · ") : null,
+          };
+        } else {
+          driver = await fetchDriverInfo(msg.driver_id);
+        }
         setMatchedDriver({ ...driver, driver_id: msg.driver_id });
         setConfirming(false);
       }
@@ -44,16 +61,26 @@ export default function AvailableDrivers() {
           { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
         ),
         fetch(
-          `${SUPABASE_URL}/rest/v1/Car?user_id=eq.${driverId}&select=make,model,color`,
+          `${SUPABASE_URL}/rest/v1/Car?user_id=eq.${driverId}&select=make,model,color,license_plate`,
           { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
         ),
       ]);
       const users = await userRes.json();
       const cars = await carRes.json();
+      const c0 = cars?.[0];
+      const carLabel = c0
+        ? [
+            [c0.color, c0.make, c0.model].filter(Boolean).join(" ").trim(),
+            c0.license_plate,
+          ]
+            .filter(Boolean)
+            .join(" · ") || null
+        : null;
       return {
         name: users?.[0]?.name ?? null,
         picture_url: users?.[0]?.picture_url ?? null,
-        car: cars?.[0] ? `${cars[0].color ?? ""} ${cars[0].make ?? ""} ${cars[0].model ?? ""}`.trim() : null,
+        to_location: null,
+        car: carLabel,
       };
     } catch (_) {
       return { name: null, picture_url: null, car: null };
@@ -93,13 +120,14 @@ export default function AvailableDrivers() {
   }
 
   async function handleRejectAndKeepSearching() {
+    if (!matchedDriver || !userId) return;
     setConfirming(true);
-    disconnect();
-    const id = await connect();
-    if (id) {
-      send({ type: "rider_request", rider_id: id });
-      setMatchedDriver(null);
-    }
+    send({
+      type: "reject_match",
+      rider_id: userId,
+      driver_id: matchedDriver.driver_id,
+    });
+    setMatchedDriver(null);
     setConfirming(false);
   }
 
@@ -153,6 +181,9 @@ export default function AvailableDrivers() {
 
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>{matchedDriver.name ?? "Unknown Driver"}</Text>
+              {matchedDriver.to_location ? (
+                <Text style={styles.driverMeta}>To: {matchedDriver.to_location}</Text>
+              ) : null}
               {matchedDriver.car && <Text style={styles.driverCar}>{matchedDriver.car}</Text>}
             </View>
 
@@ -286,6 +317,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: "#1f2937",
+  },
+  driverMeta: {
+    fontSize: 13,
+    color: "#6b7280",
   },
   driverCar: {
     fontSize: 13,

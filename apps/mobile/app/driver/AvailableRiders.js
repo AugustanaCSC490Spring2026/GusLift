@@ -27,6 +27,9 @@ function RiderCard({ rider, isPending, onPress }) {
 
       <View style={styles.info}>
         <Text style={styles.name}>{rider.name ?? "Unknown Rider"}</Text>
+        {rider.to_location ? (
+          <Text style={styles.toLocation}>To: {rider.to_location}</Text>
+        ) : null}
         {rider.rating != null && (
           <Text style={styles.rating}>★ {rider.rating.toFixed(1)}</Text>
         )}
@@ -39,7 +42,7 @@ function RiderCard({ rider, isPending, onPress }) {
 
 export default function AvailableRidersScreen() {
   const router = useRouter();
-  const { send, onMessage, userId, disconnect } = useMatching();
+  const { send, onMessage, userId, disconnect, getRidersSnapshot } = useMatching();
   const [riders, setRiders] = useState([]);
   const [pendingRiderIds, setPendingRiderIds] = useState(new Set());
   const [capacity, setCapacity] = useState(4);
@@ -63,7 +66,9 @@ export default function AvailableRidersScreen() {
         .catch(() => {});
     }
 
-    // Listen on shared WebSocket
+    // Seed from snapshot: initial_state may have fired on the previous screen before we mounted.
+    setRiders(getRidersSnapshot?.() ?? []);
+
     const unsubscribe = onMessage((msg) => {
       if (msg.type === "initial_state") setRiders(msg.riders ?? []);
       if (msg.type === "rider_joined") {
@@ -75,6 +80,13 @@ export default function AvailableRidersScreen() {
       if (msg.type === "rider_removed") {
         setRiders((prev) => prev.filter((r) => r.rider_id !== msg.rider_id));
         setPendingRiderIds((prev) => { const s = new Set(prev); s.delete(msg.rider_id); return s; });
+      }
+      if (msg.type === "match_rejected" && msg.driver_id === userId) {
+        setPendingRiderIds((prev) => {
+          const s = new Set(prev);
+          s.delete(msg.rider_id);
+          return s;
+        });
       }
       if (msg.type === "seat_update" && msg.driver_id === userId) {
         if (typeof capacity === "number") {
@@ -255,6 +267,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1f2937",
     marginBottom: 4,
+  },
+  toLocation: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 2,
   },
   rating: {
     fontSize: 14,

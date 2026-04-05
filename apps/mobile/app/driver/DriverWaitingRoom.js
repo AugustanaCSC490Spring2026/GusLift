@@ -1,7 +1,13 @@
-import { useMatching } from "../../context/MatchingContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useMatching } from "../../context/MatchingContext";
 
 function formatTime12h(timeStr) {
   if (!timeStr) return "—";
@@ -21,9 +27,10 @@ export default function DriverWaitingRoom() {
     let unsubscribe;
 
     async function setup() {
-      const userId = await connect();
-      if (userId) {
-        send({ type: "driver_online", driver_id: userId });
+      // connect() runs GET preflight then opens the WebSocket; see MatchingContext.
+      const result = await connect();
+      if (result?.ok && result.userId) {
+        send({ type: "driver_online", driver_id: result.userId });
         setConnected(true);
       }
 
@@ -91,7 +98,11 @@ export default function DriverWaitingRoom() {
         )}
       </View>
 
-      <TouchableOpacity style={styles.offlineButton} onPress={handleGoOffline} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.offlineButton}
+        onPress={handleGoOffline}
+        activeOpacity={0.8}
+      >
         <Text style={styles.offlineButtonText}>Go Offline</Text>
       </TouchableOpacity>
     </View>
@@ -115,7 +126,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   closeText: { fontSize: 16, color: "#374151", fontWeight: "600" },
-  title: { fontSize: 28, fontWeight: "700", color: "#1f2937", marginBottom: 28 },
+  title: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginBottom: 28,
+  },
   card: {
     backgroundColor: "#ffffff",
     borderRadius: 14,
@@ -128,14 +144,29 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 28,
   },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14 },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+  },
   divider: { height: 1, backgroundColor: "#f0f0f0" },
   label: { fontSize: 15, color: "#6b7280", fontWeight: "500" },
   value: { fontSize: 15, color: "#1f2937", fontWeight: "600" },
-  statusRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 32 },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 32,
+  },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#22c55e" },
   statusOnline: { fontSize: 14, color: "#22c55e", fontWeight: "600" },
   statusConnecting: { fontSize: 14, color: "#6b7280", marginLeft: 8 },
-  offlineButton: { backgroundColor: "#e5e7eb", paddingVertical: 15, borderRadius: 12, alignItems: "center" },
+  offlineButton: {
+    backgroundColor: "#e5e7eb",
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: "center",
+  },
   offlineButtonText: { color: "#374151", fontSize: 17, fontWeight: "700" },
 });

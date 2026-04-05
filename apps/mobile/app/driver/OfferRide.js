@@ -14,6 +14,8 @@ import {
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const BACKEND_URL =
+  process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
@@ -41,6 +43,7 @@ function formatTime12h(timeStr) {
 export default function OfferRide() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  /** Driver pickup label = User.residence (same slot location the worker uses). */
   const [from, setFrom] = useState(null);
   const [classStart, setClassStart] = useState(null);
   const [classEnd, setClassEnd] = useState(null);
@@ -55,26 +58,61 @@ export default function OfferRide() {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
-
-      const [scheduleRes, userRes] = await Promise.all([
-        fetch(
-          `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=days`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-        fetch(
-          `${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-      ]);
-
-      const [scheduleData, userData] = await Promise.all([
-        scheduleRes.json(),
-        userRes.json(),
-      ]);
-
-      const days = scheduleData?.[0]?.days;
-      const residence = userData?.[0]?.residence ?? null;
       const today = getCurrentWeekday();
+      const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
+
+      let residence = null;
+      try {
+        const userRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence`,
+          {
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+          },
+        );
+        const userData = await userRes.json();
+        residence = userData?.[0]?.residence ?? null;
+      } catch (_) {}
+
+      if (normalizedBackendUrl) {
+        try {
+          const res = await fetch(`${normalizedBackendUrl}/api/driver/schedule`, {
+            headers: { "x-user-id": user.id },
+          });
+          if (res.ok) {
+            const body = await res.json();
+            const days = body.days;
+            const todaySchedule = days?.[today];
+            const startTime = todaySchedule?.start_time ?? null;
+            const endTime = todaySchedule?.end_time ?? null;
+
+            setFrom(residence);
+            setClassStart(startTime);
+            setClassEnd(endTime);
+            setPickupTime(startTime ? subtractMinutes(startTime, 15) : "");
+            return;
+          }
+        } catch (_) {
+          // fall through to Supabase fallback
+        }
+      }
+
+      const scheduleRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=days`,
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+        },
+      );
+
+      const scheduleData = await scheduleRes.json();
+
+      const row = scheduleData?.[0];
+      const days = row?.days;
       const todaySchedule = days?.[today];
       const startTime = todaySchedule?.start_time ?? null;
       const endTime = todaySchedule?.end_time ?? null;
@@ -114,7 +152,16 @@ export default function OfferRide() {
   return (
     <View style={styles.container}>
       {/* X button top left */}
-      <TouchableOpacity onPress={() => router.replace("/home")} style={styles.closeButton}>
+      <TouchableOpacity
+        onPress={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/home");
+          }
+        }}
+        style={styles.closeButton}
+      >
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
 
@@ -125,13 +172,6 @@ export default function OfferRide() {
         <View style={styles.row}>
           <Text style={styles.label}>From</Text>
           <Text style={styles.value}>{from ?? "—"}</Text>
-        </View>
-        <View style={styles.divider} />
-
-        {/* To */}
-        <View style={styles.row}>
-          <Text style={styles.label}>To</Text>
-          <Text style={styles.value}>Augustana College</Text>
         </View>
         <View style={styles.divider} />
 
