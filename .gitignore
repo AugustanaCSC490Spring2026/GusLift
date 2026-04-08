@@ -18,6 +18,9 @@
 /out/
 apps/backend/.next/
 
+# wrangler (local cache)
+**/.wrangler/
+
 # production
 /build
 
@@ -35,6 +38,7 @@ yarn-error.log*
 apps/backend/.env*
 apps/mobile/.env*
 apps/matching-worker/.dev.vars
+apps/backend/.dev.vars
 .env
 .env.local
 .env.*.local

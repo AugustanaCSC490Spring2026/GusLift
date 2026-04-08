@@ -9,11 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-
-
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -60,64 +55,34 @@ export default function OfferRide() {
       const user = JSON.parse(stored);
       const today = getCurrentWeekday();
       const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
-
-      let residence = null;
-      try {
-        const userRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence`,
-          {
-            headers: {
-              apikey: SUPABASE_ANON_KEY,
-              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            },
-          },
-        );
-        const userData = await userRes.json();
-        residence = userData?.[0]?.residence ?? null;
-      } catch (_) {}
-
-      if (normalizedBackendUrl) {
-        try {
-          const res = await fetch(`${normalizedBackendUrl}/api/driver/schedule`, {
-            headers: { "x-user-id": user.id },
-          });
-          if (res.ok) {
-            const body = await res.json();
-            const days = body.days;
-            const todaySchedule = days?.[today];
-            const startTime = todaySchedule?.start_time ?? null;
-            const endTime = todaySchedule?.end_time ?? null;
-
-            setFrom(residence);
-            setClassStart(startTime);
-            setClassEnd(endTime);
-            setPickupTime(startTime ? subtractMinutes(startTime, 15) : "");
-            return;
-          }
-        } catch (_) {
-          // fall through to Supabase fallback
-        }
+      if (!normalizedBackendUrl) {
+        setFrom(null);
+        setClassStart(null);
+        setClassEnd(null);
+        setPickupTime("");
+        return;
       }
 
-      const scheduleRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=days`,
-        {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        },
-      );
+      const res = await fetch(`${normalizedBackendUrl}/api/driver/schedule`, {
+        headers: { "x-user-id": user.id },
+      });
 
-      const scheduleData = await scheduleRes.json();
+      if (!res.ok) {
+        setFrom(null);
+        setClassStart(null);
+        setClassEnd(null);
+        setPickupTime("");
+        return;
+      }
 
-      const row = scheduleData?.[0];
-      const days = row?.days;
+      const body = await res.json();
+      const days = body.days;
+      const resolvedFrom = body.from ?? body.pickup_loc ?? body.residence ?? null;
       const todaySchedule = days?.[today];
       const startTime = todaySchedule?.start_time ?? null;
       const endTime = todaySchedule?.end_time ?? null;
 
-      setFrom(residence);
+      setFrom(resolvedFrom);
       setClassStart(startTime);
       setClassEnd(endTime);
       setPickupTime(startTime ? subtractMinutes(startTime, 15) : "");

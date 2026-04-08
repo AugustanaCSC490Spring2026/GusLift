@@ -1,6 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
+function withCors(res: NextResponse) {
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-user-id",
+  );
+  return res;
+}
+
 function getSupabaseWithAuth(request: NextRequest) {
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -50,7 +60,9 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseWithAuth(request);
     const userId = await resolveUserId(request);
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return withCors(
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -58,11 +70,30 @@ export async function GET(request: NextRequest) {
 
     const allowedDays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
     if (day && !allowedDays.includes(day)) {
-      return NextResponse.json(
-        { error: "Invalid day. Use mon,tue,wed,thu,fri,sat,sun." },
-        { status: 400 },
+      return withCors(
+        NextResponse.json(
+          { error: "Invalid day. Use mon,tue,wed,thu,fri,sat,sun." },
+          { status: 400 },
+        ),
       );
     }
+
+    const { data: userRows, error: userError } = await supabase
+      .from("User")
+      .select("residence")
+      .eq("id", userId)
+      .limit(1);
+
+    if (userError) {
+      return withCors(
+        NextResponse.json(
+          { error: userError.message },
+          { status: 500 },
+        ),
+      );
+    }
+
+    const residence = userRows?.[0]?.residence ?? null;
 
     const { data: rows, error: scheduleError } = await supabase
       .from("schedule")
@@ -71,54 +102,80 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (scheduleError) {
-      return NextResponse.json(
-        { error: scheduleError.message },
-        { status: 500 },
+      return withCors(
+        NextResponse.json(
+          { error: scheduleError.message },
+          { status: 500 },
+        ),
       );
     }
 
     const schedule = rows?.[0];
 
     if (!schedule) {
-      return NextResponse.json(
-        { error: "No schedule found for this user" },
-        { status: 404 },
+      const from = residence;
+      return withCors(
+        NextResponse.json(
+          {
+            days: null,
+            from,
+            pickup_loc: null,
+            dropoff_loc: null,
+            residence,
+          },
+          { status: 200 },
+        ),
       );
     }
 
     const { days, pickup_loc, dropoff_loc } = schedule;
+    const from = pickup_loc ?? residence;
 
     if (day) {
       const dayEntry = days?.[day];
 
-      return NextResponse.json(
-        {
-          day,
-          schedule: dayEntry
-            ? {
-                ...dayEntry,
-                pickup_loc,
-                dropoff_loc,
-              }
-            : null,
-        },
-        { status: 200 },
+      return withCors(
+        NextResponse.json(
+          {
+            day,
+            schedule: dayEntry
+              ? {
+                  ...dayEntry,
+                  from,
+                  pickup_loc,
+                  dropoff_loc,
+                  residence,
+                }
+              : null,
+          },
+          { status: 200 },
+        ),
       );
     }
 
-    return NextResponse.json(
-      {
-        days,
-        pickup_loc,
-        dropoff_loc,
-      },
-      { status: 200 },
+    return withCors(
+      NextResponse.json(
+        {
+          days,
+          from,
+          pickup_loc,
+          dropoff_loc,
+          residence,
+        },
+        { status: 200 },
+      ),
     );
   } catch (error) {
     console.error("Schedule GET error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+    return withCors(
+      NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 },
+      ),
     );
   }
+}
+
+export function OPTIONS() {
+  return withCors(new NextResponse(null, { status: 204 }));
 }

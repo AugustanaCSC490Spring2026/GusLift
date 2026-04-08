@@ -12,6 +12,12 @@ type RideRow = {
   created_at: string | null;
 };
 
+type DriverScheduleRow = {
+  user_id: string;
+  pickup_loc: string | null;
+  dropoff_loc: string | null;
+};
+
 type UserRow = {
   id: string;
   name: string | null;
@@ -72,6 +78,37 @@ export async function GET(request: NextRequest) {
     }
 
     const rideRows = (rides || []) as RideRow[];
+    let scheduleByDriver = new Map<string, DriverScheduleRow>();
+    const driverIds = Array.from(
+      new Set(rideRows.map((ride) => ride.driver_id).filter(Boolean))
+    );
+
+    if (driverIds.length > 0) {
+      const { data: schedules, error: schedulesError } = await supabase
+        .from("schedule")
+        .select("user_id,pickup_loc,dropoff_loc")
+        .in("user_id", driverIds);
+
+      if (schedulesError) {
+        return withCors(
+          NextResponse.json(
+            {
+              error: "Failed to fetch driver schedules",
+              details: schedulesError.message,
+            },
+            { status: 500 }
+          )
+        );
+      }
+
+      scheduleByDriver = new Map(
+        ((schedules || []) as DriverScheduleRow[]).map((schedule) => [
+          schedule.user_id,
+          schedule,
+        ])
+      );
+    }
+
     const riderIds = Array.from(
       new Set(rideRows.map((ride) => ride.rider_id).filter(Boolean))
     );
@@ -101,6 +138,7 @@ export async function GET(request: NextRequest) {
     }
 
     const items = rideRows.map((ride) => {
+      const driverSchedule = scheduleByDriver.get(ride.driver_id);
       let day: string | null = null;
       if (ride.ride_date) {
         try {
@@ -118,6 +156,8 @@ export async function GET(request: NextRequest) {
       return {
         ...ride,
         day,
+        pickup_loc: driverSchedule?.pickup_loc ?? ride.location ?? null,
+        dropoff_loc: driverSchedule?.dropoff_loc ?? null,
         rider: ridersById.get(ride.rider_id) || {
           id: ride.rider_id,
           name: null,

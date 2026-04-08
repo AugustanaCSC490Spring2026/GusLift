@@ -16,7 +16,8 @@ function formatTime12h(timeStr) {
 
 export default function RideDetailDriver() {
   const router = useRouter();
-  const { day, start_time, location, riders: ridersJson } = useLocalSearchParams();
+  const { day, start_time, pickup_loc, dropoff_loc, riders: ridersJson } =
+    useLocalSearchParams();
   const riders = ridersJson ? JSON.parse(ridersJson) : [];
 
   return (
@@ -36,12 +37,12 @@ export default function RideDetailDriver() {
         <View style={styles.divider} />
         <View style={styles.row}>
           <Text style={styles.label}>From</Text>
-          <Text style={styles.value}>{location || "—"}</Text>
+          <Text style={styles.value}>{pickup_loc || "—"}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>
           <Text style={styles.label}>To</Text>
-          <Text style={styles.value}>Augustana College</Text>
+          <Text style={styles.value}>{dropoff_loc || "—"}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>

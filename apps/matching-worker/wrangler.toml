@@ -9,7 +9,8 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["MatchingRoom"]
+# Free plan requires SQLite-backed Durable Objects (see Cloudflare error 10097).
+new_sqlite_classes = ["MatchingRoom"]
 
 [vars]
 # SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY should be set via wrangler secret or in .dev.vars for local

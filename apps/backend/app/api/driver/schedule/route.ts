@@ -1,1 +1,1 @@
-export { GET } from "@/lib/user-schedule";
+export { GET, OPTIONS } from "@/lib/user-schedule";

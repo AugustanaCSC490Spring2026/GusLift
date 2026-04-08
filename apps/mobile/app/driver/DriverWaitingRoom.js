@@ -22,6 +22,7 @@ export default function DriverWaitingRoom() {
   const { connect, send, disconnect, onMessage } = useMatching();
   const { from, pickupTime, classStart, classEnd } = useLocalSearchParams();
   const [connected, setConnected] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
     let unsubscribe;
@@ -32,6 +33,13 @@ export default function DriverWaitingRoom() {
       if (result?.ok && result.userId) {
         send({ type: "driver_online", driver_id: result.userId });
         setConnected(true);
+        setStatusMessage("");
+      } else if (result?.needsManualTime) {
+        setStatusMessage(result.message || "No class block found for today.");
+      } else if (result?.error) {
+        setStatusMessage(result.error);
+      } else {
+        setStatusMessage("Unable to go online right now.");
       }
 
       unsubscribe = onMessage((msg) => {
@@ -90,13 +98,18 @@ export default function DriverWaitingRoom() {
             <View style={styles.dot} />
             <Text style={styles.statusOnline}>Online — waiting for riders</Text>
           </>
-        ) : (
+        ) : !statusMessage ? (
           <>
             <ActivityIndicator size="small" color="#1a3a6b" />
             <Text style={styles.statusConnecting}>Connecting...</Text>
           </>
+        ) : (
+          <Text style={styles.statusConnecting}>Unable to connect</Text>
         )}
       </View>
+      {!connected && !!statusMessage ? (
+        <Text style={styles.statusError}>{statusMessage}</Text>
+      ) : null}
 
       <TouchableOpacity
         style={styles.offlineButton}
@@ -162,6 +175,7 @@ const styles = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#22c55e" },
   statusOnline: { fontSize: 14, color: "#22c55e", fontWeight: "600" },
   statusConnecting: { fontSize: 14, color: "#6b7280", marginLeft: 8 },
+  statusError: { fontSize: 14, color: "#b91c1c", marginBottom: 20 },
   offlineButton: {
     backgroundColor: "#e5e7eb",
     paddingVertical: 15,

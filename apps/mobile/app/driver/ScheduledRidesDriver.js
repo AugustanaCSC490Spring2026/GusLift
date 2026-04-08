@@ -38,7 +38,8 @@ function groupRides(rides) {
         key,
         day: ride.day,
         start_time: ride.start_time,
-        location: ride.location,
+        pickup_loc: ride.pickup_loc ?? ride.location ?? null,
+        dropoff_loc: ride.dropoff_loc ?? null,
         riders: [],
       });
     }
@@ -125,7 +126,8 @@ export default function ScheduledRidesDriver() {
                   params: {
                     day: group.day,
                     start_time: group.start_time,
-                    location: group.location ?? "",
+                    pickup_loc: group.pickup_loc ?? "",
+                    dropoff_loc: group.dropoff_loc ?? "",
                     riders: JSON.stringify(group.riders),
                   },
                 })
@@ -135,9 +137,9 @@ export default function ScheduledRidesDriver() {
 
               <View style={styles.rowLine}>
                 <Text style={styles.metaLabel}>From</Text>
-                <Text style={styles.metaValue}>{group.location ?? "—"}</Text>
+                <Text style={styles.metaValue}>{group.pickup_loc ?? "—"}</Text>
                 <Text style={styles.metaLabel}>  To</Text>
-                <Text style={styles.metaValue}>Augustana College</Text>
+                <Text style={styles.metaValue}>{group.dropoff_loc ?? "—"}</Text>
               </View>
 
               <View style={styles.rowLine}>
