@@ -1,5 +1,5 @@
+import { createClient, type PostgrestError } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
 type RideRow = {
   id: string;
@@ -25,12 +25,20 @@ type UserRow = {
   picture_url: string | null;
 };
 
+type CarRow = {
+  user_id: string;
+  make: string | null;
+  model: string | null;
+  color: string | null;
+  license_plate: string | null;
+};
+
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+      "Missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) or SUPABASE_SERVICE_ROLE_KEY",
     );
   }
   return createClient(url, serviceKey);
@@ -41,54 +49,104 @@ function withCors(res: NextResponse) {
   res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
+    "Content-Type, Authorization",
   );
   return res;
 }
 
+function getLocalTodayDate(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+async function queryRides(
+  supabase: ReturnType<typeof getSupabase>,
+  opts: { driverId?: string; riderId?: string; limit?: number },
+): Promise<{ rows: RideRow[]; error: PostgrestError | null }> {
+  const rideSelect =
+    "id,driver_id,rider_id,ride_date,start_time,location,status,created_at";
+  const todayDate = getLocalTodayDate();
+  for (const tableName of ["Rides", "rides"]) {
+    let query = supabase
+      .from(tableName)
+      .select(rideSelect)
+      .eq("status", "accepted")
+      .eq("ride_date", todayDate)
+      .order("created_at", { ascending: false });
+
+    if (opts.driverId) query = query.eq("driver_id", opts.driverId);
+    if (opts.riderId) query = query.eq("rider_id", opts.riderId);
+    if (typeof opts.limit === "number" && opts.limit > 0)
+      query = query.limit(opts.limit);
+
+    const { data, error } = await query;
+    if (!error) {
+      return { rows: (data || []) as RideRow[], error: null };
+    }
+  }
+
+  return {
+    rows: [],
+    error: {
+      message: "Unable to query rides from either Rides or rides table",
+      details: "",
+      hint: "",
+      code: "RIDE_TABLE_MISSING",
+    } as PostgrestError,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const driverId = request.nextUrl.searchParams.get("driver_id")?.trim();
-    if (!driverId) {
+    const driverId =
+      request.nextUrl.searchParams.get("driver_id")?.trim() || undefined;
+    const riderId =
+      request.nextUrl.searchParams.get("rider_id")?.trim() || undefined;
+    const limitParam = Number(request.nextUrl.searchParams.get("limit"));
+    const limit =
+      Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined;
+
+    if (!driverId && !riderId) {
       return withCors(
         NextResponse.json(
-          { error: "driver_id query param is required" },
-          { status: 400 }
-        )
+          { error: "driver_id or rider_id query param is required" },
+          { status: 400 },
+        ),
       );
     }
 
     const supabase = getSupabase();
-
-    // Supabase table is named "Rides" (quoted), so use that identifier
-    const { data: rides, error: ridesError } = await supabase
-      .from("Rides")
-      .select("id,driver_id,rider_id,ride_date,start_time,location,status,created_at")
-      .eq("driver_id", driverId)
-      .eq("status", "accepted")
-      .order("created_at", { ascending: false });
+    const { rows: rideRows, error: ridesError } = await queryRides(supabase, {
+      driverId,
+      riderId,
+      limit,
+    });
 
     if (ridesError) {
       return withCors(
         NextResponse.json(
           { error: "Failed to fetch rides", details: ridesError.message },
-          { status: 500 }
-        )
+          { status: 500 },
+        ),
       );
     }
 
-    const rideRows = (rides || []) as RideRow[];
-    let scheduleByDriver = new Map<string, DriverScheduleRow>();
-    const driverIds = Array.from(
-      new Set(rideRows.map((ride) => ride.driver_id).filter(Boolean))
+    const queriedDriverIds = Array.from(
+      new Set(rideRows.map((ride) => ride.driver_id).filter(Boolean)),
+    );
+    const riderIds = Array.from(
+      new Set(rideRows.map((ride) => ride.rider_id).filter(Boolean)),
     );
 
-    if (driverIds.length > 0) {
+    let scheduleByDriver = new Map<string, DriverScheduleRow>();
+    if (queriedDriverIds.length > 0) {
       const { data: schedules, error: schedulesError } = await supabase
         .from("schedule")
         .select("user_id,pickup_loc,dropoff_loc")
-        .in("user_id", driverIds);
-
+        .in("user_id", queriedDriverIds);
       if (schedulesError) {
         return withCors(
           NextResponse.json(
@@ -96,55 +154,72 @@ export async function GET(request: NextRequest) {
               error: "Failed to fetch driver schedules",
               details: schedulesError.message,
             },
-            { status: 500 }
-          )
+            { status: 500 },
+          ),
         );
       }
-
       scheduleByDriver = new Map(
         ((schedules || []) as DriverScheduleRow[]).map((schedule) => [
           schedule.user_id,
           schedule,
-        ])
+        ]),
       );
     }
 
-    const riderIds = Array.from(
-      new Set(rideRows.map((ride) => ride.rider_id).filter(Boolean))
-    );
+    const [ridersRes, driversRes, carsRes] = await Promise.all([
+      riderIds.length
+        ? supabase
+            .from("User")
+            .select("id,name,residence,picture_url")
+            .in("id", riderIds)
+        : Promise.resolve({ data: [], error: null }),
+      queriedDriverIds.length
+        ? supabase
+            .from("User")
+            .select("id,name,residence,picture_url")
+            .in("id", queriedDriverIds)
+        : Promise.resolve({ data: [], error: null }),
+      queriedDriverIds.length
+        ? supabase
+            .from("Car")
+            .select("user_id,make,model,color,license_plate")
+            .in("user_id", queriedDriverIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
 
-    let ridersById = new Map<string, UserRow>();
-    if (riderIds.length > 0) {
-      const { data: riders, error: ridersError } = await supabase
-        .from("User")
-        .select("id,name,residence,picture_url")
-        .in("id", riderIds);
-
-      if (ridersError) {
-        return withCors(
-          NextResponse.json(
-            {
-              error: "Failed to fetch rider profiles",
-              details: ridersError.message,
-            },
-            { status: 500 }
-          )
-        );
-      }
-
-      ridersById = new Map(
-        ((riders || []) as UserRow[]).map((rider) => [rider.id, rider])
+    if (ridersRes.error || driversRes.error || carsRes.error) {
+      return withCors(
+        NextResponse.json(
+          {
+            error: "Failed to fetch ride users/cars",
+            details:
+              ridersRes.error?.message ||
+              driversRes.error?.message ||
+              carsRes.error?.message,
+          },
+          { status: 500 },
+        ),
       );
+    }
+
+    const ridersById = new Map(
+      ((ridersRes.data || []) as UserRow[]).map((r) => [r.id, r]),
+    );
+    const driversById = new Map(
+      ((driversRes.data || []) as UserRow[]).map((d) => [d.id, d]),
+    );
+    const carsByDriverId = new Map<string, CarRow>();
+    for (const car of (carsRes.data || []) as CarRow[]) {
+      if (!carsByDriverId.has(car.user_id)) {
+        carsByDriverId.set(car.user_id, car);
+      }
     }
 
     const items = rideRows.map((ride) => {
-      const driverSchedule = scheduleByDriver.get(ride.driver_id);
       let day: string | null = null;
       if (ride.ride_date) {
         try {
-          const d = new Date(ride.ride_date);
-          // mon/tue/... to align with mobile DAY_LABELS keys
-          day = d
+          day = new Date(ride.ride_date)
             .toLocaleDateString("en-US", { weekday: "short" })
             .toLowerCase()
             .slice(0, 3);
@@ -156,33 +231,42 @@ export async function GET(request: NextRequest) {
       return {
         ...ride,
         day,
-        pickup_loc: driverSchedule?.pickup_loc ?? ride.location ?? null,
-        dropoff_loc: driverSchedule?.dropoff_loc ?? null,
+        pickup_loc:
+          scheduleByDriver.get(ride.driver_id)?.pickup_loc ??
+          ride.location ??
+          null,
+        dropoff_loc: scheduleByDriver.get(ride.driver_id)?.dropoff_loc ?? null,
         rider: ridersById.get(ride.rider_id) || {
           id: ride.rider_id,
           name: null,
           residence: null,
           picture_url: null,
         },
+        driver: driversById.get(ride.driver_id) || {
+          id: ride.driver_id,
+          name: null,
+          residence: null,
+          picture_url: null,
+        },
+        car: carsByDriverId.get(ride.driver_id) || null,
       };
     });
 
     return withCors(
       NextResponse.json({
         success: true,
-        driver_id: driverId,
+        driver_id: driverId ?? null,
+        rider_id: riderId ?? null,
         count: items.length,
         rides: items,
-      })
+      }),
     );
   } catch (err) {
     return withCors(
       NextResponse.json(
-        {
-          error: err instanceof Error ? err.message : "Internal server error",
-        },
-        { status: 500 }
-      )
+        { error: err instanceof Error ? err.message : "Internal server error" },
+        { status: 500 },
+      ),
     );
   }
 }
