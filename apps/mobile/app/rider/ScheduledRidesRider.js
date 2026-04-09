@@ -3,8 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const DAY_LABELS = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday",
@@ -35,36 +34,34 @@ export default function ScheduledRidesRider() {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
+      if (!BACKEND_URL) {
+        setRides([]);
+        return;
+      }
 
+      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
       const ridesRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/rides?rider_id=eq.${user.id}&status=eq.accepted&completed=eq.false&select=id,day,start_time,location,driver_id`,
-        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(String(user.id))}`,
       );
-      const ridesData = await ridesRes.json();
+      if (!ridesRes.ok) {
+        setRides([]);
+        return;
+      }
+      const payload = await ridesRes.json();
+      const ridesData = payload?.rides ?? [];
       if (!ridesData?.length) { setRides([]); return; }
-
-      // Fetch driver profiles and car info
-      const driverIds = [...new Set(ridesData.map((r) => r.driver_id))];
-      const [userRes, carRes] = await Promise.all([
-        fetch(
-          `${SUPABASE_URL}/rest/v1/User?id=in.(${driverIds.join(",")})&select=id,name,picture_url`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-        fetch(
-          `${SUPABASE_URL}/rest/v1/Car?user_id=in.(${driverIds.join(",")})&select=user_id,make,model,color`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-      ]);
-      const users = await userRes.json();
-      const cars = await carRes.json();
-      const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
-      const carsMap = Object.fromEntries(cars.map((c) => [c.user_id, c]));
 
       const enriched = ridesData
         .map((ride) => ({
           ...ride,
-          driver: usersMap[ride.driver_id] ?? { id: ride.driver_id, name: null, picture_url: null },
-          car: carsMap[ride.driver_id] ?? null,
+          day:
+            ride.day ??
+            (ride.ride_date
+              ? new Date(ride.ride_date)
+                  .toLocaleDateString("en-US", { weekday: "short" })
+                  .toLowerCase()
+                  .slice(0, 3)
+              : null),
         }))
         .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
 

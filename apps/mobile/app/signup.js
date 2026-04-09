@@ -23,8 +23,8 @@ const SCHOOL_DOMAIN = "augustana.edu";
 export default function Signup() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [accessDenied, setAccessDenied] = useState(false);
-  const [deniedEmail, setDeniedEmail] = useState("");
+  const enforceSchoolEmail =
+    process.env.EXPO_PUBLIC_ENFORCE_SCHOOL_EMAIL !== "false";
 
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
   const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
@@ -62,7 +62,7 @@ export default function Signup() {
     iosClientId,
     redirectUri,
     selectAccount: true,
-    extraParams: { hd: SCHOOL_DOMAIN },
+    ...(enforceSchoolEmail ? { extraParams: { hd: SCHOOL_DOMAIN } } : {}),
   });
 
   const checkStoredUser = useCallback(async () => {
@@ -115,21 +115,20 @@ export default function Signup() {
       });
       const data = await res.json();
       const email = (data?.email || "").toLowerCase();
-
-      // Log the Google user id (sub) for debugging / seeding.
+      // Log the Google user id immediately on successful sign-in.
       if (data?.id) {
         // eslint-disable-next-line no-console
-        console.log("[GusLift] Google user id (sub):", data.id);
+        console.log("[GusLift] Sign-in user id:", data.id);
       }
 
-      if (!email.endsWith(`@${SCHOOL_DOMAIN}`)) {
+      if (enforceSchoolEmail && !email.endsWith(`@${SCHOOL_DOMAIN}`)) {
         setLoading(false);
-        setDeniedEmail(data.email);
-        setAccessDenied(true);
+        Alert.alert(
+          "School Email Required",
+          `Please sign in with your @${SCHOOL_DOMAIN} email.`,
+        );
         return;
       }
-
-      console.log("Google user signed in:", data?.id);
 
       await AsyncStorage.setItem(
         "@user",
@@ -153,7 +152,7 @@ export default function Signup() {
         { text: "OK" },
       ]);
     }
-  }, [router]);
+  }, [router, enforceSchoolEmail]);
 
   useEffect(() => {
     if (response?.type === "success") {
@@ -174,36 +173,14 @@ export default function Signup() {
     }
   }, [response, fetchUserInfo]);
 
-  // Wrong email screen
-  if (accessDenied) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Sorry!</Text>
-        <Text style={styles.subtitle}>
-          {deniedEmail} is not associated with @{SCHOOL_DOMAIN}.{"\n\n"}
-          Please sign in with your Augie email.
-        </Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => {
-            setAccessDenied(false);
-            setDeniedEmail("");
-            setLoading(false);
-          }}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>Try Again with Augie Email</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   // Sign up screen
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Sign Up</Text>
       <Text style={styles.subtitle}>
-        Sign in with your Augustana Google account.
+        {enforceSchoolEmail
+          ? "Sign in with your Augustana Google account."
+          : "Sign in with your Google account."}
       </Text>
       {isGoogleClientMissing ? (
         <Text style={styles.errorText}>

@@ -1,14 +1,44 @@
-import { Link } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function App() {
+  const router = useRouter();
+
+  async function handleGoToSignup() {
+    try {
+      const stored = await AsyncStorage.getItem("@user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const userId = String(parsed?.id || "").trim();
+        if (userId) {
+          // eslint-disable-next-line no-console
+          console.log("[GusLift] Existing signed-in user id:", userId);
+        } else {
+          // eslint-disable-next-line no-console
+          console.log(
+            "[GusLift] Existing signed-in user has no id in storage.",
+          );
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.log("[GusLift] No saved user session found.");
+      }
+    } catch {
+      // eslint-disable-next-line no-console
+      console.log("[GusLift] Could not read saved user session.");
+    }
+
+    router.push("/signup");
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to GusLift</Text>
       <Text style={styles.subtitle}>This is your home screen.</Text>
-      <Link href="/signup" style={styles.button}>
-        Go to Sign Up
-      </Link>
+      <TouchableOpacity style={styles.button} onPress={handleGoToSignup}>
+        <Text style={styles.buttonText}>Go to Sign Up</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -36,12 +66,13 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: "#1a3a6b",
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: 10,
-    overflow: "hidden",
+  },
+  buttonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

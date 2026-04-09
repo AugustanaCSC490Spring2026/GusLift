@@ -50,9 +50,32 @@ export default function RiderWaitingRoom() {
       // MatchingContext.connect: GET preflight → WebSocket; may return needsManualTime without opening a socket.
       unsubscribe = onMessage((msg) => {
         if (msg.type === "match_request") {
+          const driverCar = msg.driver?.car
+            ? [
+                [
+                  msg.driver.car.color,
+                  msg.driver.car.make,
+                  msg.driver.car.model,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .trim(),
+                msg.driver.car.license_plate,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : "";
           router.replace({
             pathname: "/rider/AvailableDrivers",
-            params: { from, to, driverId: msg.driver_id },
+            params: {
+              from,
+              to,
+              driverId: msg.driver_id,
+              driverName: msg.driver?.name ?? "",
+              driverPic: msg.driver?.picture_url ?? "",
+              driverTo: msg.driver?.to_location ?? "",
+              driverCar,
+            },
           });
         }
       });

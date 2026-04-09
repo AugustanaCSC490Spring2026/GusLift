@@ -1,38 +1,78 @@
 import { useMatching } from "../../context/MatchingContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function AvailableDrivers() {
   const router = useRouter();
-  const { driverId: initialDriverId } = useLocalSearchParams();
+  const {
+    driverId: initialDriverId,
+    driverName: initialDriverName,
+    driverPic: initialDriverPic,
+    driverTo: initialDriverTo,
+    driverCar: initialDriverCar,
+  } = useLocalSearchParams();
   const { connect, send, onMessage, userId, disconnect } = useMatching();
   const [matchedDriver, setMatchedDriver] = useState(null);
   const [confirming, setConfirming] = useState(false);
+  const driverDirectoryRef = useRef(new Map());
+
+  function upsertDriverDirectory(driverId, rawDriver) {
+    if (!driverId || !rawDriver) return;
+    const carParts = rawDriver.car
+      ? [
+          [rawDriver.car.color, rawDriver.car.make, rawDriver.car.model]
+            .filter(Boolean)
+            .join(" ")
+            .trim(),
+          rawDriver.car.license_plate,
+        ].filter(Boolean)
+      : [];
+    driverDirectoryRef.current.set(String(driverId), {
+      name: rawDriver.name ?? null,
+      picture_url: rawDriver.picture_url ?? null,
+      to_location: rawDriver.to_location ?? null,
+      car: carParts.length ? carParts.join(" · ") : null,
+    });
+  }
 
   useEffect(() => {
     const unsubscribe = onMessage(async (msg) => {
+      if (msg.type === "initial_state" && Array.isArray(msg.drivers)) {
+        msg.drivers.forEach((d) => {
+          upsertDriverDirectory(d.driver_id, d);
+        });
+      }
+      if (msg.type === "driver_joined") {
+        upsertDriverDirectory(msg.driver_id, msg);
+      }
       if (msg.type === "match_request") {
-        let driver;
-        if (msg.driver) {
-          const d = msg.driver;
-          const carParts = d.car
+        const fallbackDriver = driverDirectoryRef.current.get(String(msg.driver_id));
+        const sourceDriver = msg.driver ?? fallbackDriver ?? null;
+        let driver = {
+          name: null,
+          picture_url: null,
+          to_location: null,
+          car: null,
+        };
+        if (sourceDriver) {
+          const carParts = sourceDriver.car
             ? [
-                [d.car.color, d.car.make, d.car.model].filter(Boolean).join(" ").trim(),
-                d.car.license_plate,
+                [sourceDriver.car.color, sourceDriver.car.make, sourceDriver.car.model]
+                  .filter(Boolean)
+                  .join(" ")
+                  .trim(),
+                sourceDriver.car.license_plate,
               ].filter(Boolean)
             : [];
           driver = {
-            name: d.name,
-            picture_url: d.picture_url,
-            to_location: d.to_location ?? null,
+            name: sourceDriver.name ?? null,
+            picture_url: sourceDriver.picture_url ?? null,
+            to_location: sourceDriver.to_location ?? null,
             car: carParts.length ? carParts.join(" · ") : null,
           };
-        } else {
-          driver = await fetchDriverInfo(msg.driver_id);
         }
         setMatchedDriver({ ...driver, driver_id: msg.driver_id });
         setConfirming(false);
@@ -47,59 +87,36 @@ export default function AvailableDrivers() {
 
   useEffect(() => {
     if (initialDriverId) {
-      void fetchDriverInfo(initialDriverId).then((driver) => {
-        setMatchedDriver({ ...driver, driver_id: initialDriverId });
-      });
-    }
-  }, [initialDriverId]);
-
-  async function fetchDriverInfo(driverId) {
-    try {
-      const [userRes, carRes] = await Promise.all([
-        fetch(
-          `${SUPABASE_URL}/rest/v1/User?id=eq.${driverId}&select=name,picture_url`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-        fetch(
-          `${SUPABASE_URL}/rest/v1/Car?user_id=eq.${driverId}&select=make,model,color,license_plate`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-      ]);
-      const users = await userRes.json();
-      const cars = await carRes.json();
-      const c0 = cars?.[0];
-      const carLabel = c0
-        ? [
-            [c0.color, c0.make, c0.model].filter(Boolean).join(" ").trim(),
-            c0.license_plate,
-          ]
-            .filter(Boolean)
-            .join(" · ") || null
-        : null;
-      return {
-        name: users?.[0]?.name ?? null,
-        picture_url: users?.[0]?.picture_url ?? null,
-        to_location: null,
-        car: carLabel,
+      const hydratedFromParams = {
+        name: initialDriverName ? String(initialDriverName) : null,
+        picture_url: initialDriverPic ? String(initialDriverPic) : null,
+        to_location: initialDriverTo ? String(initialDriverTo) : null,
+        car: initialDriverCar ? String(initialDriverCar) : null,
       };
-    } catch (_) {
-      return { name: null, picture_url: null, car: null };
+      setMatchedDriver({
+        ...hydratedFromParams,
+        driver_id: initialDriverId,
+      });
+
     }
-  }
+  }, [initialDriverId, initialDriverName, initialDriverPic, initialDriverTo, initialDriverCar]);
 
   async function waitForAcceptedRide(driverId) {
     if (!driverId || !userId) return null;
-    // Supabase REST for this table is exposed as /rest/v1/Rides
+    if (!BACKEND_URL) return null;
+    const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
     const endpoint =
-      `${SUPABASE_URL}/rest/v1/Rides?rider_id=eq.${userId}` +
-      `&driver_id=eq.${driverId}&status=eq.accepted&select=id&order=created_at.desc&limit=1`;
-    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+      `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(String(userId))}` +
+      `&driver_id=${encodeURIComponent(String(driverId))}&limit=1`;
 
     for (let i = 0; i < 8; i += 1) {
       try {
-        const res = await fetch(endpoint, { headers });
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows[0]?.id) return rows[0].id;
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const payload = await res.json();
+          const rows = payload?.rides ?? [];
+          if (Array.isArray(rows) && rows[0]?.id) return rows[0].id;
+        }
       } catch (_) {}
       await new Promise((resolve) => setTimeout(resolve, 750));
     }

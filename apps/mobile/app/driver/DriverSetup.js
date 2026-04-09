@@ -428,6 +428,8 @@ export default function DriverSetup() {
         router.replace("/signup");
         return;
       }
+      // eslint-disable-next-line no-console
+      console.log("[GusLift] Signup user id:", userId);
 
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
       const formData = new FormData();
@@ -480,6 +482,11 @@ export default function DriverSetup() {
         Alert.alert("Registration failed", String(errorMessage));
         return;
       }
+      // eslint-disable-next-line no-console
+      console.log(
+        "[GusLift] Signup completed for user id:",
+        responseBody?.user_id || userId,
+      );
 
       const updated = {
         ...parsed,
