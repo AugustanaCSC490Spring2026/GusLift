@@ -7,10 +7,33 @@ import {
   SlotResolveError,
 } from "./slotResolver";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...CORS_HEADERS,
+    },
+  });
+}
+
+function withCors(response: Response): Response {
+  // Re-wrapping a 101 response drops the webSocket handle in Workers/Miniflare.
+  if (response.status === 101) {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => headers.set(key, value));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
   });
 }
 
@@ -22,6 +45,15 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ): Promise<Response> {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: CORS_HEADERS,
+      });
+    }
+
+    const url = new URL(request.url);
+
     const userId = authenticateRequest(request);
     if (!userId) {
       return json({ error: "Unauthorized" }, 401);
@@ -34,7 +66,6 @@ export default {
     if (request.method === "GET" && !isWebSocket) {
       try {
         const { residence, schedule } = await fetchUserAndSchedule(env, userId);
-        const url = new URL(request.url);
         const slot = resolveMatchingSlotWithOverride(schedule, residence, {
           location: url.searchParams.get("location"),
           time: url.searchParams.get("time"),
@@ -62,7 +93,6 @@ export default {
     let slot: string;
     try {
       const { residence, schedule } = await fetchUserAndSchedule(env, userId);
-      const url = new URL(request.url);
       slot = resolveMatchingSlotWithOverride(schedule, residence, {
         location: url.searchParams.get("location"),
         time: url.searchParams.get("time"),
@@ -101,6 +131,6 @@ export default {
       })(),
     });
 
-    return stub.fetch(forwardedRequest);
+    return withCors(await stub.fetch(forwardedRequest));
   },
 };
