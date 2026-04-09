@@ -1,10 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -16,6 +19,14 @@ import {
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
 
 const FIELD_CONFIG = {
   carModel: {
@@ -130,6 +141,7 @@ export default function DriverSetup() {
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [activeTimeField, setActiveTimeField] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const submitInFlightRef = useRef(false);
 
@@ -146,6 +158,7 @@ export default function DriverSetup() {
   const scheduleEntryCount = Object.values(weeklySchedule).filter(
     (entry) => entry?.enabled && entry?.start_time && entry?.end_time,
   ).length;
+  const selectedImageLabel = selectedImage?.name || selectedImage?.uri || "";
 
   function formatTime12h(timeValue) {
     if (!timeValue) return "Select";
@@ -255,6 +268,47 @@ export default function DriverSetup() {
     setScheduleModalVisible(false);
   }
 
+  async function pickDriverImage() {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert(
+        "Permission needed",
+        "Allow photo library access to upload a driver photo.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.length) return;
+
+    const asset = result.assets[0];
+    const normalizedMime = String(asset.mimeType || "").toLowerCase();
+    if (normalizedMime && !ALLOWED_MIME_TYPES.has(normalizedMime)) {
+      Alert.alert("Invalid image", "Please choose a JPG, PNG, GIF, or WEBP image.");
+      return;
+    }
+    if (asset.fileSize && asset.fileSize > MAX_UPLOAD_BYTES) {
+      Alert.alert("Image too large", "Please choose an image smaller than 5 MB.");
+      return;
+    }
+    const ext = asset?.fileName?.split(".").pop()?.toLowerCase() || "jpg";
+    const normalizedExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext)
+      ? ext
+      : "jpg";
+    setSelectedImage({
+      uri: asset.uri,
+      name: asset.fileName || `driver-photo.${normalizedExt}`,
+      type: asset.mimeType || `image/${normalizedExt === "jpg" ? "jpeg" : normalizedExt}`,
+      file: asset.file || null,
+    });
+  }
+
   async function handleContinue() {
     if (
       !isCarDetailsComplete ||
@@ -351,6 +405,30 @@ export default function DriverSetup() {
       formData.append("capacity", String(parsedSeats));
       formData.append("is_driver", "true");
       formData.append("days", JSON.stringify(daysPayload));
+      if (selectedImage?.uri) {
+        if (
+          selectedImage.type &&
+          !ALLOWED_MIME_TYPES.has(String(selectedImage.type).toLowerCase())
+        ) {
+          Alert.alert("Invalid image", "Please choose a JPG, PNG, GIF, or WEBP image.");
+          return;
+        }
+        if (Platform.OS === "web") {
+          const webFile = selectedImage.file;
+          if (webFile) {
+            formData.append("picture", webFile);
+          } else {
+            Alert.alert("Upload error", "Could not read the selected image file.");
+            return;
+          }
+        } else {
+          formData.append("picture", {
+            uri: selectedImage.uri,
+            name: selectedImage.name || "driver-photo.jpg",
+            type: selectedImage.type || "image/jpeg",
+          });
+        }
+      }
 
       const response = await fetch(`${normalizedBackendUrl}/api/driver`, {
         method: "POST",
@@ -466,6 +544,34 @@ export default function DriverSetup() {
             ? `${scheduleEntryCount} weekday entries added`
             : "Tap to add your semester schedule"}
         </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.fieldButton}
+        onPress={pickDriverImage}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.fieldLabel}>Driver Photo (Optional)</Text>
+        <Text
+          style={[
+            styles.fieldValue,
+            !selectedImageLabel && styles.fieldPlaceholder,
+          ]}
+        >
+          {selectedImageLabel || "Tap to choose a photo"}
+        </Text>
+        {selectedImage?.uri ? (
+          <View style={styles.photoPreviewRow}>
+            <Image source={{ uri: selectedImage.uri }} style={styles.photoPreview} />
+            <TouchableOpacity
+              onPress={() => setSelectedImage(null)}
+              activeOpacity={0.8}
+              style={styles.removePhotoButton}
+            >
+              <Text style={styles.removePhotoText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -906,5 +1012,31 @@ const styles = StyleSheet.create({
   timeOptionRaw: {
     fontSize: 12,
     color: "#6b7280",
+  },
+  photoPreviewRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  photoPreview: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  removePhotoButton: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: "#ffffff",
+  },
+  removePhotoText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1f2937",
   },
 });
