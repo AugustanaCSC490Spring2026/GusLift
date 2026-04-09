@@ -107,6 +107,12 @@ const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, idx) => {
   return hh + ":" + mm;
 });
 
+function isStartBeforeEnd(startTime, endTime) {
+  if (!startTime || !endTime) return false;
+  // Times are normalized as HH:mm, so lexicographic compare is reliable.
+  return String(startTime) < String(endTime);
+}
+
 function cloneWeeklySchedule(schedule) {
   return Object.fromEntries(
     WEEKDAY_FIELDS.map(({ key }) => [key, { ...(schedule[key] || {}) }]),
@@ -138,6 +144,7 @@ export default function DriverSetup() {
   const [scheduleDraft, setScheduleDraft] = useState(() =>
     cloneWeeklySchedule(EMPTY_WEEKLY_SCHEDULE),
   );
+  const [scheduleError, setScheduleError] = useState("");
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [activeTimeField, setActiveTimeField] = useState(null);
@@ -242,15 +249,34 @@ export default function DriverSetup() {
 
   function openScheduleInput() {
     setScheduleDraft(cloneWeeklySchedule(weeklySchedule));
+    setScheduleError("");
     setScheduleModalVisible(true);
   }
 
   function closeScheduleInput() {
     setScheduleModalVisible(false);
+    setScheduleError("");
     setScheduleDraft(cloneWeeklySchedule(weeklySchedule));
   }
 
   function saveScheduleInput() {
+    for (const day of WEEKDAY_FIELDS) {
+      const entry = scheduleDraft[day.key];
+      if (!entry?.enabled) continue;
+      const startTime = (entry.start_time || "").trim();
+      const endTime = (entry.end_time || "").trim();
+      if (!startTime || !endTime) {
+        setScheduleError(`${day.label}: please select both start and end times.`);
+        return;
+      }
+      if (!isStartBeforeEnd(startTime, endTime)) {
+        setScheduleError(
+          `${day.label}: start time must be earlier than end time.`,
+        );
+        return;
+      }
+    }
+
     const cleanedSchedule = Object.fromEntries(
       Object.entries(scheduleDraft).map(([day, entry]) => {
         const enabled = Boolean(entry?.enabled);
@@ -264,6 +290,7 @@ export default function DriverSetup() {
         ];
       }),
     );
+    setScheduleError("");
     setWeeklySchedule(cleanedSchedule);
     setScheduleModalVisible(false);
   }
@@ -352,6 +379,15 @@ export default function DriverSetup() {
         Alert.alert(
           "Missing schedule time",
           "Each enabled day must have both start and end times selected.",
+        );
+        return;
+      }
+      if (!isStartBeforeEnd(entry.start_time, entry.end_time)) {
+        const dayLabel =
+          WEEKDAY_FIELDS.find((day) => day.key === key)?.label || key;
+        Alert.alert(
+          "Invalid schedule time",
+          `${dayLabel}: start time must be earlier than end time.`,
         );
         return;
       }
@@ -667,6 +703,9 @@ export default function DriverSetup() {
             <Text style={styles.scheduleSubtitle}>
               Select start/end times for each day you are driving.
             </Text>
+            {scheduleError ? (
+              <Text style={styles.scheduleErrorText}>{scheduleError}</Text>
+            ) : null}
             <ScrollView
               style={styles.scheduleList}
               contentContainerStyle={styles.scheduleListContent}
@@ -891,6 +930,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#4b5563",
     lineHeight: 20,
+  },
+  scheduleErrorText: {
+    fontSize: 13,
+    color: "#b91c1c",
+    fontWeight: "600",
   },
   scheduleList: {
     maxHeight: 320,
