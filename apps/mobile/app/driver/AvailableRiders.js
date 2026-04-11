@@ -1,6 +1,6 @@
-import { useMatching } from "../../context/MatchingContext";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { useMatching } from "../../context/MatchingContext";
 
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 

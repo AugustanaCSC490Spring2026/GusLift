@@ -1,7 +1,7 @@
-import { useMatching } from "../../context/MatchingContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useMatching } from "../../context/MatchingContext";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -172,7 +172,7 @@ export default function AvailableDrivers() {
         <View style={styles.waitingContainer}>
           <ActivityIndicator size="large" color="#1a3a6b" style={{ marginBottom: 16 }} />
           <Text style={styles.waitingTitle}>Looking for a driver...</Text>
-          <Text style={styles.waitingSub}>You'll be notified when a driver accepts your ride.</Text>
+          <Text style={styles.waitingSub}>You will be notified when a driver accepts your ride.</Text>
         </View>
       ) : (
         // Driver accepted — show confirm card
