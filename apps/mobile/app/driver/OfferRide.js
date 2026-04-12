@@ -167,7 +167,7 @@ export default function OfferRide() {
           if (router.canGoBack()) {
             router.back();
           } else {
-            router.replace("/home");
+            router.replace("/");
           }
         }}
         style={styles.closeButton}

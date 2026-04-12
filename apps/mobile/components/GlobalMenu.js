@@ -103,6 +103,13 @@ export default function GlobalMenu() {
               </Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/developer"); }}>
+              <Ionicons name="code-slash-outline" size={24} color="#1f2937" />
+              <Text style={styles.menuItemText}>
+                Developer Options
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={handleSignout}>
               <Ionicons name="log-out-outline" size={24} color="#dc2626" />
               <Text style={[styles.menuItemText, { color: "#dc2626" }]}>

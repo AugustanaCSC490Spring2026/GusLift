@@ -82,7 +82,11 @@ export default function DriverWaitingRoom() {
 
   function handleGoOffline() {
     disconnect();
-    router.replace("/home");
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/");
+    }
   }
 
   return (
