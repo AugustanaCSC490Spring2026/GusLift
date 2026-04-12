@@ -47,6 +47,7 @@ export default function OfferRide() {
   const [classStart, setClassStart] = useState(null);
   const [classEnd, setClassEnd] = useState(null);
   const [pickupTime, setPickupTime] = useState("");
+  const [firstName, setFirstName] = useState("");
 
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
@@ -68,6 +69,7 @@ export default function OfferRide() {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
+      setFirstName(user.given_name || (user.name ? user.name.split(" ")[0] : ""));
       const today = getCurrentWeekday();
       const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
       if (!normalizedBackendUrl) {
@@ -179,6 +181,9 @@ export default function OfferRide() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {firstName ? (
+          <Text style={styles.greeting}>Hello {firstName}, where are you heading today?</Text>
+        ) : null}
         <Text style={styles.header}>Offer a Ride</Text>
 
         <View style={styles.section}>
@@ -320,6 +325,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
     marginBottom: 20,
+  },
+  greeting: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#4b5563",
+    marginBottom: 8,
   },
   section: {
     marginBottom: 8,

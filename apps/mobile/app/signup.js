@@ -91,10 +91,15 @@ export default function Signup() {
             return;
           }
 
-          // Always send returning users to the home screen.
-          // From there they can choose driver/rider flows,
-          // and we can show setup prompts without hard-locking navigation.
-          router.replace("/home");
+          if (parsed.role === "driver") {
+            if (parsed.driverSetupComplete) {
+              router.replace("/driver/OfferRide");
+            } else {
+              router.replace("/driver/DriverSetup");
+            }
+          } else {
+            router.replace("/rider/RequestRide");
+          }
         } else {
           await AsyncStorage.removeItem("@user");
         }

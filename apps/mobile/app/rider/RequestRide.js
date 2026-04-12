@@ -21,6 +21,7 @@ export default function RequestRide() {
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
+  const [firstName, setFirstName] = useState("");
 
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
@@ -45,6 +46,7 @@ export default function RequestRide() {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
+      setFirstName(user.given_name || (user.name ? user.name.split(" ")[0] : ""));
 
       const [scheduleRes, userRes] = await Promise.all([
         fetch(
@@ -138,6 +140,9 @@ export default function RequestRide() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {firstName ? (
+          <Text style={styles.greeting}>Hello {firstName}, where would you like to go today?</Text>
+        ) : null}
         <Text style={styles.header}>Request a Ride</Text>
 
         <View style={styles.section}>
@@ -257,6 +262,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
     marginBottom: 20,
+  },
+  greeting: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#4b5563",
+    marginBottom: 8,
   },
   section: {
     marginBottom: 8,

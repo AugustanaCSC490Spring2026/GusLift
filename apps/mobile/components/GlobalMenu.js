@@ -60,12 +60,12 @@ export default function GlobalMenu() {
 
       if (newRole === "driver") {
         if (parsed.driverSetupComplete) {
-          router.push("/driver/OfferRide");
+          router.replace("/driver/OfferRide");
         } else {
-          router.push("/driver/DriverSetup");
+          router.replace("/driver/DriverSetup");
         }
       } else {
-        router.push("/home");
+        router.replace("/rider/RequestRide");
       }
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");
