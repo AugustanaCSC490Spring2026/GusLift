@@ -43,7 +43,11 @@ export default function Role() {
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
 
       if (role === "driver") {
-        router.push("/driver/DriverSetup");
+        if (parsed.driverSetupComplete) {
+          router.push("/driver/OfferRide");
+        } else {
+          router.push("/driver/DriverSetup");
+        }
       } else {
         router.push("/home");
       }

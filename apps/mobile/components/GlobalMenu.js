@@ -59,7 +59,11 @@ export default function GlobalMenu() {
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
 
       if (newRole === "driver") {
-        router.push("/driver/DriverSetup");
+        if (parsed.driverSetupComplete) {
+          router.push("/driver/OfferRide");
+        } else {
+          router.push("/driver/DriverSetup");
+        }
       } else {
         router.push("/home");
       }
