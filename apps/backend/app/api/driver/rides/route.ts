@@ -8,9 +8,34 @@ type RideRow = {
   ride_date: string | null;
   start_time: string | null;
   location: string | null;
+  rider_dropoff_loc?: string | null;
   status: string;
   created_at: string | null;
 };
+
+/** ISO date-only strings parse as UTC midnight; weekday in local time can be wrong. Use UTC calendar date. */
+const ISO_DOW_TO_DAY = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+] as const;
+
+function weekdayKeyFromIsoDate(
+  rideDate: string | null | undefined,
+): string | null {
+  if (!rideDate) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(rideDate).trim());
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  const w = new Date(Date.UTC(y, mo, d)).getUTCDay();
+  return ISO_DOW_TO_DAY[w] ?? null;
+}
 
 type DriverScheduleRow = {
   user_id: string;
@@ -67,7 +92,7 @@ async function queryRides(
   opts: { driverId?: string; riderId?: string; limit?: number },
 ): Promise<{ rows: RideRow[]; error: PostgrestError | null }> {
   const rideSelect =
-    "id,driver_id,rider_id,ride_date,start_time,location,status,created_at";
+    "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at";
   const todayDate = getLocalTodayDate();
   for (const tableName of ["Rides", "rides"]) {
     let query = supabase
@@ -166,6 +191,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    let scheduleByRider = new Map<string, DriverScheduleRow>();
+    if (riderIds.length > 0) {
+      const { data: rSchedules, error: rSchedulesError } = await supabase
+        .from("schedule")
+        .select("user_id,pickup_loc,dropoff_loc")
+        .in("user_id", riderIds);
+      if (rSchedulesError) {
+        return withCors(
+          NextResponse.json(
+            {
+              error: "Failed to fetch rider schedules",
+              details: rSchedulesError.message,
+            },
+            { status: 500 },
+          ),
+        );
+      }
+      scheduleByRider = new Map(
+        ((rSchedules || []) as DriverScheduleRow[]).map((schedule) => [
+          schedule.user_id,
+          schedule,
+        ]),
+      );
+    }
+
     const [ridersRes, driversRes, carsRes] = await Promise.all([
       riderIds.length
         ? supabase
@@ -216,17 +266,11 @@ export async function GET(request: NextRequest) {
     }
 
     const items = rideRows.map((ride) => {
-      let day: string | null = null;
-      if (ride.ride_date) {
-        try {
-          day = new Date(ride.ride_date)
-            .toLocaleDateString("en-US", { weekday: "short" })
-            .toLowerCase()
-            .slice(0, 3);
-        } catch {
-          day = null;
-        }
-      }
+      const day = weekdayKeyFromIsoDate(ride.ride_date);
+      const riderTo =
+        ride.rider_dropoff_loc ??
+        scheduleByRider.get(ride.rider_id)?.dropoff_loc ??
+        null;
 
       return {
         ...ride,
@@ -235,7 +279,8 @@ export async function GET(request: NextRequest) {
           scheduleByDriver.get(ride.driver_id)?.pickup_loc ??
           ride.location ??
           null,
-        dropoff_loc: scheduleByDriver.get(ride.driver_id)?.dropoff_loc ?? null,
+        /** Rider destination: manual on accept, else saved schedule */
+        dropoff_loc: riderTo,
         rider: ridersById.get(ride.rider_id) || {
           id: ride.rider_id,
           name: null,
