@@ -150,7 +150,11 @@ export default function AvailableDrivers() {
 
   function handleCancel() {
     disconnect();
-    router.replace("/home");
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/");
+            }
   }
 
   return (

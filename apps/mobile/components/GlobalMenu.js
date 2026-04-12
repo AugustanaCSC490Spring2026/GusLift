@@ -65,7 +65,11 @@ export default function GlobalMenu() {
           router.replace("/driver/DriverSetup");
         }
       } else {
-        router.replace("/rider/RequestRide");
+        if (parsed.riderSetupComplete) {
+          router.replace("/rider/RequestRide");
+        } else {
+          router.replace("/rider/RiderSetup");
+        }
       }
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");
@@ -100,6 +104,13 @@ export default function GlobalMenu() {
               <Ionicons name="swap-horizontal" size={24} color="#1f2937" />
               <Text style={styles.menuItemText}>
                 {currentRole === "driver" ? "Change to Rider" : "Change to Driver"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/developer"); }}>
+              <Ionicons name="code-slash-outline" size={24} color="#1f2937" />
+              <Text style={styles.menuItemText}>
+                Developer Options
               </Text>
             </TouchableOpacity>
 

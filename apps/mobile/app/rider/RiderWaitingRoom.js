@@ -149,7 +149,11 @@ export default function RiderWaitingRoom() {
 
   function handleCancel() {
     disconnect();
-    router.replace("/home");
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/");
+    }
   }
 
   const effectiveSlotTime =

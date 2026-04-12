@@ -49,7 +49,11 @@ export default function Role() {
           router.push("/driver/DriverSetup");
         }
       } else {
-        router.push("/rider/RequestRide");
+        if (parsed.riderSetupComplete) {
+          router.push("/rider/RequestRide");
+        } else {
+          router.push("/rider/RiderSetup");
+        }
       }
     } catch {
       Alert.alert("Error", "Could not save your role. Try again.");

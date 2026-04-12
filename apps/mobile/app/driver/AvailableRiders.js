@@ -123,7 +123,11 @@ export default function AvailableRidersScreen() {
         <TouchableOpacity
           onPress={() => {
             disconnect();
-            router.replace("/home");
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/");
+            }
           }}
           style={styles.closeButton}
         >
