@@ -46,10 +46,10 @@ function getSupabase() {
 
 function withCors(res: NextResponse) {
   res.headers.set("Access-Control-Allow-Origin", "*");
-  res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.headers.set("Access-Control-Allow-Methods", "GET, PATCH, OPTIONS");
   res.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization",
+    "Content-Type, Authorization, x-user-id, X-User-Id",
   );
   return res;
 }
@@ -97,6 +97,87 @@ async function queryRides(
       code: "RIDE_TABLE_MISSING",
     } as PostgrestError,
   };
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const driverId = request.headers.get("x-user-id")?.trim();
+    if (!driverId) {
+      return withCors(
+        NextResponse.json(
+          { error: "x-user-id header is required" },
+          { status: 400 },
+        ),
+      );
+    }
+
+    let body: { ride_ids?: unknown; ride_id?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return withCors(
+        NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }),
+      );
+    }
+
+    const rawIds = Array.isArray(body.ride_ids)
+      ? body.ride_ids
+      : body.ride_id != null
+        ? [body.ride_id]
+        : [];
+    const rideIds = rawIds
+      .map((id) => String(id).trim())
+      .filter(Boolean);
+    if (rideIds.length === 0) {
+      return withCors(
+        NextResponse.json(
+          { error: "ride_ids (non-empty array) or ride_id is required" },
+          { status: 400 },
+        ),
+      );
+    }
+
+    const supabase = getSupabase();
+
+    for (const tableName of ["Rides", "rides"]) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .update({ status: "completed" })
+        .eq("driver_id", driverId)
+        .eq("status", "accepted")
+        .in("id", rideIds)
+        .select("id");
+
+      if (error) {
+        continue;
+      }
+      if (data && data.length > 0) {
+        return withCors(
+          NextResponse.json({
+            success: true,
+            updated: data.length,
+            ids: data.map((r: { id: string }) => r.id),
+          }),
+        );
+      }
+    }
+
+    return withCors(
+      NextResponse.json(
+        {
+          error: "No matching accepted rides found for this driver",
+        },
+        { status: 404 },
+      ),
+    );
+  } catch (err) {
+    return withCors(
+      NextResponse.json(
+        { error: err instanceof Error ? err.message : "Internal server error" },
+        { status: 500 },
+      ),
+    );
+  }
 }
 
 export async function GET(request: NextRequest) {
