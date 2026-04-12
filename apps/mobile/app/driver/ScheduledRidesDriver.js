@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,7 +29,7 @@ function formatTime12h(timeStr) {
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-// Group rides by day + start_time slot
+// Group rides by day + start_time slot (same slot can have multiple ride rows / riders)
 function groupRides(rides) {
   const map = new Map();
   for (const ride of rides) {
@@ -41,9 +42,14 @@ function groupRides(rides) {
         pickup_loc: ride.pickup_loc ?? ride.location ?? null,
         dropoff_loc: ride.dropoff_loc ?? null,
         riders: [],
+        rideIds: [],
       });
     }
-    map.get(key).riders.push(ride.rider);
+    const g = map.get(key);
+    g.riders.push(ride.rider);
+    if (ride.id != null) {
+      g.rideIds.push(String(ride.id));
+    }
   }
   // Sort by day order
   return Array.from(map.values()).sort(
@@ -55,6 +61,7 @@ export default function ScheduledRidesDriver() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
+  const [completingKey, setCompletingKey] = useState(null);
 
   useEffect(() => {
     loadRides();
@@ -95,6 +102,38 @@ export default function ScheduledRidesDriver() {
     }
   }
 
+  async function completeRides(groupKey, rideIds) {
+    if (!rideIds?.length || completingKey) return;
+    const stored = await AsyncStorage.getItem("@user");
+    if (!stored || !BACKEND_URL) return;
+    const user = JSON.parse(stored);
+    setCompletingKey(groupKey);
+    try {
+      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
+      const res = await fetch(`${normalizedBackendUrl}/api/driver/rides`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": String(user.id),
+        },
+        body: JSON.stringify({ ride_ids: rideIds }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        Alert.alert(
+          "Could not complete ride",
+          payload?.error || "Try again.",
+        );
+        return;
+      }
+      await loadRides();
+    } catch {
+      Alert.alert("Error", "Could not complete ride. Try again.");
+    } finally {
+      setCompletingKey(null);
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -116,46 +155,67 @@ export default function ScheduledRidesDriver() {
           <Text style={styles.emptyText}>No upcoming rides.</Text>
         ) : (
           groups.map((group) => (
-            <TouchableOpacity
-              key={group.key}
-              style={styles.card}
-              activeOpacity={0.75}
-              onPress={() =>
-                router.push({
-                  pathname: "/driver/RideDetail",
-                  params: {
-                    day: group.day,
-                    start_time: group.start_time,
-                    pickup_loc: group.pickup_loc ?? "",
-                    dropoff_loc: group.dropoff_loc ?? "",
-                    riders: JSON.stringify(group.riders),
-                  },
-                })
-              }
-            >
-              <Text style={styles.dayLabel}>{DAY_LABELS[group.day] ?? group.day}</Text>
+            <View key={group.key} style={styles.card}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() =>
+                  router.push({
+                    pathname: "/driver/RideDetail",
+                    params: {
+                      day: group.day,
+                      start_time: group.start_time,
+                      pickup_loc: group.pickup_loc ?? "",
+                      dropoff_loc: group.dropoff_loc ?? "",
+                      riders: JSON.stringify(group.riders),
+                    },
+                  })
+                }
+              >
+                <Text style={styles.dayLabel}>{DAY_LABELS[group.day] ?? group.day}</Text>
 
-              <View style={styles.rowLine}>
-                <Text style={styles.metaLabel}>From</Text>
-                <Text style={styles.metaValue}>{group.pickup_loc ?? "—"}</Text>
-                <Text style={styles.metaLabel}>  To</Text>
-                <Text style={styles.metaValue}>{group.dropoff_loc ?? "—"}</Text>
-              </View>
+                <View style={styles.rowLine}>
+                  <Text style={styles.metaLabel}>From</Text>
+                  <Text style={styles.metaValue}>{group.pickup_loc ?? "—"}</Text>
+                  <Text style={styles.metaLabel}>  To</Text>
+                  <Text style={styles.metaValue}>{group.dropoff_loc ?? "—"}</Text>
+                </View>
 
-              <View style={styles.rowLine}>
-                <Text style={styles.metaLabel}>Pick Up</Text>
-                <Text style={styles.metaValue}>{formatTime12h(group.start_time)}</Text>
-              </View>
+                <View style={styles.rowLine}>
+                  <Text style={styles.metaLabel}>Pick Up</Text>
+                  <Text style={styles.metaValue}>{formatTime12h(group.start_time)}</Text>
+                </View>
 
-              <View style={styles.riderCountBox}>
-                <Text style={styles.riderCountText}>
-                  {group.riders.length} {group.riders.length === 1 ? "rider" : "riders"}
-                </Text>
-                {group.riders.map((r, i) => (
-                  <Text key={i} style={styles.riderDot}>• {r.name ?? "Unknown"}</Text>
-                ))}
-              </View>
-            </TouchableOpacity>
+                <View style={styles.riderCountBox}>
+                  <Text style={styles.riderCountText}>
+                    {group.riders.length}{" "}
+                    {group.riders.length === 1 ? "rider" : "riders"}
+                  </Text>
+                  {group.riders.map((r, i) => (
+                    <Text key={i} style={styles.riderDot}>
+                      • {r.name ?? "Unknown"}
+                    </Text>
+                  ))}
+                </View>
+              </TouchableOpacity>
+
+              {group.rideIds?.length > 0 ? (
+                <TouchableOpacity
+                  style={[
+                    styles.completeButton,
+                    completingKey === group.key && styles.completeButtonDisabled,
+                  ]}
+                  disabled={completingKey != null}
+                  onPress={() => completeRides(group.key, group.rideIds)}
+                  activeOpacity={0.85}
+                >
+                  {completingKey === group.key ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={styles.completeButtonText}>Complete ride</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+            </View>
           ))
         )}
       </ScrollView>
@@ -248,6 +308,21 @@ const styles = StyleSheet.create({
   riderDot: {
     fontSize: 13,
     color: "#374151",
+  },
+  completeButton: {
+    marginTop: 14,
+    backgroundColor: "#1a3a6b",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  completeButtonDisabled: {
+    opacity: 0.75,
+  },
+  completeButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
   },
   emptyText: {
     fontSize: 15,
