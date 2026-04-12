@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -128,6 +128,23 @@ function buildCarSummary(details) {
 
 export default function DriverSetup() {
   const router = useRouter();
+  /** Set true after successful API + storage; navigation runs in useEffect (reliable on Expo web static). */
+  const [navigateToOfferRide, setNavigateToOfferRide] = useState(false);
+
+  useEffect(() => {
+    if (!navigateToOfferRide) return;
+    const path = "/driver/OfferRide";
+    // Expo web + static export: imperative router.replace often does not update the document URL.
+    if (
+      Platform.OS === "web" &&
+      typeof window !== "undefined" &&
+      window.location?.origin
+    ) {
+      window.location.href = new URL(path, window.location.origin).href;
+      return;
+    }
+    router.replace(path);
+  }, [navigateToOfferRide, router]);
 
   const [carDetails, setCarDetails] = useState({ ...EMPTY_CAR_DETAILS });
   const [carDetailsDraft, setCarDetailsDraft] = useState({
@@ -410,7 +427,6 @@ export default function DriverSetup() {
     }
     submitInFlightRef.current = true;
 
-    let finishedOk = false;
     try {
       setSubmitting(true);
       const stored = await AsyncStorage.getItem("@user");
@@ -493,16 +509,19 @@ export default function DriverSetup() {
         driverSetupComplete: true,
       };
 
-      await AsyncStorage.setItem("@user", JSON.stringify(updated));
-      finishedOk = true;
-      router.replace("/driver/OfferRide");
+      try {
+        await AsyncStorage.setItem("@user", JSON.stringify(updated));
+      } catch (storageErr) {
+        // eslint-disable-next-line no-console
+        console.warn("[GusLift] AsyncStorage setItem failed:", storageErr);
+      }
+      // Same destination as Home → "Go to Driver Matching" (OfferRide).
+      setNavigateToOfferRide(true);
     } catch {
       Alert.alert("Error", "Could not save driver info. Try again.");
     } finally {
       submitInFlightRef.current = false;
-      if (!finishedOk) {
-        setSubmitting(false);
-      }
+      setSubmitting(false);
     }
   }
 
