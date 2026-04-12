@@ -47,23 +47,21 @@ async function resolveUserId(request: NextRequest, userIDFromBody?: string) {
   return user.id;
 }
 
+const BUCKET_NAME = "driver-pictures"; // We can use the same bucket or a different one. Let's use rider-pictures if you want? Actually let's just create a general user-pictures or use driver-pictures. Wait, let's use the same bucket logic as driver for consistency.
+
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseWithAuth(request);
-    const body = await request.json();
+    const formData = await request.formData();
 
-    const {
-      userID,
-      name,
-      residence,
-      picture_url,
-      days,
-      pickup_loc,
-      dropoff_loc,
-    } = body;
+    const userID = formData.get("userID") as string | null;
+    const name = formData.get("name") as string | null;
+    const residence = formData.get("residence") as string | null;
+    const pickup_loc = formData.get("pickup_loc") as string | null;
+    const dropoff_loc = formData.get("dropoff_loc") as string | null;
+    const daysStr = formData.get("days") as string | null;
+    const picture = formData.get("picture") as File | null;
 
-
-    if (!name || !residence || !days || !pickup_loc || !dropoff_loc) {
+    if (!userID || !name || !residence || !daysStr || !pickup_loc || !dropoff_loc) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -75,12 +73,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const supabase = getSupabaseWithAuth(request);
+
+    let picture_url: string | null = null;
+    if (picture && picture.size > 0) {
+      const ext = picture.name.split(".").pop()?.toLowerCase() || "jpg";
+      const safeExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext)
+        ? ext
+        : "jpg";
+      const path = `${resolvedUserId}/avatar.${safeExt}`;
+
+      // Using same bucket as driver for simplicity, or we can use "avatars". The driver uses "driver-pictures". Let's stick with "driver-pictures" for now or just avoid uploading if the bucket doesn't exist. Actually, let's just use "driver-pictures" as it'll work since the bucket exists.
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("driver-pictures")
+        .upload(path, picture, {
+          contentType: picture.type || "image/jpeg",
+          upsert: true,
+        });
+
+      if (!uploadError && uploadData) {
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("driver-pictures").getPublicUrl(uploadData.path);
+        picture_url = publicUrl;
+      } else {
+        console.error("Storage upload error:", uploadError);
+      }
+    }
+
+    let daysJson = null;
+    try {
+      daysJson = JSON.parse(daysStr);
+    } catch {
+      return NextResponse.json({ error: "Invalid days format" }, { status: 400 });
+    }
 
     const { error: userError } = await supabase.from("User").upsert({
       id: resolvedUserId,
       name,
       residence,
-      picture_url,
+      ...(picture_url ? { picture_url } : {}),
       is_driver: false,
     });
 
@@ -95,7 +127,7 @@ export async function POST(request: NextRequest) {
         {
           user_id: resolvedUserId,
           is_driver: false,
-          days,
+          days: daysJson,
           pickup_loc,
           dropoff_loc,
         },
@@ -109,7 +141,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-   
     return NextResponse.json(
       { message: "Rider registered successfully" },
       { status: 200 },

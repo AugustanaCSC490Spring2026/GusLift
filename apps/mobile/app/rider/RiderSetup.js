@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  LayoutAnimation,
   Modal,
   Platform,
   ScrollView,
@@ -14,8 +15,17 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -49,6 +59,13 @@ const WEEKDAY_FIELDS = [
   { key: "fri", label: "Friday" },
 ];
 
+const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, idx) => {
+  const totalMinutes = idx * 15;
+  const hh = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+  const mm = String(totalMinutes % 60).padStart(2, "0");
+  return hh + ":" + mm;
+});
+
 const EMPTY_WEEKLY_SCHEDULE = Object.fromEntries(
   WEEKDAY_FIELDS.map(({ key }) => [
     key,
@@ -72,6 +89,7 @@ export default function RiderSetup() {
 
   const [residenceLocation, setResidenceLocation] = useState("");
   const [dropoffLocation, setDropoffLocation] = useState("");
+  const [sameAsPickup, setSameAsPickup] = useState(false);
 
   const [activeField, setActiveField] = useState(null);
   const [draftValue, setDraftValue] = useState("");
@@ -238,7 +256,9 @@ export default function RiderSetup() {
   }
 
   async function handleContinue() {
-    if (!residenceLocation.trim() || !dropoffLocation.trim()) {
+    const finalDropoff = sameAsPickup ? residenceLocation.trim() : dropoffLocation.trim();
+
+    if (!residenceLocation.trim() || !finalDropoff) {
       Alert.alert("Missing info", "Please enter both your default pickup and dropoff locations.");
       return;
     }
@@ -304,7 +324,7 @@ export default function RiderSetup() {
       formData.append("name", String(parsed?.name || "").trim());
       formData.append("residence", residenceLocation.trim());
       formData.append("pickup_loc", residenceLocation.trim());
-      formData.append("dropoff_loc", dropoffLocation.trim());
+      formData.append("dropoff_loc", finalDropoff);
       formData.append("days", JSON.stringify(daysPayload));
 
       if (selectedImage?.uri) {
@@ -365,79 +385,119 @@ export default function RiderSetup() {
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Rider Setup</Text>
-      <Text style={styles.subtitle}>Set your permanent schedule to save time when requesting rides.</Text>
+      <View style={styles.header}>
+        <View style={styles.iconCircle}>
+          <Ionicons name="car" size={32} color="#1a3a6b" />
+        </View>
+        <Text style={styles.title}>Rider Setup</Text>
+        <Text style={styles.subtitle}>Let's set your default locations and schedule to get you riding faster.</Text>
+      </View>
 
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={() => openFieldInput("residenceLocation")}
-        activeOpacity={0.85}
+        activeOpacity={0.7}
       >
-        <Text style={styles.fieldLabel}>{FIELD_CONFIG.residenceLocation.label}</Text>
-        <Text
-          style={[styles.fieldValue, !residenceLocation && styles.fieldPlaceholder]}
-        >
-          {residenceLocation || FIELD_CONFIG.residenceLocation.placeholder}
-        </Text>
+        <Ionicons name="home" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextContainer}>
+          <Text style={styles.fieldLabel}>{FIELD_CONFIG.residenceLocation.label}</Text>
+          <Text
+            style={[styles.fieldValue, !residenceLocation && styles.fieldPlaceholder]}
+          >
+            {residenceLocation || FIELD_CONFIG.residenceLocation.placeholder}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.fieldButton}
-        onPress={() => openFieldInput("dropoffLocation")}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.fieldLabel}>{FIELD_CONFIG.dropoffLocation.label}</Text>
-        <Text
-          style={[styles.fieldValue, !dropoffLocation && styles.fieldPlaceholder]}
+      <View style={styles.switchRowContainer}>
+        <View style={styles.switchRowText}>
+          <Ionicons name="git-compare" size={20} color="#4b5563" style={styles.switchIcon} />
+          <Text style={styles.switchRowLabel}>Default dropoff is same as pickup</Text>
+        </View>
+        <Switch
+          value={sameAsPickup}
+          onValueChange={(val) => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSameAsPickup(val);
+          }}
+          trackColor={{ false: "#d1d5db", true: "#bfdbfe" }}
+          thumbColor={sameAsPickup ? "#1a3a6b" : "#f3f4f6"}
+        />
+      </View>
+
+      {!sameAsPickup && (
+        <TouchableOpacity
+          style={styles.fieldButton}
+          onPress={() => openFieldInput("dropoffLocation")}
+          activeOpacity={0.7}
         >
-          {dropoffLocation || FIELD_CONFIG.dropoffLocation.placeholder}
-        </Text>
-      </TouchableOpacity>
+          <Ionicons name="business" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+          <View style={styles.fieldTextContainer}>
+            <Text style={styles.fieldLabel}>{FIELD_CONFIG.dropoffLocation.label}</Text>
+            <Text
+              style={[styles.fieldValue, !dropoffLocation && styles.fieldPlaceholder]}
+            >
+              {dropoffLocation || FIELD_CONFIG.dropoffLocation.placeholder}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={openScheduleInput}
-        activeOpacity={0.85}
+        activeOpacity={0.7}
       >
-        <Text style={styles.fieldLabel}>Weekly Class Schedule (Optional)</Text>
-        <Text
-          style={[
-            styles.fieldValue,
-            scheduleEntryCount === 0 && styles.fieldPlaceholder,
-          ]}
-        >
-          {scheduleEntryCount > 0
-            ? `${scheduleEntryCount} weekday entries added`
-            : "Tap to add your semester schedule"}
-        </Text>
+        <Ionicons name="calendar-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextContainer}>
+          <Text style={styles.fieldLabel}>Weekly Class Schedule (Optional)</Text>
+          <Text
+            style={[
+              styles.fieldValue,
+              scheduleEntryCount === 0 && styles.fieldPlaceholder,
+            ]}
+          >
+            {scheduleEntryCount > 0
+              ? `${scheduleEntryCount} weekday entries added`
+              : "Tap to add your semester schedule"}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={pickRiderImage}
-        activeOpacity={0.85}
+        activeOpacity={0.7}
       >
-        <Text style={styles.fieldLabel}>Profile Photo (Optional)</Text>
-        <Text
-          style={[
-            styles.fieldValue,
-            !selectedImageLabel && styles.fieldPlaceholder,
-          ]}
-        >
-          {selectedImageLabel || "Tap to choose a photo"}
-        </Text>
-        {selectedImage?.uri ? (
-          <View style={styles.photoPreviewRow}>
-            <Image source={{ uri: selectedImage.uri }} style={styles.photoPreview} />
-            <TouchableOpacity
-              onPress={() => setSelectedImage(null)}
-              activeOpacity={0.8}
-              style={styles.removePhotoButton}
-            >
-              <Text style={styles.removePhotoText}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
+        <Ionicons name="person-circle-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextContainer}>
+          <Text style={styles.fieldLabel}>Profile Photo (Optional)</Text>
+          <Text
+            style={[
+              styles.fieldValue,
+              !selectedImageLabel && styles.fieldPlaceholder,
+            ]}
+          >
+            {selectedImageLabel || "Tap to choose a photo"}
+          </Text>
+          {selectedImage?.uri ? (
+            <View style={styles.photoPreviewRow}>
+              <Image source={{ uri: selectedImage.uri }} style={styles.photoPreview} />
+              <TouchableOpacity
+                onPress={() => setSelectedImage(null)}
+                activeOpacity={0.8}
+                style={styles.removePhotoButton}
+              >
+                <Ionicons name="trash-outline" size={16} color="#b91c1c" />
+                <Text style={styles.removePhotoText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+        {!selectedImage?.uri && <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -622,45 +682,57 @@ export default function RiderSetup() {
   );
 }
 
+// Trigger Metro bundler hot reload
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f6f1" },
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
   contentContainer: { padding: 24, paddingTop: 60, paddingBottom: 60 },
-  title: { fontSize: 28, fontWeight: "700", color: "#1f2937", marginBottom: 8 },
-  subtitle: { fontSize: 16, color: "#4b5563", marginBottom: 28 },
+  header: { marginBottom: 32 },
+  iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#e0e7ff", justifyContent: "center", alignItems: "center", marginBottom: 16 },
+  title: { fontSize: 32, fontWeight: "800", color: "#111827", marginBottom: 8, letterSpacing: -0.5 },
+  subtitle: { fontSize: 16, color: "#6b7280", lineHeight: 22 },
   fieldButton: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
+    paddingVertical: 18,
     marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: "#1a3a6b",
     shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f3f4f6",
   },
-  fieldLabel: { fontSize: 13, color: "#6b7280", fontWeight: "600", textTransform: "uppercase", marginBottom: 6 },
-  fieldValue: { fontSize: 18, color: "#1f2937", fontWeight: "500" },
-  fieldPlaceholder: { color: "#9ca3af" },
+  fieldIcon: { marginRight: 16, backgroundColor: "#f3f4f6", padding: 10, borderRadius: 12, overflow: "hidden" },
+  fieldTextContainer: { flex: 1 },
+  fieldLabel: { fontSize: 12, color: "#9ca3af", fontWeight: "700", textTransform: "uppercase", marginBottom: 4, letterSpacing: 0.5 },
+  fieldValue: { fontSize: 16, color: "#1f2937", fontWeight: "600" },
+  fieldPlaceholder: { color: "#9ca3af", fontWeight: "400" },
+  switchRowContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f9fafb", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 16, borderWidth: 1, borderColor: "#e5e7eb" },
+  switchRowText: { flexDirection: "row", alignItems: "center" },
+  switchIcon: { marginRight: 10 },
+  switchRowLabel: { fontSize: 15, fontWeight: "600", color: "#374151" },
   photoPreviewRow: { flexDirection: "row", alignItems: "center", marginTop: 12 },
-  photoPreview: { width: 60, height: 60, borderRadius: 30, marginRight: 16 },
-  removePhotoButton: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: "#fee2e2", borderRadius: 8 },
-  removePhotoText: { color: "#b91c1c", fontSize: 14, fontWeight: "600" },
+  photoPreview: { width: 48, height: 48, borderRadius: 24, marginRight: 16, borderWidth: 1, borderColor: "#e5e7eb" },
+  removePhotoButton: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: "#fee2e2", borderRadius: 8 },
+  removePhotoText: { color: "#b91c1c", fontSize: 13, fontWeight: "600" },
   button: {
     backgroundColor: "#1a3a6b",
-    borderRadius: 14,
+    borderRadius: 16,
     paddingVertical: 18,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 24,
     shadowColor: "#1a3a6b",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
-  buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: "#ffffff", fontSize: 18, fontWeight: "700" },
+  buttonDisabled: { opacity: 0.6 },
+  buttonText: { color: "#ffffff", fontSize: 18, fontWeight: "700", letterSpacing: 0.5 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
   modalCard: { width: "100%", backgroundColor: "#ffffff", borderRadius: 16, padding: 24, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
   scheduleModalCard: { width: "100%", maxHeight: "85%", backgroundColor: "#ffffff", borderRadius: 16, padding: 20, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
