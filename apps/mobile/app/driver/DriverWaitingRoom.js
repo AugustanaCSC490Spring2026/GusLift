@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { useMatching } from "../../context/MatchingContext";
 
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 function formatTime12h(timeStr) {
-  if (!timeStr) return "—";
-  const [h, m] = timeStr.split(":").map(Number);
+  if (!timeStr || !TIME_RE.test(String(timeStr).trim())) return "—";
+  const [h, m] = String(timeStr).trim().split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";
   const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
@@ -20,7 +22,18 @@ function formatTime12h(timeStr) {
 export default function DriverWaitingRoom() {
   const router = useRouter();
   const { connect, send, disconnect, onMessage } = useMatching();
-  const { from, pickupTime, classStart, classEnd } = useLocalSearchParams();
+  
+  const params = useLocalSearchParams();
+  const from = Array.isArray(params.from) ? params.from[0] : params.from;
+  const to = Array.isArray(params.to) ? params.to[0] : params.to;
+  const matchMode = Array.isArray(params.matchMode) ? params.matchMode[0] : params.matchMode;
+  const time = Array.isArray(params.time) ? params.time[0] : params.time;
+  const pickupTime = Array.isArray(params.pickupTime) ? params.pickupTime[0] : params.pickupTime;
+  const classStart = Array.isArray(params.classStart) ? params.classStart[0] : params.classStart;
+  const classEnd = Array.isArray(params.classEnd) ? params.classEnd[0] : params.classEnd;
+  
+  const isManualEntry = matchMode === "manual";
+
   const [connected, setConnected] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -29,7 +42,10 @@ export default function DriverWaitingRoom() {
 
     async function setup() {
       // connect() runs GET preflight then opens the WebSocket; see MatchingContext.
-      const result = await connect();
+      const result = isManualEntry 
+        ? await connect({ location: from, time })
+        : await connect();
+        
       if (result?.ok && result.userId) {
         send({ type: "driver_online", driver_id: result.userId });
         setConnected(true);
@@ -47,7 +63,14 @@ export default function DriverWaitingRoom() {
         if (msg.type === "rider_joined" || msg.type === "initial_state") {
           router.replace({
             pathname: "/driver/AvailableRiders",
-            params: { from, pickupTime, classStart, classEnd },
+            params: { 
+              from, 
+              pickupTime: isManualEntry ? time : pickupTime, 
+              classStart, 
+              classEnd,
+              to,
+              matchMode
+            },
           });
         }
       });
@@ -76,20 +99,38 @@ export default function DriverWaitingRoom() {
           <Text style={styles.value}>{from || "—"}</Text>
         </View>
         <View style={styles.divider} />
+        
+        {isManualEntry && to ? (
+          <>
+            <View style={styles.row}>
+              <Text style={styles.label}>To</Text>
+              <Text style={styles.value}>{to}</Text>
+            </View>
+            <View style={styles.divider} />
+          </>
+        ) : null}
+
         <View style={styles.row}>
           <Text style={styles.label}>Pick Up Time</Text>
-          <Text style={styles.value}>{formatTime12h(pickupTime)}</Text>
+          <Text style={styles.value}>
+            {formatTime12h(isManualEntry ? time : pickupTime)}
+          </Text>
         </View>
-        <View style={styles.divider} />
-        <View style={styles.row}>
-          <Text style={styles.label}>Class Starts</Text>
-          <Text style={styles.value}>{formatTime12h(classStart)}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.row}>
-          <Text style={styles.label}>Class End</Text>
-          <Text style={styles.value}>{formatTime12h(classEnd)}</Text>
-        </View>
+        
+        {!isManualEntry ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <Text style={styles.label}>Class Starts</Text>
+              <Text style={styles.value}>{formatTime12h(classStart)}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <Text style={styles.label}>Class End</Text>
+              <Text style={styles.value}>{formatTime12h(classEnd)}</Text>
+            </View>
+          </>
+        ) : null}
       </View>
 
       <View style={styles.statusRow}>
@@ -165,7 +206,7 @@ const styles = StyleSheet.create({
   },
   divider: { height: 1, backgroundColor: "#f0f0f0" },
   label: { fontSize: 15, color: "#6b7280", fontWeight: "500" },
-  value: { fontSize: 15, color: "#1f2937", fontWeight: "600" },
+  value: { fontSize: 15, color: "#1f2937", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",

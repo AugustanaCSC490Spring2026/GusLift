@@ -507,7 +507,11 @@ export default function DriverSetup() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>Driver Setup</Text>
       <Text style={styles.subtitle}>Tell us a little about your vehicle.</Text>
 
@@ -658,6 +662,8 @@ export default function DriverSetup() {
                       autoFocus={index === 0}
                       placeholder={field.placeholder}
                       keyboardType={field.keyboardType}
+                      returnKeyType="done"
+                      onSubmitEditing={saveFieldInput}
                     />
                   </View>
                 ))}
@@ -676,6 +682,8 @@ export default function DriverSetup() {
                     ? FIELD_CONFIG[activeField].keyboardType
                     : "default"
                 }
+                returnKeyType="done"
+                onSubmitEditing={saveFieldInput}
               />
             )}
             <View style={styles.modalActions}>
@@ -836,7 +844,7 @@ export default function DriverSetup() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -844,8 +852,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8f6f1",
-    justifyContent: "center",
+  },
+  contentContainer: {
     padding: 24,
+    paddingBottom: 40,
     gap: 12,
   },
   title: {
