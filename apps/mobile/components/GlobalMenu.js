@@ -65,7 +65,11 @@ export default function GlobalMenu() {
           router.replace("/driver/DriverSetup");
         }
       } else {
-        router.replace("/rider/RequestRide");
+        if (parsed.riderSetupComplete) {
+          router.replace("/rider/RequestRide");
+        } else {
+          router.replace("/rider/RiderSetup");
+        }
       }
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");

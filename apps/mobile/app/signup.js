@@ -98,7 +98,11 @@ export default function Signup() {
               router.replace("/driver/DriverSetup");
             }
           } else {
-            router.replace("/rider/RequestRide");
+            if (parsed.riderSetupComplete) {
+              router.replace("/rider/RequestRide");
+            } else {
+              router.replace("/rider/RiderSetup");
+            }
           }
         } else {
           await AsyncStorage.removeItem("@user");

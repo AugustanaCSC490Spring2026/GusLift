@@ -23,6 +23,9 @@ export default function DeveloperMenu() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Rider Flows</Text>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RiderSetup")}>
+            <Text style={styles.buttonText}>Rider Setup</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RequestRide")}>
             <Text style={styles.buttonText}>Rider Dashboard (Request Ride)</Text>
           </TouchableOpacity>
