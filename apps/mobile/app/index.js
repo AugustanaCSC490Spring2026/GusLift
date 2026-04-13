@@ -152,14 +152,8 @@ export default function Welcome() {
         if (role === "driver") {
           router.push(parsed.driverSetupComplete ? "/driver/OfferRide" : "/driver/DriverSetup");
         } else {
-          if (parsed.riderSetupComplete && extraParams) {
-            // Go directly to RequestRide (pickup/dest pre-filled via the page's own logic)
-            router.push("/rider/RequestRide");
-          } else if (parsed.riderSetupComplete) {
-            router.push("/rider/RequestRide");
-          } else {
-            router.push("/rider/RiderSetup");
-          }
+          // Riders go straight to RequestRide — rider setup is optional
+          router.push("/rider/RequestRide");
         }
       } else {
         // No session — go sign up with role hint
@@ -200,11 +194,8 @@ export default function Welcome() {
                 : "/driver/DriverSetup"
             );
           } else {
-            router.replace(
-              parsed.riderSetupComplete
-                ? "/rider/RequestRide"
-                : "/rider/RiderSetup"
-            );
+            // Riders go straight to RequestRide — rider setup is optional
+            router.replace("/rider/RequestRide");
           }
           return;
         } else {
