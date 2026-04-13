@@ -59,14 +59,17 @@ export default function DriverWaitingRoom() {
       }
 
       unsubscribe = onMessage((msg) => {
-        // A rider joined the room — go to available riders
-        if (msg.type === "rider_joined" || msg.type === "initial_state") {
+        // Navigate to AvailableRiders when at least one rider is present
+        const hasRiders =
+          msg.type === "rider_joined" ||
+          (msg.type === "initial_state" && Array.isArray(msg.riders) && msg.riders.length > 0);
+        if (hasRiders) {
           router.replace({
             pathname: "/driver/AvailableRiders",
-            params: { 
-              from, 
-              pickupTime: isManualEntry ? time : pickupTime, 
-              classStart, 
+            params: {
+              from,
+              pickupTime: isManualEntry ? time : pickupTime,
+              classStart,
               classEnd,
               to,
               matchMode

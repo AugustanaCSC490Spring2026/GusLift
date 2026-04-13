@@ -144,15 +144,6 @@ export default function Signup() {
         JSON.stringify({ ...data, savedAt: Date.now() }),
       );
 
-      // Surface the id once to make it very easy to copy.
-      if (data?.id) {
-        Alert.alert(
-          "Google user id",
-          `Copy this id for seeding:\n\n${data.id}`,
-          [{ text: "OK" }],
-        );
-      }
-
       setLoading(false);
       router.push("/role");
     } catch {

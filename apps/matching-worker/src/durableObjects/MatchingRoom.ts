@@ -161,7 +161,8 @@ export class MatchingRoom implements DurableObject {
 
   private async insertRide(
     driver_id: string,
-    rider_id: string
+    rider_id: string,
+    rider_dropoff_loc?: string | null
   ): Promise<RideRow> {
     const { location, start_time } = this.parseSlotKey();
     // Normalize start_time to a valid Postgres time value.
@@ -181,9 +182,10 @@ export class MatchingRoom implements DurableObject {
         start_time: dbStartTime,
         location,
         status: "accepted",
+        ...(rider_dropoff_loc ? { rider_dropoff_loc } : {}),
       })
       .select(
-        "id,driver_id,rider_id,ride_date,start_time,location,status,created_at"
+        "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at"
       )
       .single();
     if (error || !data) {
@@ -372,8 +374,8 @@ export class MatchingRoom implements DurableObject {
       seats_remaining: driver.seats_remaining,
     });
 
-    const ride = await this.insertRide(ev.driver_id, ev.rider_id);
     const rider = await this.fetchRiderProfile(ev.rider_id);
+    const ride = await this.insertRide(ev.driver_id, ev.rider_id, rider.to_location);
 
     this.sendTo(ev.driver_id, {
       type: "match_confirmed",
