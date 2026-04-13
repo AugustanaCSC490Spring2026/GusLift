@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -22,6 +22,7 @@ const SCHOOL_DOMAIN = "augustana.edu";
 
 export default function Signup() {
   const router = useRouter();
+  const { role: presetRole } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const enforceSchoolEmail =
     process.env.EXPO_PUBLIC_ENFORCE_SCHOOL_EMAIL !== "false";
@@ -139,10 +140,16 @@ export default function Signup() {
         return;
       }
 
-      await AsyncStorage.setItem(
-        "@user",
-        JSON.stringify({ ...data, savedAt: Date.now() }),
-      );
+      // If a role was passed from the landing page, auto-assign and skip role selection
+      if (presetRole === "rider" || presetRole === "driver") {
+        const userData = { ...data, savedAt: Date.now(), role: presetRole };
+        await AsyncStorage.setItem("@user", JSON.stringify(userData));
+      } else {
+        await AsyncStorage.setItem(
+          "@user",
+          JSON.stringify({ ...data, savedAt: Date.now() }),
+        );
+      }
 
       // Surface the id once to make it very easy to copy.
       if (data?.id) {
@@ -154,14 +161,22 @@ export default function Signup() {
       }
 
       setLoading(false);
-      router.push("/role");
+
+      // Route based on pre-set role or go to role selection
+      if (presetRole === "rider") {
+        router.push("/rider/RiderSetup");
+      } else if (presetRole === "driver") {
+        router.push("/driver/DriverSetup");
+      } else {
+        router.push("/role");
+      }
     } catch {
       setLoading(false);
       Alert.alert("Error", "Could not fetch your Google profile. Try again.", [
         { text: "OK" },
       ]);
     }
-  }, [router, enforceSchoolEmail]);
+  }, [router, enforceSchoolEmail, presetRole]);
 
   useEffect(() => {
     if (response?.type === "success") {

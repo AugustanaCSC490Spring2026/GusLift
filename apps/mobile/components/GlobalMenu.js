@@ -13,7 +13,7 @@ export default function GlobalMenu() {
   const [currentRole, setCurrentRole] = useState(null);
 
   // Do not show the menu on login/signup pages
-  const hidePaths = ["/", "/index", "/signup", "/role"];
+  const hidePaths = ["/", "/index", "/signup", "/role", "/about"];
   if (hidePaths.includes(pathname)) {
     return null;
   }
