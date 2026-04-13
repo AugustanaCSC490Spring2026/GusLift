@@ -26,9 +26,25 @@ Set these for local development (e.g. `.env` with Expo’s `EXPO_PUBLIC_*` conve
 |----------|---------|
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL (REST, auth) |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `EXPO_PUBLIC_BACKEND_URL` | GusLift backend base URL for setup, rides, and payments APIs |
 | `EXPO_PUBLIC_MATCHING_WORKER_URL` | Matching worker base URL (`https://…` or `wss://…` — `MatchingContext` normalizes to WebSocket) |
 
 Without `EXPO_PUBLIC_MATCHING_WORKER_URL`, matching `connect()` will not open a socket.
+
+## Stripe demo checkout
+
+The developer menu includes a **Stripe Demo Checkout** screen that creates a
+hosted Stripe Checkout Session from the backend and opens it in the in-app
+browser.
+
+For the demo, configure the backend with Stripe test keys and set
+`EXPO_PUBLIC_BACKEND_URL` in the mobile app so it can call:
+
+- `GET /api/payments/config`
+- `POST /api/payments/checkout-session`
+
+The screen uses a fixed `$5.00` sandbox payment and is intended for sprint/demo
+flows rather than production billing.
 
 ## Rider: requesting rides
 

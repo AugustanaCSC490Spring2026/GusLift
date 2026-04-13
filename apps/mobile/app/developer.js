@@ -65,6 +65,13 @@ export default function DeveloperMenu() {
             <Text style={styles.buttonText}>Role Selection Page</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payments</Text>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/payments/demo")}>
+            <Text style={styles.buttonText}>Stripe Demo Checkout</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
