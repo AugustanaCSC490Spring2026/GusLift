@@ -1,5 +1,31 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
 
+## Stripe starter
+
+The backend now includes a small Stripe integration scaffold:
+
+- `lib/stripe-config.ts` centralizes Stripe env lookup and readiness checks
+- `GET /api/payments/config` reports whether Stripe keys are configured
+
+Add these variables to your backend `.env.local` before wiring up checkout flows:
+
+```bash
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+```
+
+Example response from `GET /api/payments/config`:
+
+```json
+{
+  "provider": "stripe",
+  "ready": false,
+  "publishableKeyConfigured": false,
+  "secretKeyConfigured": false,
+  "mode": "unknown"
+}
+```
+
 ## Getting Started
 
 First, run the development server:
