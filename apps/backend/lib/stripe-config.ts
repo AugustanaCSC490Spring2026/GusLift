@@ -13,7 +13,10 @@ export type StripeConfigStatus = {
 
 function readEnv(name: string) {
   const value = process.env[name];
-  return value?.trim() ? value.trim() : null;
+  const normalized = value?.trim();
+  if (!normalized) return null;
+  if (normalized.includes("REPLACE_ME")) return null;
+  return normalized;
 }
 
 function inferStripeMode(value: string | null): StripeMode {

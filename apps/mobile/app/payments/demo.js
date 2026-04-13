@@ -21,6 +21,7 @@ export default function PaymentsDemo() {
   const [config, setConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState(null);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -68,9 +69,20 @@ export default function PaymentsDemo() {
       return;
     }
 
+    setLaunchError(null);
     setLaunching(true);
+    let popup = null;
 
     try {
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        popup = window.open("", "_blank");
+        if (popup) {
+          popup.document.write(
+            "<!doctype html><title>Opening Stripe…</title><body style=\"font-family: system-ui; padding: 24px; color: #0f172a;\">Opening Stripe checkout…</body>",
+          );
+        }
+      }
+
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
       const response = await fetch(
         `${normalizedBackendUrl}/api/payments/checkout-session`,
@@ -95,9 +107,10 @@ export default function PaymentsDemo() {
 
       if (Platform.OS === "web") {
         if (typeof window !== "undefined") {
-          const popup = window.open(payload.url, "_blank", "noopener,noreferrer");
           if (!popup) {
             window.location.assign(payload.url);
+          } else {
+            popup.location.href = payload.url;
           }
         }
       } else {
@@ -106,9 +119,15 @@ export default function PaymentsDemo() {
         });
       }
     } catch (error) {
+      if (popup && !popup.closed) {
+        popup.close();
+      }
+      const message =
+        error instanceof Error ? error.message : "Unable to launch checkout.";
+      setLaunchError(message);
       Alert.alert(
         "Stripe demo failed",
-        error instanceof Error ? error.message : "Unable to launch checkout.",
+        message,
       );
     } finally {
       setLaunching(false);
@@ -171,6 +190,9 @@ export default function PaymentsDemo() {
             Charges a fixed sandbox amount for a fake GusLift ride payment. Stripe
             hosts the actual card form.
           </Text>
+          {launchError ? (
+            <Text style={styles.demoError}>{launchError}</Text>
+          ) : null}
 
           <TouchableOpacity
             style={[
@@ -293,6 +315,12 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     lineHeight: 22,
     marginBottom: 18,
+  },
+  demoError: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#fde68a",
+    marginBottom: 14,
   },
   primaryButton: {
     backgroundColor: "#f59e0b",
