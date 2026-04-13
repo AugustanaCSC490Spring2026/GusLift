@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -526,106 +527,123 @@ export default function DriverSetup() {
   }
 
   return (
-    <ScrollView 
-      style={styles.container} 
+    <ScrollView
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Driver Setup</Text>
-      <Text style={styles.subtitle}>Tell us a little about your vehicle.</Text>
+      {/* Back button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.replace("/role")}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="chevron-back" size={20} color="#1a3a6b" />
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
 
+      {/* Header */}
+      <View style={styles.header}>
+        <Ionicons name="car-sport" size={32} color="#1a3a6b" />
+        <Text style={styles.title}>Driver Setup</Text>
+        <Text style={styles.subtitle}>Tell us a little about your vehicle.</Text>
+      </View>
+
+      {/* Car Model */}
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={() => openFieldInput("carModel")}
         activeOpacity={0.85}
       >
-        <Text style={styles.fieldLabel}>{FIELD_CONFIG.carModel.label}</Text>
-        <Text style={[styles.fieldValue, !carModel && styles.fieldPlaceholder]}>
-          {carModel || FIELD_CONFIG.carModel.placeholder}
-        </Text>
+        <Ionicons name="car-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextWrap}>
+          <Text style={styles.fieldLabel}>{FIELD_CONFIG.carModel.label}</Text>
+          <Text style={[styles.fieldValue, !carModel && styles.fieldPlaceholder]}>
+            {carModel || FIELD_CONFIG.carModel.placeholder}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
 
+      {/* License Plate */}
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={() => openFieldInput("licensePlate")}
         activeOpacity={0.85}
       >
-        <Text style={styles.fieldLabel}>{FIELD_CONFIG.licensePlate.label}</Text>
-        <Text
-          style={[styles.fieldValue, !licensePlate && styles.fieldPlaceholder]}
-        >
-          {licensePlate || FIELD_CONFIG.licensePlate.placeholder}
-        </Text>
+        <Ionicons name="card-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextWrap}>
+          <Text style={styles.fieldLabel}>{FIELD_CONFIG.licensePlate.label}</Text>
+          <Text style={[styles.fieldValue, !licensePlate && styles.fieldPlaceholder]}>
+            {licensePlate || FIELD_CONFIG.licensePlate.placeholder}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
 
+      {/* Seats Available */}
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={() => openFieldInput("seatsAvailable")}
         activeOpacity={0.85}
       >
-        <Text style={styles.fieldLabel}>
-          {FIELD_CONFIG.seatsAvailable.label}
-        </Text>
-        <Text
-          style={[
-            styles.fieldValue,
-            !seatsAvailable && styles.fieldPlaceholder,
-          ]}
-        >
-          {seatsAvailable || FIELD_CONFIG.seatsAvailable.placeholder}
-        </Text>
+        <Ionicons name="people-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextWrap}>
+          <Text style={styles.fieldLabel}>{FIELD_CONFIG.seatsAvailable.label}</Text>
+          <Text style={[styles.fieldValue, !seatsAvailable && styles.fieldPlaceholder]}>
+            {seatsAvailable || FIELD_CONFIG.seatsAvailable.placeholder}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
 
+      {/* Residence / Pickup */}
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={() => openFieldInput("residenceLocation")}
         activeOpacity={0.85}
       >
-        <Text style={styles.fieldLabel}>
-          {FIELD_CONFIG.residenceLocation.label}
-        </Text>
-        <Text
-          style={[
-            styles.fieldValue,
-            !residenceLocation && styles.fieldPlaceholder,
-          ]}
-        >
-          {residenceLocation || FIELD_CONFIG.residenceLocation.placeholder}
-        </Text>
+        <Ionicons name="home-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextWrap}>
+          <Text style={styles.fieldLabel}>{FIELD_CONFIG.residenceLocation.label}</Text>
+          <Text style={[styles.fieldValue, !residenceLocation && styles.fieldPlaceholder]}>
+            {residenceLocation || FIELD_CONFIG.residenceLocation.placeholder}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
 
+      {/* Weekly Schedule */}
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={openScheduleInput}
         activeOpacity={0.85}
       >
-        <Text style={styles.fieldLabel}>Weekly Schedule</Text>
-        <Text
-          style={[
-            styles.fieldValue,
-            scheduleEntryCount === 0 && styles.fieldPlaceholder,
-          ]}
-        >
-          {scheduleEntryCount > 0
-            ? `${scheduleEntryCount} weekday entries added`
-            : "Tap to add your semester schedule"}
-        </Text>
+        <Ionicons name="calendar-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextWrap}>
+          <Text style={styles.fieldLabel}>Weekly Schedule</Text>
+          <Text style={[styles.fieldValue, scheduleEntryCount === 0 && styles.fieldPlaceholder]}>
+            {scheduleEntryCount > 0
+              ? `${scheduleEntryCount} weekday entries added`
+              : "Tap to add your semester schedule"}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
 
+      {/* Driver Photo */}
       <TouchableOpacity
         style={styles.fieldButton}
         onPress={pickDriverImage}
         activeOpacity={0.85}
       >
-        <Text style={styles.fieldLabel}>Driver Photo (Optional)</Text>
-        <Text
-          style={[
-            styles.fieldValue,
-            !selectedImageLabel && styles.fieldPlaceholder,
-          ]}
-        >
-          {selectedImageLabel || "Tap to choose a photo"}
-        </Text>
+        <Ionicons name="person-circle-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
+        <View style={styles.fieldTextWrap}>
+          <Text style={styles.fieldLabel}>Driver Photo (Optional)</Text>
+          <Text style={[styles.fieldValue, !selectedImageLabel && styles.fieldPlaceholder]}>
+            {selectedImageLabel || "Tap to choose a photo"}
+          </Text>
+        </View>
         {selectedImage?.uri ? (
           <View style={styles.photoPreviewRow}>
             <Image source={{ uri: selectedImage.uri }} style={styles.photoPreview} />
@@ -634,10 +652,12 @@ export default function DriverSetup() {
               activeOpacity={0.8}
               style={styles.removePhotoButton}
             >
-              <Text style={styles.removePhotoText}>Remove</Text>
+              <Ionicons name="trash-outline" size={16} color="#b91c1c" />
             </TouchableOpacity>
           </View>
-        ) : null}
+        ) : (
+          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -874,37 +894,77 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 24,
+    paddingTop: 56,
     paddingBottom: 40,
     gap: 12,
   },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    alignSelf: "flex-start",
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  backText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1a3a6b",
+  },
+  header: {
+    marginBottom: 24,
+  },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    textAlign: "center",
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 8,
+    marginTop: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: "#4b5563",
-    textAlign: "center",
-    marginBottom: 14,
-    lineHeight: 24,
+    color: "#6b7280",
+    lineHeight: 22,
   },
   fieldButton: {
     backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    gap: 4,
+    borderColor: "#e5e7eb",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  fieldIcon: {
+    marginRight: 16,
+    backgroundColor: "#f3f4f6",
+    padding: 10,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  fieldTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   fieldLabel: {
-    fontSize: 13,
+    fontSize: 12,
+    color: "#9ca3af",
     fontWeight: "700",
-    color: "#1f2937",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    marginBottom: 4,
   },
   fieldValue: {
     fontSize: 16,
@@ -912,12 +972,13 @@ const styles = StyleSheet.create({
   },
   fieldPlaceholder: {
     color: "#6b7280",
+    fontSize: 14,
   },
   button: {
     backgroundColor: "#1a3a6b",
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 22,
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: "center",
     marginTop: 8,
   },
