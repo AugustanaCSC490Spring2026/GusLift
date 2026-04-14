@@ -1,20 +1,22 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useMatching } from "../../context/MatchingContext";
-
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 function RiderCard({ rider, isPending, onPress }) {
   return (
-    <TouchableOpacity
-      style={[styles.card, isPending && styles.cardPending]}
-      onPress={onPress}
-      activeOpacity={isPending ? 1 : 0.7}
-      disabled={isPending}
-    >
+    <View style={[styles.card, isPending && styles.cardPending]}>
       {rider.picture_url ? (
         <Image source={{ uri: rider.picture_url }} style={styles.avatar} />
       ) : (
@@ -26,36 +28,52 @@ function RiderCard({ rider, isPending, onPress }) {
       )}
 
       <View style={styles.info}>
-        <Text style={styles.name}>{rider.name ?? "Unknown Rider"}</Text>
+        <Text style={styles.name}>{rider.name ?? "Unknown rider"}</Text>
         {rider.to_location ? (
-          <Text style={styles.toLocation}>To: {rider.to_location}</Text>
+          <Text style={styles.toLocation}>Going to {rider.to_location}</Text>
         ) : null}
-        {rider.rating != null && (
-          <Text style={styles.rating}>★ {rider.rating.toFixed(1)}</Text>
+        {rider.rating != null ? (
+          <Text style={styles.rating}>Rating {rider.rating.toFixed(1)}</Text>
+        ) : (
+          <Text style={styles.ratingMuted}>No rating yet</Text>
         )}
       </View>
 
-      {isPending && <Text style={styles.pendingBadge}>Waiting...</Text>}
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.selectButton, isPending && styles.selectButtonPending]}
+        onPress={onPress}
+        activeOpacity={isPending ? 1 : 0.86}
+        disabled={isPending}
+      >
+        <Text style={styles.selectButtonText}>
+          {isPending ? "Waiting..." : "Select"}
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 export default function AvailableRidersScreen() {
   const router = useRouter();
-  const { send, onMessage, userId, disconnect, getRidersSnapshot } = useMatching();
+  const { send, onMessage, userId, disconnect, getRidersSnapshot } =
+    useMatching();
   const [riders, setRiders] = useState([]);
   const [pendingRiderIds, setPendingRiderIds] = useState(new Set());
   const [capacity, setCapacity] = useState(4);
   const [seatsUsed, setSeatsUsed] = useState(0);
 
   useEffect(() => {
-    // Fetch car capacity
     if (userId) {
       fetch(
         `${SUPABASE_URL}/rest/v1/Car?user_id=eq.${userId}&select=capacity`,
-        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+        },
       )
-        .then((r) => r.json())
+        .then((response) => response.json())
         .then((data) => {
           const raw = data?.[0]?.capacity;
           const parsed = typeof raw === "number" ? raw : Number(raw);
@@ -66,37 +84,49 @@ export default function AvailableRidersScreen() {
         .catch(() => {});
     }
 
-    // Seed from snapshot: initial_state may have fired on the previous screen before we mounted.
     setRiders(getRidersSnapshot?.() ?? []);
 
     const unsubscribe = onMessage((msg) => {
       if (msg.type === "initial_state") setRiders(msg.riders ?? []);
       if (msg.type === "rider_joined") {
         setRiders((prev) => {
-          if (prev.some((r) => r.rider_id === msg.rider?.rider_id)) return prev;
+          if (prev.some((rider) => rider.rider_id === msg.rider?.rider_id)) {
+            return prev;
+          }
           return [...prev, msg.rider];
         });
       }
       if (msg.type === "rider_removed") {
-        setRiders((prev) => prev.filter((r) => r.rider_id !== msg.rider_id));
-        setPendingRiderIds((prev) => { const s = new Set(prev); s.delete(msg.rider_id); return s; });
+        setRiders((prev) => prev.filter((rider) => rider.rider_id !== msg.rider_id));
+        setPendingRiderIds((prev) => {
+          const next = new Set(prev);
+          next.delete(msg.rider_id);
+          return next;
+        });
       }
       if (msg.type === "match_rejected" && msg.driver_id === userId) {
         setPendingRiderIds((prev) => {
-          const s = new Set(prev);
-          s.delete(msg.rider_id);
-          return s;
+          const next = new Set(prev);
+          next.delete(msg.rider_id);
+          return next;
         });
       }
       if (msg.type === "seat_update" && msg.driver_id === userId) {
         if (typeof capacity === "number") {
-          const nextUsed = Math.max(0, capacity - (msg.seats_remaining ?? capacity));
+          const nextUsed = Math.max(
+            0,
+            capacity - (msg.seats_remaining ?? capacity),
+          );
           setSeatsUsed(nextUsed);
         }
       }
       if (msg.type === "match_confirmed") {
         setSeatsUsed((prev) => prev + 1);
-        setPendingRiderIds((prev) => { const s = new Set(prev); s.delete(msg.rider?.id); return s; });
+        setPendingRiderIds((prev) => {
+          const next = new Set(prev);
+          next.delete(msg.rider?.id);
+          return next;
+        });
         router.push("/driver/ScheduledRidesDriver");
       }
     });
@@ -107,18 +137,24 @@ export default function AvailableRidersScreen() {
   function handleSelectRider(rider) {
     if (pendingRiderIds.has(rider.rider_id)) return;
 
-    if (capacity !== null && (seatsUsed + pendingRiderIds.size) >= capacity) {
+    if (capacity !== null && seatsUsed + pendingRiderIds.size >= capacity) {
       Alert.alert("Car Full", "Car seat capacity reached.");
       return;
     }
 
-    send({ type: "select_rider", driver_id: userId, rider_id: rider.rider_id });
+    send({
+      type: "select_rider",
+      driver_id: userId,
+      rider_id: rider.rider_id,
+    });
     setPendingRiderIds((prev) => new Set(prev).add(rider.rider_id));
   }
 
+  const seatsRemaining = Math.max(0, capacity - seatsUsed);
+  const pendingCount = pendingRiderIds.size;
+
   return (
-    <View style={styles.container}>
-      {/* Header row */}
+    <View style={styles.screen}>
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => {
@@ -130,6 +166,7 @@ export default function AvailableRidersScreen() {
             }
           }}
           style={styles.closeButton}
+          activeOpacity={0.82}
         >
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
@@ -137,19 +174,45 @@ export default function AvailableRidersScreen() {
         <TouchableOpacity
           style={styles.upcomingButton}
           onPress={() => router.push("/driver/ScheduledRidesDriver")}
-          activeOpacity={0.8}
+          activeOpacity={0.82}
         >
-          <Text style={styles.upcomingButtonText}>Upcoming Rides</Text>
+          <Text style={styles.upcomingButtonText}>Upcoming rides</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.header}>Upcoming Riders</Text>
-
-      {capacity !== null && (
-        <Text style={styles.seatsText}>
-          {seatsUsed} / {capacity} seats filled
+      <View style={styles.heroCard}>
+        <View style={styles.heroGlow} />
+        <Text style={styles.heroEyebrow}>Driver queue</Text>
+        <Text style={styles.heroTitle}>Select riders for this trip</Text>
+        <Text style={styles.heroBody}>
+          Choose riders as they appear. Confirmed matches move into your scheduled rides
+          automatically.
         </Text>
-      )}
+      </View>
+
+      <View style={styles.metricsRow}>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Seats filled</Text>
+          <Text style={styles.metricValue}>
+            {seatsUsed} / {capacity}
+          </Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Pending</Text>
+          <Text style={styles.metricValue}>{pendingCount}</Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Remaining</Text>
+          <Text style={styles.metricValue}>{seatsRemaining}</Text>
+        </View>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Waiting riders</Text>
+        <Text style={styles.sectionSub}>
+          Tap a rider to send them the offer for this seat.
+        </Text>
+      </View>
 
       <ScrollView
         style={styles.list}
@@ -157,7 +220,12 @@ export default function AvailableRidersScreen() {
         showsVerticalScrollIndicator={false}
       >
         {riders.length === 0 ? (
-          <Text style={styles.emptyText}>No riders waiting yet...</Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No riders waiting yet</Text>
+            <Text style={styles.emptyText}>
+              Keep this screen open. New rider requests will appear here in real time.
+            </Text>
+          </View>
         ) : (
           riders.map((rider) => (
             <RiderCard
@@ -174,11 +242,11 @@ export default function AvailableRidersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
-    padding: 24,
-    paddingTop: 56,
+    backgroundColor: "#f2efe7",
+    paddingHorizontal: 20,
+    paddingTop: 60,
   },
   headerRow: {
     flexDirection: "row",
@@ -187,39 +255,107 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    width: 40,
+    height: 40,
+    borderRadius: 16,
+    backgroundColor: "#e6e0d2",
     alignItems: "center",
     justifyContent: "center",
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#44574e",
   },
   upcomingButton: {
-    backgroundColor: "#1a3a6b",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#fffaf0",
+    borderWidth: 1,
+    borderColor: "#d8cebe",
   },
   upcomingButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  header: {
-    fontSize: 26,
+    fontSize: 13,
     fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 4,
+    color: "#44574e",
   },
-  seatsText: {
+  heroCard: {
+    backgroundColor: "#1c4d38",
+    borderRadius: 26,
+    padding: 22,
+    overflow: "hidden",
+    gap: 10,
+  },
+  heroGlow: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "#35644f",
+    top: -58,
+    right: -28,
+    opacity: 0.46,
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "#d4e2da",
+  },
+  heroTitle: {
+    fontSize: 29,
+    fontWeight: "800",
+    color: "#fff9ef",
+    letterSpacing: -0.7,
+  },
+  heroBody: {
     fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 16,
+    lineHeight: 21,
+    color: "#d5e2d9",
+    maxWidth: "94%",
+  },
+  metricsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  metricCard: {
+    flex: 1,
+    borderRadius: 20,
+    backgroundColor: "#fffdf8",
+    borderWidth: 1,
+    borderColor: "#e4dacb",
+    padding: 14,
+    gap: 6,
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: "#6f8278",
+  },
+  metricValue: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#20352d",
+  },
+  sectionHeader: {
+    marginTop: 20,
+    marginBottom: 12,
+    gap: 4,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#20352d",
+  },
+  sectionSub: {
+    fontSize: 14,
+    color: "#647970",
+    lineHeight: 20,
   },
   list: {
     flex: 1,
@@ -231,66 +367,94 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "#fffdf8",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#e4dacb",
     padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
     gap: 14,
   },
   cardPending: {
-    opacity: 0.6,
-    backgroundColor: "#f0f4ff",
+    backgroundColor: "#eef3ef",
+    opacity: 0.85,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 20,
   },
   avatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#dbeafe",
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: "#dfe8e2",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarInitial: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1a3a6b",
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1c4d38",
   },
   info: {
     flex: 1,
+    gap: 3,
   },
   name: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1f2937",
-    marginBottom: 4,
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#20352d",
   },
   toLocation: {
     fontSize: 13,
-    color: "#6b7280",
-    marginBottom: 2,
+    color: "#61746c",
   },
   rating: {
-    fontSize: 14,
-    color: "#f59e0b",
-    fontWeight: "600",
-  },
-  pendingBadge: {
     fontSize: 13,
-    color: "#1a3a6b",
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#956526",
+  },
+  ratingMuted: {
+    fontSize: 13,
+    color: "#8c9693",
+  },
+  selectButton: {
+    minWidth: 82,
+    minHeight: 42,
+    borderRadius: 14,
+    backgroundColor: "#1c4d38",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  selectButtonPending: {
+    backgroundColor: "#81948b",
+  },
+  selectButtonText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#fff9ef",
+  },
+  emptyState: {
+    borderRadius: 24,
+    backgroundColor: "#fbf7ef",
+    borderWidth: 1,
+    borderColor: "#e4dacb",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    gap: 8,
+    marginTop: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#20352d",
   },
   emptyText: {
-    fontSize: 15,
-    color: "#9ca3af",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#647970",
     textAlign: "center",
-    marginTop: 40,
   },
 });

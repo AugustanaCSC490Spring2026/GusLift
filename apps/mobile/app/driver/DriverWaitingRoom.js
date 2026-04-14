@@ -22,16 +22,24 @@ function formatTime12h(timeStr) {
 export default function DriverWaitingRoom() {
   const router = useRouter();
   const { connect, send, disconnect, onMessage } = useMatching();
-  
+
   const params = useLocalSearchParams();
   const from = Array.isArray(params.from) ? params.from[0] : params.from;
   const to = Array.isArray(params.to) ? params.to[0] : params.to;
-  const matchMode = Array.isArray(params.matchMode) ? params.matchMode[0] : params.matchMode;
+  const matchMode = Array.isArray(params.matchMode)
+    ? params.matchMode[0]
+    : params.matchMode;
   const time = Array.isArray(params.time) ? params.time[0] : params.time;
-  const pickupTime = Array.isArray(params.pickupTime) ? params.pickupTime[0] : params.pickupTime;
-  const classStart = Array.isArray(params.classStart) ? params.classStart[0] : params.classStart;
-  const classEnd = Array.isArray(params.classEnd) ? params.classEnd[0] : params.classEnd;
-  
+  const pickupTime = Array.isArray(params.pickupTime)
+    ? params.pickupTime[0]
+    : params.pickupTime;
+  const classStart = Array.isArray(params.classStart)
+    ? params.classStart[0]
+    : params.classStart;
+  const classEnd = Array.isArray(params.classEnd)
+    ? params.classEnd[0]
+    : params.classEnd;
+
   const isManualEntry = matchMode === "manual";
 
   const [connected, setConnected] = useState(false);
@@ -41,11 +49,10 @@ export default function DriverWaitingRoom() {
     let unsubscribe;
 
     async function setup() {
-      // connect() runs GET preflight then opens the WebSocket; see MatchingContext.
-      const result = isManualEntry 
+      const result = isManualEntry
         ? await connect({ location: from, time })
         : await connect();
-        
+
       if (result?.ok && result.userId) {
         send({ type: "driver_online", driver_id: result.userId });
         setConnected(true);
@@ -59,10 +66,11 @@ export default function DriverWaitingRoom() {
       }
 
       unsubscribe = onMessage((msg) => {
-        // Navigate to AvailableRiders when at least one rider is present
         const hasRiders =
           msg.type === "rider_joined" ||
-          (msg.type === "initial_state" && Array.isArray(msg.riders) && msg.riders.length > 0);
+          (msg.type === "initial_state" &&
+            Array.isArray(msg.riders) &&
+            msg.riders.length > 0);
         if (hasRiders) {
           router.replace({
             pathname: "/driver/AvailableRiders",
@@ -72,7 +80,7 @@ export default function DriverWaitingRoom() {
               classStart,
               classEnd,
               to,
-              matchMode
+              matchMode,
             },
           });
         }
@@ -92,143 +100,286 @@ export default function DriverWaitingRoom() {
     }
   }
 
+  const statusLabel = connected
+    ? "Live and waiting"
+    : statusMessage
+      ? "Offline"
+      : "Connecting";
+
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={handleGoOffline} style={styles.closeButton}>
-        <Text style={styles.closeText}>✕</Text>
-      </TouchableOpacity>
+    <View style={styles.screen}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          onPress={handleGoOffline}
+          style={styles.closeButton}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.closeText}>✕</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleGoOffline}
+          style={styles.offlineChip}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.offlineChipText}>Go offline</Text>
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.title}>Ride Offered</Text>
+      <View style={styles.heroCard}>
+        <View style={styles.heroGlow} />
+        <Text style={styles.heroEyebrow}>Driver queue</Text>
+        <Text style={styles.heroTitle}>Ride offer is live</Text>
+        <Text style={styles.heroBody}>
+          Riders matching this pickup window will appear here as soon as the room receives
+          activity.
+        </Text>
 
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Text style={styles.label}>Pick up at</Text>
-          <Text style={styles.value}>{from || "—"}</Text>
+        <View style={styles.statusPill}>
+          {connected ? <View style={styles.liveDot} /> : null}
+          <Text style={styles.statusPillText}>{statusLabel}</Text>
         </View>
-        <View style={styles.divider} />
-        
+      </View>
+
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Offer summary</Text>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Pickup point</Text>
+          <Text style={styles.summaryValue}>{from || "—"}</Text>
+        </View>
         {isManualEntry && to ? (
           <>
-            <View style={styles.row}>
-              <Text style={styles.label}>To</Text>
-              <Text style={styles.value}>{to}</Text>
-            </View>
             <View style={styles.divider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Destination</Text>
+              <Text style={styles.summaryValue}>{to}</Text>
+            </View>
           </>
         ) : null}
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Pick Up Time</Text>
-          <Text style={styles.value}>
+        <View style={styles.divider} />
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Pickup time</Text>
+          <Text style={styles.summaryValue}>
             {formatTime12h(isManualEntry ? time : pickupTime)}
           </Text>
         </View>
-        
         {!isManualEntry ? (
           <>
             <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Class Starts</Text>
-              <Text style={styles.value}>{formatTime12h(classStart)}</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Class starts</Text>
+              <Text style={styles.summaryValue}>{formatTime12h(classStart)}</Text>
             </View>
             <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Class End</Text>
-              <Text style={styles.value}>{formatTime12h(classEnd)}</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Class ends</Text>
+              <Text style={styles.summaryValue}>{formatTime12h(classEnd)}</Text>
             </View>
           </>
         ) : null}
       </View>
 
-      <View style={styles.statusRow}>
+      <View style={styles.signalCard}>
         {connected ? (
           <>
-            <View style={styles.dot} />
-            <Text style={styles.statusOnline}>Online — waiting for riders</Text>
-          </>
-        ) : !statusMessage ? (
-          <>
-            <ActivityIndicator size="small" color="#1a3a6b" />
-            <Text style={styles.statusConnecting}>Connecting...</Text>
+            <ActivityIndicator size="small" color="#1a4a37" />
+            <Text style={styles.signalTitle}>Listening for riders now</Text>
+            <Text style={styles.signalBody}>
+              The screen will automatically move you to the rider queue as soon as someone
+              joins this offer.
+            </Text>
           </>
         ) : (
-          <Text style={styles.statusConnecting}>Unable to connect</Text>
+          <>
+            <Text style={styles.signalTitle}>Unable to go online</Text>
+            <Text style={styles.signalBody}>
+              {statusMessage || "Connecting to matching service."}
+            </Text>
+          </>
         )}
       </View>
-      {!connected && !!statusMessage ? (
-        <Text style={styles.statusError}>{statusMessage}</Text>
-      ) : null}
 
       <TouchableOpacity
-        style={styles.offlineButton}
+        style={styles.primaryButton}
         onPress={handleGoOffline}
-        activeOpacity={0.8}
+        activeOpacity={0.86}
       >
-        <Text style={styles.offlineButtonText}>Go Offline</Text>
+        <Text style={styles.primaryButtonText}>
+          {connected ? "Stop offering this ride" : "Leave this screen"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
-    padding: 24,
-    paddingTop: 56,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  closeText: { fontSize: 16, color: "#374151", fontWeight: "600" },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 28,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "#f2efe7",
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    marginBottom: 28,
+    paddingTop: 60,
+    gap: 16,
   },
-  row: {
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 14,
   },
-  divider: { height: 1, backgroundColor: "#f0f0f0" },
-  label: { fontSize: 15, color: "#6b7280", fontWeight: "500" },
-  value: { fontSize: 15, color: "#1f2937", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
-  statusRow: {
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 16,
+    backgroundColor: "#e6e0d2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#44574e",
+  },
+  offlineChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#fffaf0",
+    borderWidth: 1,
+    borderColor: "#d8cebe",
+  },
+  offlineChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#44574e",
+  },
+  heroCard: {
+    backgroundColor: "#1c4d38",
+    borderRadius: 26,
+    padding: 22,
+    overflow: "hidden",
+    gap: 10,
+  },
+  heroGlow: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "#35644f",
+    top: -58,
+    right: -28,
+    opacity: 0.46,
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "#d4e2da",
+  },
+  heroTitle: {
+    fontSize: 29,
+    fontWeight: "800",
+    color: "#fff9ef",
+    letterSpacing: -0.7,
+  },
+  heroBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#d5e2d9",
+    maxWidth: "93%",
+  },
+  statusPill: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 32,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255, 249, 239, 0.14)",
+    marginTop: 4,
   },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#22c55e" },
-  statusOnline: { fontSize: 14, color: "#22c55e", fontWeight: "600" },
-  statusConnecting: { fontSize: 14, color: "#6b7280", marginLeft: 8 },
-  statusError: { fontSize: 14, color: "#b91c1c", marginBottom: 20 },
-  offlineButton: {
-    backgroundColor: "#e5e7eb",
-    paddingVertical: 15,
-    borderRadius: 12,
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#7fd490",
+  },
+  statusPillText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#fff9ef",
+  },
+  summaryCard: {
+    backgroundColor: "#fffdf8",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#e4dacb",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1c4d38",
+    marginBottom: 10,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    gap: 16,
+    paddingVertical: 14,
   },
-  offlineButtonText: { color: "#374151", fontSize: 17, fontWeight: "700" },
+  summaryLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#6f8278",
+  },
+  summaryValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#20352d",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#ece3d6",
+  },
+  signalCard: {
+    backgroundColor: "#fbf7ef",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#e4dacb",
+    padding: 22,
+    alignItems: "center",
+    gap: 10,
+  },
+  signalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1c4d38",
+    textAlign: "center",
+  },
+  signalBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#647970",
+    textAlign: "center",
+  },
+  primaryButton: {
+    minHeight: 52,
+    borderRadius: 18,
+    backgroundColor: "#1c4d38",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "auto",
+    marginBottom: 20,
+  },
+  primaryButtonText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#fff9ef",
+  },
 });
