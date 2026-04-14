@@ -234,14 +234,6 @@ export default function PaymentsDemo() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>What happens next</Text>
-          <Text style={styles.helperText}>
-            The success and cancel pages live in the backend app. After checkout,
-            Stripe redirects there so GusLift can show the payment result and
-            sync payment metadata.
-          </Text>
-        </View>
       </ScrollView>
     </View>
   );
@@ -350,24 +342,5 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 15,
     fontWeight: "800",
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 10,
-  },
-  helperText: {
-    fontSize: 15,
-    color: "#4b5563",
-    lineHeight: 22,
   },
 });

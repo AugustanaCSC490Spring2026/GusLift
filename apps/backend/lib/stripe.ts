@@ -89,11 +89,11 @@ export async function createCheckoutSession({
   params.set("line_items[0][price_data][currency]", "usd");
   params.set(
     "line_items[0][price_data][product_data][name]",
-    rideLabel || "GusLift Demo Ride Payment",
+    rideLabel || "GusLift Ride Payment",
   );
   params.set(
     "line_items[0][price_data][product_data][description]",
-    "Sprint 2 demo checkout session for GusLift.",
+    "Checkout session for GusLift.",
   );
   params.set("line_items[0][price_data][unit_amount]", String(amountCents));
   params.set("submit_type", "pay");
