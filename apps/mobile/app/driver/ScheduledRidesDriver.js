@@ -245,7 +245,6 @@ export default function ScheduledRidesDriver() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedRide, setSelectedRide] = useState(null);
   
   const [loading, setLoading] = useState(true);
@@ -381,17 +380,6 @@ export default function ScheduledRidesDriver() {
 
   const currentGroups = activeTab === 'upcoming' ? upcomingGroups : historyGroups;
 
-  const filteredGroups = currentGroups.filter((g) => {
-    if (!searchQuery.trim()) return true;
-    const s = searchQuery.toLowerCase();
-    const matchesRider = g.riders.some(r => (r.name || "").toLowerCase().includes(s));
-    return (
-      matchesRider ||
-      (g.pickup || "").toLowerCase().includes(s) ||
-      (g.destination || "").toLowerCase().includes(s)
-    );
-  });
-
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
@@ -402,17 +390,6 @@ export default function ScheduledRidesDriver() {
           <TouchableOpacity onPress={() => router.replace("/driver/OfferRide")} style={styles.getRideButton} activeOpacity={0.85}>
             <Text style={styles.getRideButtonText}>Offer Route  +</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.searchWrapper}>
-          <SearchLineIcon size={16} color={COLORS.gray400} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search routes or riders..."
-            placeholderTextColor={COLORS.gray300}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
         </View>
 
         <View style={styles.tabRow}>
@@ -437,28 +414,28 @@ export default function ScheduledRidesDriver() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {activeTab === 'upcoming' && filteredGroups.length > 0 ? (
+        {activeTab === 'upcoming' && currentGroups.length > 0 ? (
           <View>
             <View style={styles.nextRideBanner}>
               <View>
                 <Text style={styles.nextRideBannerLabel}>NEXT ROUTE</Text>
                 <Text style={styles.nextRideBannerDate}>
-                  {formatRideDate(filteredGroups[0].timestamp)}
+                  {formatRideDate(currentGroups[0].timestamp)}
                 </Text>
               </View>
               <Text style={styles.nextRideBannerTime}>
-                Pick up: {filteredGroups[0].pickupTime}
+                Pick up: {currentGroups[0].pickupTime}
               </Text>
             </View>
 
             <RideCard
-              group={filteredGroups[0]}
-              onPress={() => setSelectedRide(filteredGroups[0])}
+              group={currentGroups[0]}
+              onPress={() => setSelectedRide(currentGroups[0])}
               isFirstOfUpcoming
             />
 
             <View style={{ marginTop: 16 }}>
-              {filteredGroups.slice(1).map((group) => (
+              {currentGroups.slice(1).map((group) => (
                 <View key={group.id} style={{ marginBottom: 12 }}>
                   <RideCard group={group} onPress={() => setSelectedRide(group)} />
                 </View>
@@ -467,8 +444,8 @@ export default function ScheduledRidesDriver() {
           </View>
         ) : (
           <View>
-            {filteredGroups.length > 0 ? (
-              filteredGroups.map((group) => (
+            {currentGroups.length > 0 ? (
+              currentGroups.map((group) => (
                 <View key={group.id} style={{ marginBottom: 12 }}>
                   <RideCard group={group} onPress={() => setSelectedRide(group)} />
                 </View>
@@ -499,8 +476,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: '900', color: COLORS.dark, letterSpacing: -0.5 },
   getRideButton: { backgroundColor: COLORS.blue, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   getRideButtonText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-  searchWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16, gap: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.dark, padding: 0, outlineStyle: 'none' },
   tabRow: { flexDirection: 'row', gap: 6 },
   tab: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   tabActive: { backgroundColor: COLORS.dark },
