@@ -63,6 +63,8 @@ export default function RiderSetup() {
       formData.append("userID", userId);
       formData.append("name", String(parsed?.name || "").trim());
       formData.append("residence", pickup.trim());
+      formData.append("pickup_loc", pickup.trim());
+      formData.append("dropoff_loc", isSameAsPickup ? pickup.trim() : dropoff.trim());
       formData.append("is_rider", "true");
 
       const daysPayload = {};
@@ -131,7 +133,7 @@ export default function RiderSetup() {
       ctaLabel={CTA_LABELS[step]}
       onBack={() => setStep(step - 1)}
       onSkipSetup={() => router.replace("/rider/RequestRide")}
-      onSkipStep={() => (step < 3 ? setStep(step + 1) : submitRiderProfile())}
+      onSkipStep={step === 0 ? null : () => (step < 3 ? setStep(step + 1) : submitRiderProfile())}
       onNext={handleNext}
     >
       {/* ── Step 0: Pickup ── */}

@@ -151,8 +151,8 @@ export default function DriverSetup() {
       isSuccess={isSuccess}
       ctaLabel={CTA_LABELS[step]}
       onBack={() => setStep(step - 1)}
-      onSkipSetup={step > 0 ? submitDriverProfile : null}
-      onSkipStep={step > 0 ? () => (step < 4 ? setStep(step + 1) : submitDriverProfile()) : null}
+      onSkipSetup={step > 1 ? submitDriverProfile : null}
+      onSkipStep={step > 1 ? () => (step < 4 ? setStep(step + 1) : submitDriverProfile()) : null}
       onNext={handleNext}
     >
       {/* ── Step 0: Vehicle Info ── */}

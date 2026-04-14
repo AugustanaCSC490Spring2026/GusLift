@@ -11,6 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { CircleIcon, SquareIcon } from "../components/LocationTimeline";
 
 /* ─── Color tokens (matching the HTML mockup) ─── */
 const C = {
@@ -297,8 +298,8 @@ export default function Welcome() {
             <View style={styles.inputWrapper}>
               <Text style={styles.inputLabel}>PICKUP</Text>
               <View style={styles.inputRow}>
-                <View style={styles.iconPickup}>
-                  <View style={styles.iconPickupDot} />
+                <View style={styles.iconWrap}>
+                  <CircleIcon size={16} color="#0F172A" />
                 </View>
                 <TextInput
                   style={styles.input}
@@ -313,8 +314,8 @@ export default function Welcome() {
             <View style={[styles.inputWrapper, { marginBottom: 0 }]}>
               <Text style={styles.inputLabel}>DESTINATION</Text>
               <View style={styles.inputRow}>
-                <View style={styles.iconDest}>
-                  <View style={styles.iconDestDot} />
+                <View style={styles.iconWrap}>
+                  <SquareIcon size={16} color="#0F172A" />
                 </View>
                 <TextInput
                   style={styles.input}
@@ -533,41 +534,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  iconPickup: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: C.text,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
+  iconWrap: {
     position: "absolute",
     left: 12,
     zIndex: 1,
-  },
-  iconPickupDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.text,
-  },
-  iconDest: {
-    width: 16,
-    height: 16,
-    borderRadius: 2,
-    backgroundColor: C.text,
     alignItems: "center",
     justifyContent: "center",
-    position: "absolute",
-    left: 12,
-    zIndex: 1,
-  },
-  iconDestDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 1,
-    backgroundColor: "#fff",
   },
   input: {
     flex: 1,

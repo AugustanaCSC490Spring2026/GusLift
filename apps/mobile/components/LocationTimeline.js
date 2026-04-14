@@ -7,32 +7,33 @@ const C = {
   text: "#0F172A",
   subtle: "#94A3B8",
   border: "#E2E8F0",
-  black: "#0F172A",
 };
+
+/** Pickup icon: outer ring + filled inner circle (matches home page) */
+export function CircleIcon({ size = 20, color = "#0F172A" }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={8} stroke={color} strokeWidth={2.5} />
+      <Circle cx={12} cy={12} r={4} fill={color} />
+    </Svg>
+  );
+}
+
+/** Drop-off icon: filled square + white inner square (matches home page) */
+export function SquareIcon({ size = 20, color = "#0F172A" }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={4} y={4} width={16} height={16} rx={3} fill={color} />
+      <Rect x={9} y={9} width={6} height={6} rx={1.5} fill="#fff" />
+    </Svg>
+  );
+}
 
 export function ClockIcon({ size = 20, color = "#0F172A" }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={2} />
       <Path d="M12 6v6l4 2" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-export function CircleIcon({ size = 20, color = "#0F172A" }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={7} stroke={color} strokeWidth={2.5} />
-      <Circle cx={12} cy={12} r={3} fill={color} />
-    </Svg>
-  );
-}
-
-export function SquareIcon({ size = 20, color = "#0F172A" }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x={5} y={5} width={14} height={14} rx={3} fill={color} />
-      <Rect x={9} y={9} width={6} height={6} rx={1.5} fill="#fff" />
     </Svg>
   );
 }
@@ -62,7 +63,7 @@ export default function LocationTimeline({
       {dateValue && (
         <View style={styles.row}>
           <View style={styles.iconCol}>
-            <CalendarIcon size={22} color="#0F172A" />
+            <CalendarIcon size={22} color={C.text} />
             {!noTimeLine && <View style={styles.line} />}
           </View>
           <View style={styles.textCol}>
@@ -75,36 +76,48 @@ export default function LocationTimeline({
       {/* Time Row */}
       <View style={styles.row}>
         <View style={styles.iconCol}>
-          <ClockIcon size={22} color="#0F172A" />
+          <ClockIcon size={22} color={C.text} />
           {!noTimeLine && <View style={styles.line} />}
         </View>
         <View style={styles.textCol}>
           <Text style={styles.label}>{timeLabel}</Text>
-          {typeof timeValue === 'string' ? <Text style={styles.value}>{timeValue}</Text> : timeValue}
+          {typeof timeValue === "string" ? (
+            <Text style={styles.value}>{timeValue}</Text>
+          ) : (
+            timeValue
+          )}
         </View>
       </View>
 
       {/* Pickup Row */}
       <View style={styles.row}>
         <View style={styles.iconCol}>
-          <CircleIcon size={22} color="#0F172A" />
+          <CircleIcon size={22} color={C.text} />
           <View style={styles.line} />
         </View>
         <View style={styles.textCol}>
           <Text style={styles.label}>{pickupLabel}</Text>
-          {typeof pickupValue === 'string' ? <Text style={styles.value}>{pickupValue}</Text> : pickupValue}
+          {typeof pickupValue === "string" ? (
+            <Text style={styles.value}>{pickupValue}</Text>
+          ) : (
+            pickupValue
+          )}
         </View>
       </View>
 
       {/* Dropoff Row */}
-      <View style={[styles.row, { height: 48 }]}>
+      <View style={[styles.row, { minHeight: 48 }]}>
         <View style={styles.iconCol}>
-          <SquareIcon size={22} color="#0F172A" />
+          <SquareIcon size={22} color={C.text} />
         </View>
         <View style={styles.textCol}>
           <Text style={styles.label}>{dropoffLabel}</Text>
-          {typeof dropoffValue === 'string' ? (
-            dropoffValue ? <Text style={styles.value}>{dropoffValue}</Text> : <Text style={styles.valueEmpty}>Not selected</Text>
+          {typeof dropoffValue === "string" ? (
+            dropoffValue ? (
+              <Text style={styles.value}>{dropoffValue}</Text>
+            ) : (
+              <Text style={styles.valueEmpty}>Not selected</Text>
+            )
           ) : (
             dropoffValue
           )}
@@ -120,24 +133,24 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    height: 64, // Keep rows tall clearly spaced
+    minHeight: 64,
   },
   iconCol: {
-    width: 32,
+    width: 28,
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
   },
   line: {
     width: 2,
     flex: 1,
     backgroundColor: C.border,
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: 2,
+    marginBottom: 2,
   },
   textCol: {
     flex: 1,
     justifyContent: "flex-start",
-    paddingTop: 1, // align text nicely with icon
+    paddingTop: 1,
   },
   label: {
     fontSize: 13,
