@@ -92,13 +92,13 @@ export default function Signup() {
           }
           if (parsed.role === "driver") {
             if (parsed.driverSetupComplete) {
-              router.replace("/driver/OfferRide");
+              router.replace("/driver/DriverHome");
             } else {
               router.replace("/driver/DriverSetup");
             }
           } else {
             if (parsed.riderSetupComplete) {
-              router.replace("/rider/RequestRide");
+              router.replace("/rider/RiderHome");
             } else {
               router.replace("/rider/RiderSetup");
             }
@@ -184,7 +184,7 @@ export default function Signup() {
           <Text style={styles.sheetTitle}>Access Restricted</Text>
           <Text style={styles.sheetSub}>
             <Text style={{ fontWeight: "700", color: "#0a1628" }}>{deniedEmail}</Text>
-            {" "}isn't an Augustana account.{"\n"}Use your{" "}
+            {" "}{"isn't an Augustana account."}{"\n"}Use your{" "}
             <Text style={{ fontWeight: "700", color: "#1a3a6b" }}>@augustana.edu</Text> email.
           </Text>
           <TouchableOpacity

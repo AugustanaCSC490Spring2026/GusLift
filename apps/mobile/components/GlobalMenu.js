@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function GlobalMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +26,7 @@ export default function GlobalMenu() {
           const parsed = JSON.parse(stored);
           setCurrentRole(parsed?.role);
         }
-      } catch (e) {
+      } catch (_error) {
         // ignore
       }
     }
@@ -38,7 +38,7 @@ export default function GlobalMenu() {
     try {
       await AsyncStorage.removeItem("@user");
       router.replace("/");
-    } catch (e) {
+    } catch (_error) {
       Alert.alert("Error", "Failed to sign out.");
     }
   };
@@ -60,18 +60,18 @@ export default function GlobalMenu() {
 
       if (newRole === "driver") {
         if (parsed.driverSetupComplete) {
-          router.replace("/driver/OfferRide");
+          router.replace("/driver/DriverHome");
         } else {
           router.replace("/driver/DriverSetup");
         }
       } else {
         if (parsed.riderSetupComplete) {
-          router.replace("/rider/RequestRide");
+          router.replace("/rider/RiderHome");
         } else {
           router.replace("/rider/RiderSetup");
         }
       }
-    } catch (e) {
+    } catch (_error) {
       Alert.alert("Error", "Could not switch role.");
     }
   };

@@ -134,7 +134,7 @@ export default function DriverSetup() {
 
   useEffect(() => {
     if (!navigateToOfferRide) return;
-    const path = "/driver/OfferRide";
+    const path = "/driver/DriverHome";
     // Expo web + static export: imperative router.replace often does not update the document URL.
     if (
       Platform.OS === "web" &&

@@ -57,13 +57,13 @@ export default function Role() {
       // Kept from main: route based on setup completion state
       if (role === "driver") {
         if (parsed.driverSetupComplete) {
-          router.push("/driver/OfferRide");
+          router.push("/driver/DriverHome");
         } else {
           router.push("/driver/DriverSetup");
         }
       } else {
         if (parsed.riderSetupComplete) {
-          router.replace("/rider/RequestRide");
+          router.replace("/rider/RiderHome");
         } else {
           router.replace("/rider/RiderSetup");
         }

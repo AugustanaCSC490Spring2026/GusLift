@@ -26,8 +26,8 @@ export default function DeveloperMenu() {
           <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RiderSetup")}>
             <Text style={styles.buttonText}>Rider Setup</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RequestRide")}>
-            <Text style={styles.buttonText}>Rider Dashboard (Request Ride)</Text>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RiderHome")}>
+            <Text style={styles.buttonText}>Rider Home Dashboard</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RiderWaitingRoom")}>
             <Text style={styles.buttonText}>Rider Waiting Room</Text>
@@ -45,8 +45,8 @@ export default function DeveloperMenu() {
           <TouchableOpacity style={styles.button} onPress={() => router.push("/driver/DriverSetup")}>
             <Text style={styles.buttonText}>Driver Setup</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => router.push("/driver/OfferRide")}>
-            <Text style={styles.buttonText}>Driver Dashboard (Offer Ride)</Text>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/driver/DriverHome")}>
+            <Text style={styles.buttonText}>Driver Home Dashboard</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/driver/DriverWaitingRoom")}>
             <Text style={styles.buttonText}>Driver Waiting Room</Text>

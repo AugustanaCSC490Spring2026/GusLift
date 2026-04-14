@@ -368,7 +368,7 @@ export default function RiderSetup() {
 
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
       finishedOk = true;
-      router.replace("/rider/RequestRide");
+      router.replace("/rider/RiderHome");
     } catch {
       Alert.alert("Error", "Could not save rider info. Try again.");
     } finally {
@@ -390,7 +390,9 @@ export default function RiderSetup() {
           <Ionicons name="car" size={32} color="#1a3a6b" />
         </View>
         <Text style={styles.title}>Rider Setup</Text>
-        <Text style={styles.subtitle}>Let's set your default locations and schedule to get you riding faster.</Text>
+        <Text style={styles.subtitle}>
+          {"Let's set your default locations and schedule to get you riding faster."}
+        </Text>
       </View>
 
       <TouchableOpacity
