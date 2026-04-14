@@ -398,7 +398,7 @@ export default function ScheduledRidesDriver() {
 
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
-          <Text style={styles.headerTitle}>Routes</Text>
+          <Text style={styles.headerTitle}>Rides</Text>
           <TouchableOpacity onPress={() => router.replace("/driver/OfferRide")} style={styles.getRideButton} activeOpacity={0.85}>
             <Text style={styles.getRideButtonText}>Offer Route  +</Text>
           </TouchableOpacity>
@@ -475,8 +475,7 @@ export default function ScheduledRidesDriver() {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🧭</Text>
-                <Text style={styles.emptyText}>No routes found</Text>
+                <Text style={styles.emptyText}>No rides found</Text>
               </View>
             )}
           </View>
@@ -496,7 +495,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight ?? 12 : 12,
     paddingBottom: 10,
   },
-  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  headerTopRow: { flexDirection: 'row', justifyContent: 'flex-start', gap: 16, alignItems: 'center', marginBottom: 10, paddingRight: 48 },
   headerTitle: { fontSize: 24, fontWeight: '900', color: COLORS.dark, letterSpacing: -0.5 },
   getRideButton: { backgroundColor: COLORS.blue, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   getRideButtonText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
@@ -538,7 +537,6 @@ const styles = StyleSheet.create({
   driverName: { fontSize: 12, fontWeight: '700', color: COLORS.dark },
   chevron: { fontSize: 24, color: COLORS.gray200, lineHeight: 26 },
   emptyState: { paddingVertical: 64, alignItems: 'center', gap: 8 },
-  emptyIcon: { fontSize: 32, opacity: 0.3 },
   emptyText: { fontSize: 14, fontWeight: '700', color: COLORS.gray300 },
   detailHeader: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: COLORS.gray100 },
   backButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
