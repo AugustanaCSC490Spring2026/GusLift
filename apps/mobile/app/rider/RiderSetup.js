@@ -107,6 +107,7 @@ export default function RiderSetup() {
 
   const [selectedImage, setSelectedImage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const submitInFlightRef = useRef(false);
 
   const fieldValues = {
@@ -256,6 +257,7 @@ export default function RiderSetup() {
   }
 
   async function handleContinue() {
+    setSubmitError("");
     const finalDropoff = sameAsPickup ? residenceLocation.trim() : dropoffLocation.trim();
 
     if (!residenceLocation.trim() || !finalDropoff) {
@@ -357,6 +359,7 @@ export default function RiderSetup() {
       const responseBody = await response.json().catch(() => ({}));
       if (!response.ok) {
         const errorMessage = responseBody?.error || responseBody?.details || "Failed to register rider profile.";
+        setSubmitError(String(errorMessage));
         Alert.alert("Registration failed", String(errorMessage));
         return;
       }
@@ -369,7 +372,12 @@ export default function RiderSetup() {
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
       finishedOk = true;
       router.replace("/rider/RequestRide");
-    } catch {
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not save rider info. Try again.";
+      setSubmitError(message);
       Alert.alert("Error", "Could not save rider info. Try again.");
     } finally {
       submitInFlightRef.current = false;
@@ -390,7 +398,7 @@ export default function RiderSetup() {
           <Ionicons name="car" size={32} color="#1a3a6b" />
         </View>
         <Text style={styles.title}>Rider Setup</Text>
-        <Text style={styles.subtitle}>Let's set your default locations and schedule to get you riding faster.</Text>
+        <Text style={styles.subtitle}>Let&apos;s set your default locations and schedule to get you riding faster.</Text>
       </View>
 
       <TouchableOpacity
@@ -512,6 +520,13 @@ export default function RiderSetup() {
           <Text style={styles.buttonText}>Finish Setup</Text>
         )}
       </TouchableOpacity>
+
+      {submitError ? (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Setup error</Text>
+          <Text style={styles.errorText}>{submitError}</Text>
+        </View>
+      ) : null}
 
       <Modal
         visible={Boolean(activeField)}
@@ -733,6 +748,25 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: "#ffffff", fontSize: 18, fontWeight: "700", letterSpacing: 0.5 },
+  errorCard: {
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 14,
+  },
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#991b1b",
+    marginBottom: 6,
+  },
+  errorText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#7f1d1d",
+  },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
   modalCard: { width: "100%", backgroundColor: "#ffffff", borderRadius: 16, padding: 24, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
   scheduleModalCard: { width: "100%", maxHeight: "85%", backgroundColor: "#ffffff", borderRadius: 16, padding: 20, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5 },

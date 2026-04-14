@@ -1,4 +1,28 @@
-export default function PaymentsCancelPage() {
+import { updateRidePaymentStatus } from "@/lib/ride-payments";
+
+type PaymentsCancelPageProps = {
+  searchParams: Promise<{
+    ride_id?: string;
+    return_url?: string;
+  }>;
+};
+
+export default async function PaymentsCancelPage({
+  searchParams,
+}: PaymentsCancelPageProps) {
+  const params = await searchParams;
+  const rideId = params.ride_id?.trim() || null;
+  const returnUrl = params.return_url?.trim() || null;
+
+  if (rideId) {
+    try {
+      await updateRidePaymentStatus({
+        rideId,
+        status: "canceled",
+      });
+    } catch (_) {}
+  }
+
   return (
     <main
       style={{
@@ -44,6 +68,23 @@ export default function PaymentsCancelPage() {
           The Stripe test checkout was canceled before completion. You can close
           this page and return to GusLift, or start the demo checkout again.
         </p>
+        {returnUrl ? (
+          <a
+            href={returnUrl}
+            style={{
+              display: "inline-flex",
+              marginTop: 18,
+              textDecoration: "none",
+              background: "#1a3a6b",
+              color: "#ffffff",
+              padding: "12px 18px",
+              borderRadius: 12,
+              fontWeight: 700,
+            }}
+          >
+            Return to GusLift
+          </a>
+        ) : null}
       </section>
     </main>
   );

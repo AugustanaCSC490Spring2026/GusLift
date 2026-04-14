@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { openBrowserAsync, WebBrowserPresentationStyle } from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
@@ -18,11 +18,24 @@ const DEMO_AMOUNT_CENTS = 500;
 
 export default function PaymentsDemo() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [config, setConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState(null);
   const [user, setUser] = useState(null);
+  const rideId =
+    typeof params.rideId === "string" && params.rideId.trim()
+      ? params.rideId.trim()
+      : null;
+  const rideLabel =
+    typeof params.rideLabel === "string" && params.rideLabel.trim()
+      ? params.rideLabel.trim()
+      : "GusLift Demo Ride Payment";
+  const returnPath =
+    typeof params.returnPath === "string" && params.returnPath.trim()
+      ? params.returnPath.trim()
+      : null;
 
   useEffect(() => {
     loadUser();
@@ -84,6 +97,15 @@ export default function PaymentsDemo() {
       }
 
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
+      let returnUrl = null;
+      if (returnPath) {
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          returnUrl = new URL(returnPath, window.location.origin).toString();
+        } else {
+          const normalizedPath = returnPath.replace(/^\//, "");
+          returnUrl = `guslift://${normalizedPath}`;
+        }
+      }
       const response = await fetch(
         `${normalizedBackendUrl}/api/payments/checkout-session`,
         {
@@ -93,7 +115,9 @@ export default function PaymentsDemo() {
           },
           body: JSON.stringify({
             amount: DEMO_AMOUNT_CENTS,
-            rideLabel: "GusLift Sprint 2 Demo Ride",
+            rideLabel,
+            rideId,
+            returnUrl,
             userId: user?.id || null,
             email: user?.email || null,
           }),
@@ -184,11 +208,14 @@ export default function PaymentsDemo() {
         </View>
 
         <View style={styles.demoCard}>
-          <Text style={styles.demoTitle}>Demo purchase</Text>
+          <Text style={styles.demoTitle}>
+            {rideId ? "Ride payment" : "Demo purchase"}
+          </Text>
           <Text style={styles.demoPrice}>{amountLabel}</Text>
           <Text style={styles.demoBody}>
-            Charges a fixed sandbox amount for a fake GusLift ride payment. Stripe
-            hosts the actual card form.
+            {rideId
+              ? "This checkout will create or update a RidePayments record for the accepted ride before sending you back into GusLift."
+              : "Charges a fixed sandbox amount for a fake GusLift ride payment. Stripe hosts the actual card form."}
           </Text>
           {launchError ? (
             <Text style={styles.demoError}>{launchError}</Text>
@@ -221,7 +248,8 @@ export default function PaymentsDemo() {
           <Text style={styles.cardTitle}>Demo notes</Text>
           <Text style={styles.helperText}>
             The success and cancel pages live in the backend app. After checkout,
-            Stripe redirects there so the demo has a visible ending state.
+            Stripe redirects there so the demo has a visible ending state and can
+            sync payment metadata.
           </Text>
         </View>
       </ScrollView>

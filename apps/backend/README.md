@@ -33,6 +33,18 @@ The checkout session route currently creates a fixed demo-friendly card payment
 line item and is a good sprint-demo bridge before a full ride-fare model,
 webhook handling, and persistent payment records.
 
+## RidePayments setup
+
+To persist Stripe checkout metadata for real ride payments, create the
+`RidePayments` table in Supabase using:
+
+```sql
+\i apps/backend/sql/ride_payments.sql
+```
+
+If you prefer the Supabase SQL editor, copy the contents of
+`apps/backend/sql/ride_payments.sql` and run it there once.
+
 ## Getting Started
 
 First, run the development server:

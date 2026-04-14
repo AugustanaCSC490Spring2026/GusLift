@@ -7,9 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
  */
 function getSupabaseWithAuth(request: NextRequest) {
   const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY 
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
     throw new Error("SUPABASE_URL is required.");
@@ -149,7 +149,10 @@ export async function POST(request: NextRequest) {
     console.error("Rider registration error:", error);
 
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error:
+          error instanceof Error ? error.message : "Internal server error",
+      },
       { status: 500 },
     );
   }

@@ -109,7 +109,7 @@ export default function RiderWaitingRoom() {
       cancelled = true;
       unsubscribe?.();
     };
-  }, []);
+  }, [connect, from, isManualEntry, onMessage, router, send, timeParam, to]);
 
   async function handleManualContinue() {
     setConnectError(null);
@@ -154,6 +154,22 @@ export default function RiderWaitingRoom() {
     } else {
       router.replace("/");
     }
+  }
+
+  function handleUseDemoDriver() {
+    router.replace({
+      pathname: "/rider/AvailableDrivers",
+      params: {
+        from,
+        to,
+        driverId: "demo-driver",
+        driverName: "Demo Driver",
+        driverPic: "",
+        driverTo: to || "Campus",
+        driverCar: "Blue Toyota Corolla · DEMO",
+        demoMode: "true",
+      },
+    });
   }
 
   const effectiveSlotTime =
@@ -201,6 +217,13 @@ export default function RiderWaitingRoom() {
           <Text style={styles.errorText}>{connectError}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry} activeOpacity={0.8}>
             <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.demoButton}
+            onPress={handleUseDemoDriver}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.demoButtonText}>Use demo driver instead</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -337,4 +360,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   retryButtonText: { color: "#ffffff", fontSize: 15, fontWeight: "700" },
+  demoButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+  },
+  demoButtonText: { color: "#1a3a6b", fontSize: 15, fontWeight: "700" },
 });

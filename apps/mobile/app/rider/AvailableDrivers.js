@@ -13,11 +13,13 @@ export default function AvailableDrivers() {
     driverPic: initialDriverPic,
     driverTo: initialDriverTo,
     driverCar: initialDriverCar,
+    demoMode: demoModeParam,
   } = useLocalSearchParams();
-  const { connect, send, onMessage, userId, disconnect } = useMatching();
+  const { send, onMessage, userId, disconnect } = useMatching();
   const [matchedDriver, setMatchedDriver] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const driverDirectoryRef = useRef(new Map());
+  const isDemoMode = String(demoModeParam || "") === "true";
 
   function upsertDriverDirectory(driverId, rawDriver) {
     if (!driverId || !rawDriver) return;
@@ -83,7 +85,7 @@ export default function AvailableDrivers() {
       }
     });
     return () => unsubscribe?.();
-  }, [userId]);
+  }, [onMessage, userId]);
 
   useEffect(() => {
     if (initialDriverId) {
@@ -126,13 +128,39 @@ export default function AvailableDrivers() {
 
   async function handleConfirm() {
     if (!matchedDriver) return;
+    if (isDemoMode) {
+      const paymentLabel = matchedDriver.name
+        ? `Ride with ${matchedDriver.name}`
+        : "GusLift Ride Payment";
+      router.replace({
+        pathname: "/payments/demo",
+        params: {
+          rideLabel: paymentLabel,
+          returnPath: "/rider/ScheduledRidesRider",
+        },
+      });
+      return;
+    }
     setConfirming(true);
     send({ type: "accept_match", rider_id: userId, driver_id: matchedDriver.driver_id });
     const rideId = await waitForAcceptedRide(matchedDriver.driver_id);
     setConfirming(false);
+    if (!rideId) {
+      router.replace("/rider/ScheduledRidesRider");
+      return;
+    }
+
+    const paymentLabel = matchedDriver.name
+      ? `Ride with ${matchedDriver.name}`
+      : "GusLift Ride Payment";
+
     router.replace({
-      pathname: "/rider/ScheduledRidesRider",
-      params: rideId ? { rideId } : undefined,
+      pathname: "/payments/demo",
+      params: {
+        rideId,
+        rideLabel: paymentLabel,
+        returnPath: `/rider/ScheduledRidesRider?rideId=${encodeURIComponent(String(rideId))}`,
+      },
     });
   }
 

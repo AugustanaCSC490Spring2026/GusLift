@@ -1,9 +1,12 @@
 import { formatAmount, retrieveCheckoutSession } from "@/lib/stripe";
+import { upsertRidePayment } from "@/lib/ride-payments";
 import { getStripeConfigStatus } from "@/lib/stripe-config";
 
 type PaymentsSuccessPageProps = {
   searchParams: Promise<{
     session_id?: string;
+    return_url?: string;
+    ride_id?: string;
   }>;
 };
 
@@ -24,6 +27,8 @@ export default async function PaymentsSuccessPage({
 }: PaymentsSuccessPageProps) {
   const params = await searchParams;
   const sessionId = params.session_id?.trim() || null;
+  const returnUrl = params.return_url?.trim() || null;
+  const fallbackRideId = params.ride_id?.trim() || null;
   const stripeStatus = getStripeConfigStatus();
 
   let summary: Awaited<ReturnType<typeof retrieveCheckoutSession>> | null = null;
@@ -32,6 +37,26 @@ export default async function PaymentsSuccessPage({
   if (sessionId && stripeStatus.ready) {
     try {
       summary = await retrieveCheckoutSession(sessionId);
+      const rideId = summary.ride_id || fallbackRideId;
+      if (rideId) {
+        await upsertRidePayment({
+          rideId,
+          riderId: summary.rider_id,
+          stripeCheckoutSessionId: summary.id,
+          stripePaymentIntentId: summary.payment_intent_id,
+          amountCents: summary.amount_total ?? 0,
+          currency: summary.currency || "usd",
+          customerEmail: summary.customer_email,
+          checkoutUrl: summary.url,
+          status: summary.payment_status === "paid" ? "paid" : "failed",
+          stripeSessionStatus: summary.status,
+          stripePaymentStatus: summary.payment_status,
+          paidAt:
+            summary.payment_status === "paid"
+              ? new Date().toISOString()
+              : null,
+        });
+      }
     } catch (error) {
       errorMessage =
         error instanceof Error ? error.message : "Unable to load session status.";
@@ -126,6 +151,23 @@ export default async function PaymentsSuccessPage({
         <p style={{ marginTop: 22, color: "#475569", lineHeight: 1.6 }}>
           You can close this browser tab and return to the GusLift app.
         </p>
+        {returnUrl ? (
+          <a
+            href={returnUrl}
+            style={{
+              display: "inline-flex",
+              marginTop: 18,
+              textDecoration: "none",
+              background: "#1a3a6b",
+              color: "#ffffff",
+              padding: "12px 18px",
+              borderRadius: 12,
+              fontWeight: 700,
+            }}
+          >
+            Return to GusLift
+          </a>
+        ) : null}
       </section>
     </main>
   );
