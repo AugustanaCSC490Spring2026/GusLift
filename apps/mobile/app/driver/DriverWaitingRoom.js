@@ -12,7 +12,8 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useMatching } from "../../context/MatchingContext";
-import Svg, { Path, Circle, Rect } from "react-native-svg";
+import Svg, { Path, Circle } from "react-native-svg";
+import RiderIllustration from "../../components/RiderIllustration";
 
 const COLORS = {
   blue: '#3B82F6',
@@ -42,21 +43,6 @@ const ClockIcon = ({ size = 16, color = COLORS.blue }) => (
   </Svg>
 );
 
-const CarSvg = ({ size = 48, color = COLORS.blue }) => (
-  <Svg width={size} height={size * 0.6} viewBox="0 0 80 48" fill="none">
-    <Rect x="8" y="20" width="64" height="20" rx="6" fill={color} />
-    <Path d="M18 20 L26 8 L54 8 L62 20" fill={color} />
-    <Rect x="30" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
-    <Rect x="42" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
-    <Circle cx="22" cy="40" r="6" fill={COLORS.dark} />
-    <Circle cx="22" cy="40" r="3" fill={COLORS.gray300} />
-    <Circle cx="58" cy="40" r="6" fill={COLORS.dark} />
-    <Circle cx="58" cy="40" r="3" fill={COLORS.gray300} />
-    <Circle cx="8" cy="28" r="2" fill="#FBBF24" />
-    <Circle cx="72" cy="28" r="2" fill="#EF4444" />
-  </Svg>
-);
-
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function formatTime12h(timeStr) {
@@ -65,57 +51,6 @@ function formatTime12h(timeStr) {
   const period = h >= 12 ? "PM" : "AM";
   const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
-}
-
-// ─── Animated Car Loader ────────────────────────────────────────────────────
-function CarLoader() {
-  const translateX = useRef(new Animated.Value(-60)).current;
-  const bounceY = useRef(new Animated.Value(0)).current;
-  const dotScale1 = useRef(new Animated.Value(0.4)).current;
-  const dotScale2 = useRef(new Animated.Value(0.4)).current;
-  const dotScale3 = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX, { toValue: 60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: -60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceY, { toValue: -3, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(bounceY, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    const animateDot = (dot, delay) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0.4, duration: 400, useNativeDriver: true }),
-        ])
-      ).start();
-    animateDot(dotScale1, 0);
-    animateDot(dotScale2, 200);
-    animateDot(dotScale3, 400);
-  }, []);
-
-  return (
-    <View style={styles.carLoaderWrap}>
-      <Animated.View style={{ transform: [{ translateX }, { translateY: bounceY }] }}>
-        <CarSvg size={64} color={COLORS.blue} />
-      </Animated.View>
-      <View style={styles.roadLine} />
-      <View style={styles.dotsRow}>
-        {[dotScale1, dotScale2, dotScale3].map((dot, i) => (
-          <Animated.View key={i} style={[styles.loaderDot, { transform: [{ scale: dot }] }]} />
-        ))}
-      </View>
-    </View>
-  );
 }
 
 export default function DriverWaitingRoom() {
@@ -203,11 +138,7 @@ export default function DriverWaitingRoom() {
 
   function handleGoOffline() {
     disconnect();
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/");
-    }
+    router.replace("/driver/OfferRide");
   }
 
   const effectivePickupTime = isManualEntry ? time : pickupTime;
@@ -300,10 +231,12 @@ export default function DriverWaitingRoom() {
           </View>
         ) : null}
 
-        {/* Car Animation Loader */}
+        {/* Animation Loader */}
         {!statusMessage && (
           <View style={styles.loaderSection}>
-            <CarLoader />
+            <View style={{ width: '100%', alignItems: 'center' }}>
+              <RiderIllustration isHovered={true} />
+            </View>
             <Text style={styles.loaderText}>
               {connected ? "Waiting for riders to request a ride..." : "Connecting to matching..."}
             </Text>
@@ -393,12 +326,8 @@ const styles = StyleSheet.create({
   },
   errorPillText: { fontSize: 13, color: '#991B1B', lineHeight: 18 },
 
-  // Car Loader
-  loaderSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
-  carLoaderWrap: { alignItems: 'center', gap: 16, paddingVertical: 20 },
-  roadLine: { width: 200, height: 2, backgroundColor: COLORS.gray200, borderRadius: 1 },
-  dotsRow: { flexDirection: 'row', gap: 8 },
-  loaderDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.blue },
+  // Loader
+  loaderSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   loaderText: { fontSize: 14, fontWeight: '600', color: COLORS.gray400, textAlign: 'center' },
 
   // Bottom Bar

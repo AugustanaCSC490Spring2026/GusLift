@@ -13,7 +13,8 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useMatching } from "../../context/MatchingContext";
-import Svg, { Path, Circle, Rect } from "react-native-svg";
+import Svg, { Path, Circle } from "react-native-svg";
+import CarIllustration from "../../components/CarIllustration";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -45,72 +46,6 @@ const CheckIcon = ({ size = 20, color = COLORS.green }) => (
     <Path d="M20 6L9 17l-5-5" />
   </Svg>
 );
-
-const CarSvg = ({ size = 48, color = COLORS.blue }) => (
-  <Svg width={size} height={size * 0.6} viewBox="0 0 80 48" fill="none">
-    <Rect x="8" y="20" width="64" height="20" rx="6" fill={color} />
-    <Path d="M18 20 L26 8 L54 8 L62 20" fill={color} />
-    <Rect x="30" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
-    <Rect x="42" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
-    <Circle cx="22" cy="40" r="6" fill={COLORS.dark} />
-    <Circle cx="22" cy="40" r="3" fill={COLORS.gray300} />
-    <Circle cx="58" cy="40" r="6" fill={COLORS.dark} />
-    <Circle cx="58" cy="40" r="3" fill={COLORS.gray300} />
-    <Circle cx="8" cy="28" r="2" fill="#FBBF24" />
-    <Circle cx="72" cy="28" r="2" fill="#EF4444" />
-  </Svg>
-);
-
-// ─── Car Loader ─────────────────────────────────────────────────────────────
-function CarLoader() {
-  const translateX = useRef(new Animated.Value(-60)).current;
-  const bounceY = useRef(new Animated.Value(0)).current;
-  const dotScale1 = useRef(new Animated.Value(0.4)).current;
-  const dotScale2 = useRef(new Animated.Value(0.4)).current;
-  const dotScale3 = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX, { toValue: 60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: -60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceY, { toValue: -3, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(bounceY, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    const animateDot = (dot, delay) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0.4, duration: 400, useNativeDriver: true }),
-        ])
-      ).start();
-    animateDot(dotScale1, 0);
-    animateDot(dotScale2, 200);
-    animateDot(dotScale3, 400);
-  }, []);
-
-  return (
-    <View style={styles.carLoaderWrap}>
-      <Animated.View style={{ transform: [{ translateX }, { translateY: bounceY }] }}>
-        <CarSvg size={64} color={COLORS.blue} />
-      </Animated.View>
-      <View style={styles.roadLine} />
-      <View style={styles.dotsRow}>
-        {[dotScale1, dotScale2, dotScale3].map((dot, i) => (
-          <Animated.View key={i} style={[styles.loaderDot, { transform: [{ scale: dot }] }]} />
-        ))}
-      </View>
-    </View>
-  );
-}
 
 export default function AvailableDrivers() {
   const router = useRouter();
@@ -283,11 +218,7 @@ export default function AvailableDrivers() {
 
   function handleCancel() {
     disconnect();
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/");
-    }
+    router.replace("/rider/RequestRide");
   }
 
   return (
@@ -309,7 +240,9 @@ export default function AvailableDrivers() {
         {!matchedDriver ? (
           /* ── Waiting State ─────────────────────────────────────── */
           <View style={styles.loaderSection}>
-            <CarLoader />
+            <View style={{ width: '100%', alignItems: 'center' }}>
+              <CarIllustration isHovered={true} />
+            </View>
             <Text style={styles.loaderTitle}>Looking for a driver...</Text>
             <Text style={styles.loaderSub}>You will be notified when a driver accepts your ride.</Text>
           </View>
@@ -397,11 +330,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 20 },
 
   // Loader
-  loaderSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  carLoaderWrap: { alignItems: 'center', gap: 16, paddingVertical: 20 },
-  roadLine: { width: 200, height: 2, backgroundColor: COLORS.gray200, borderRadius: 1 },
-  dotsRow: { flexDirection: 'row', gap: 8 },
-  loaderDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.blue },
+  loaderSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loaderTitle: { fontSize: 18, fontWeight: '800', color: COLORS.dark },
   loaderSub: { fontSize: 14, color: COLORS.gray400, textAlign: 'center', lineHeight: 20 },
 

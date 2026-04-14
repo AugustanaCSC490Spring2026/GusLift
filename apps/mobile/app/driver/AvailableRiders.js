@@ -15,7 +15,8 @@ import {
   StatusBar,
   SafeAreaView,
 } from "react-native";
-import Svg, { Path, Circle, Rect } from "react-native-svg";
+import Svg, { Path, Circle } from "react-native-svg";
+import RiderIllustration from "../../components/RiderIllustration";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,73 +50,6 @@ const UserIcon = ({ size = 18, color = COLORS.blue }) => (
     <Circle cx="12" cy="7" r="4" />
   </Svg>
 );
-
-const CarSvg = ({ size = 48, color = COLORS.blue }) => (
-  <Svg width={size} height={size * 0.6} viewBox="0 0 80 48" fill="none">
-    <Rect x="8" y="20" width="64" height="20" rx="6" fill={color} />
-    <Path d="M18 20 L26 8 L54 8 L62 20" fill={color} />
-    <Rect x="30" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
-    <Rect x="42" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
-    <Circle cx="22" cy="40" r="6" fill={COLORS.dark} />
-    <Circle cx="22" cy="40" r="3" fill={COLORS.gray300} />
-    <Circle cx="58" cy="40" r="6" fill={COLORS.dark} />
-    <Circle cx="58" cy="40" r="3" fill={COLORS.gray300} />
-    <Circle cx="8" cy="28" r="2" fill="#FBBF24" />
-    <Circle cx="72" cy="28" r="2" fill="#EF4444" />
-  </Svg>
-);
-
-// ─── Animated Car Loader ────────────────────────────────────────────────────
-function CarLoader({ label }) {
-  const translateX = useRef(new Animated.Value(-60)).current;
-  const bounceY = useRef(new Animated.Value(0)).current;
-  const dotScale1 = useRef(new Animated.Value(0.4)).current;
-  const dotScale2 = useRef(new Animated.Value(0.4)).current;
-  const dotScale3 = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX, { toValue: 60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: -60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceY, { toValue: -3, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(bounceY, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    const animateDot = (dot, delay) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0.4, duration: 400, useNativeDriver: true }),
-        ])
-      ).start();
-    animateDot(dotScale1, 0);
-    animateDot(dotScale2, 200);
-    animateDot(dotScale3, 400);
-  }, []);
-
-  return (
-    <View style={styles.carLoaderWrap}>
-      <Animated.View style={{ transform: [{ translateX }, { translateY: bounceY }] }}>
-        <CarSvg size={56} color={COLORS.blue} />
-      </Animated.View>
-      <View style={styles.roadLine} />
-      <View style={styles.dotsRow}>
-        {[dotScale1, dotScale2, dotScale3].map((dot, i) => (
-          <Animated.View key={i} style={[styles.loaderDot, { transform: [{ scale: dot }] }]} />
-        ))}
-      </View>
-      {label && <Text style={styles.loaderText}>{label}</Text>}
-    </View>
-  );
-}
 
 // ─── Rider Card ─────────────────────────────────────────────────────────────
 function RiderCard({ rider, isPending, onPress, index }) {
@@ -271,11 +205,7 @@ export default function AvailableRidersScreen() {
 
   function handleGoOffline() {
     disconnect();
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/");
-    }
+    router.replace("/driver/OfferRide");
   }
 
   const seatsRemaining = Math.max(0, capacity - seatsUsed - pendingRiderIds.size);
@@ -290,13 +220,7 @@ export default function AvailableRidersScreen() {
           <BackIcon size={20} color={COLORS.dark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AVAILABLE RIDERS</Text>
-        <TouchableOpacity
-          onPress={() => router.push("/driver/ScheduledRidesDriver")}
-          style={styles.ridesButton}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.ridesButtonText}>Rides</Text>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       <Animated.View style={[styles.content, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
@@ -325,7 +249,10 @@ export default function AvailableRidersScreen() {
         >
           {riders.length === 0 ? (
             <View style={styles.emptySection}>
-              <CarLoader label="Waiting for riders..." />
+              <View style={{ width: '100%', alignItems: 'center', marginBottom: 12 }}>
+                <RiderIllustration isHovered={true} />
+              </View>
+              <Text style={styles.loaderText}>Waiting for riders...</Text>
             </View>
           ) : (
             riders.map((rider, i) => (
@@ -365,8 +292,6 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 12, fontWeight: '800', color: COLORS.dark, letterSpacing: 2 },
-  ridesButton: { backgroundColor: COLORS.blue, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 },
-  ridesButtonText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
   content: { flex: 1, padding: 16 },
 
   // Status Row
@@ -441,12 +366,6 @@ const styles = StyleSheet.create({
 
   // Empty
   emptySection: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
-
-  // Car Loader
-  carLoaderWrap: { alignItems: 'center', gap: 16, paddingVertical: 20 },
-  roadLine: { width: 180, height: 2, backgroundColor: COLORS.gray200, borderRadius: 1 },
-  dotsRow: { flexDirection: 'row', gap: 8 },
-  loaderDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.blue },
   loaderText: { fontSize: 14, fontWeight: '600', color: COLORS.gray400, textAlign: 'center' },
 
   // Bottom Bar
