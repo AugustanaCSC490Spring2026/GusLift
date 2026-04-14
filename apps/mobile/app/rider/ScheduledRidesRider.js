@@ -14,6 +14,29 @@ import {
 } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import Svg, { Path, Circle } from 'react-native-svg';
+
+const ClockIcon = ({ size = 16, color = "#000" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="10" />
+    <Path d="M12 6v6l4 2" />
+  </Svg>
+);
+
+const HistoryLineIcon = ({ size = 16, color = "#000" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <Path d="M3 3v5h5" />
+    <Path d="M12 7v5l4 2" />
+  </Svg>
+);
+
+const SearchLineIcon = ({ size = 16, color = "#000" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="11" cy="11" r="8" />
+    <Path d="M21 21l-4.35-4.35" />
+  </Svg>
+);
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -328,13 +351,13 @@ export default function ScheduledRidesRider() {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>Rides</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeButton} activeOpacity={0.7}>
-            <Text style={styles.closeButtonText}>✕</Text>
+          <TouchableOpacity onPress={() => router.replace("/rider/RequestRide")} style={styles.getRideButton} activeOpacity={0.85}>
+            <Text style={styles.getRideButtonText}>Get a Ride  +</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.searchWrapper}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <SearchLineIcon size={16} color={COLORS.gray400} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search rides..."
@@ -352,10 +375,14 @@ export default function ScheduledRidesRider() {
               style={[styles.tab, activeTab === tab && styles.tabActive]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === 'upcoming' ? '🕐 ' : '🕰 '}
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                {tab === 'upcoming' 
+                  ? <ClockIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} /> 
+                  : <HistoryLineIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} />}
+                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -423,10 +450,9 @@ const styles = StyleSheet.create({
   },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   headerTitle: { fontSize: 24, fontWeight: '900', color: COLORS.dark, letterSpacing: -0.5 },
-  closeButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.gray100, alignItems: 'center', justifyContent: 'center' },
-  closeButtonText: { fontSize: 14, color: COLORS.dark, fontWeight: '800' },
-  searchWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 16 },
-  searchIcon: { fontSize: 14, marginRight: 8 },
+  getRideButton: { backgroundColor: COLORS.blue, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  getRideButtonText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  searchWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16, gap: 8 },
   searchInput: { flex: 1, fontSize: 14, color: COLORS.dark, padding: 0, outlineStyle: 'none' },
   tabRow: { flexDirection: 'row', gap: 6 },
   tab: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
