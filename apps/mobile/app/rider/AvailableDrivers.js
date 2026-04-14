@@ -13,6 +13,7 @@ export default function AvailableDrivers() {
     driverPic: initialDriverPic,
     driverTo: initialDriverTo,
     driverCar: initialDriverCar,
+    to: riderToParam,
   } = useLocalSearchParams();
   const { connect, send, onMessage, userId, disconnect } = useMatching();
   const [matchedDriver, setMatchedDriver] = useState(null);
@@ -127,7 +128,15 @@ export default function AvailableDrivers() {
   async function handleConfirm() {
     if (!matchedDriver) return;
     setConfirming(true);
-    send({ type: "accept_match", rider_id: userId, driver_id: matchedDriver.driver_id });
+    const riderTo = riderToParam
+      ? String(Array.isArray(riderToParam) ? riderToParam[0] : riderToParam).trim()
+      : "";
+    send({
+      type: "accept_match",
+      rider_id: userId,
+      driver_id: matchedDriver.driver_id,
+      ...(riderTo ? { rider_to_location: riderTo } : {}),
+    });
     const rideId = await waitForAcceptedRide(matchedDriver.driver_id);
     setConfirming(false);
     router.replace({
