@@ -5,26 +5,7 @@ import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from "react-native-svg";
 import MenuAvatar from "./MenuAvatar";
-
-// Custom SVG Icons
-function CarIcon({ size = 20, color = "#64748B" }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Path d="M3 14l2-8a2 2 0 012-1.5h10A2 2 0 0121 6l2 8" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Circle cx={7.5} cy={14.5} r={1.5} fill={color} />
-      <Circle cx={16.5} cy={14.5} r={1.5} fill={color} />
-    </Svg>
-  );
-}
-
-function HistoryIcon({ size = 20, color = "#64748B" }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
+import { ClockIcon, HistoryLineIcon } from "./Icons";
 
 function CodeIcon({ size = 20, color = "#64748B" }) {
   return (
@@ -145,7 +126,7 @@ export default function GlobalMenu() {
                   router.push("/rider/ScheduledRidesRider?tab=upcoming");
                 }
               }}>
-              <CarIcon size={20} color="#64748B" />
+              <ClockIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Upcoming Rides
               </Text>
@@ -159,7 +140,7 @@ export default function GlobalMenu() {
                   router.push("/rider/ScheduledRidesRider?tab=history");
                 }
               }}>
-              <HistoryIcon size={20} color="#64748B" />
+              <HistoryLineIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 History
               </Text>
