@@ -51,6 +51,15 @@ const ClockIcon = ({ size = 16, color = COLORS.blue }) => (
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function formatTime12h(timeStr) {
+  if (!timeStr) return "—";
+  const [h, m] = timeStr.split(":");
+  let hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${m} ${ampm}`;
+}
+
+export default function RiderWaitingRoom() {
   const router = useRouter();
   const { connect, send, onMessage, disconnect } = useMatching();
   const params = useLocalSearchParams();

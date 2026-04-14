@@ -62,6 +62,7 @@ export default function DriverWaitingRoom() {
   const to = Array.isArray(params.to) ? params.to[0] : params.to;
   const matchMode = Array.isArray(params.matchMode) ? params.matchMode[0] : params.matchMode;
   const time = Array.isArray(params.time) ? params.time[0] : params.time;
+  const classStartTime = Array.isArray(params.classStartTime) ? params.classStartTime[0] : params.classStartTime;
   const pickupTime = Array.isArray(params.pickupTime) ? params.pickupTime[0] : params.pickupTime;
   const classStart = Array.isArray(params.classStart) ? params.classStart[0] : params.classStart;
   const classEnd = Array.isArray(params.classEnd) ? params.classEnd[0] : params.classEnd;
@@ -100,8 +101,8 @@ export default function DriverWaitingRoom() {
     let unsubscribe;
 
     async function setup() {
-      const result = isManualEntry 
-        ? await connect({ location: from, time })
+      const result = isManualEntry
+        ? await connect({ location: from, time: classStartTime || time })
         : await connect();
         
       if (result?.ok && result.userId) {

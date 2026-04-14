@@ -5,7 +5,19 @@ const WEEKDAYS: DayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 /**
  * Returns current weekday in doc format: mon, tue, ... sun
  */
-export function getCurrentWeekday(): DayKey {
+export function getCurrentWeekday(timezone?: string): DayKey {
+  if (timezone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        weekday: "short",
+      }).formatToParts(new Date());
+      const short = parts.find((p) => p.type === "weekday")?.value?.toLowerCase().slice(0, 3);
+      if (short && WEEKDAYS.includes(short as DayKey)) return short as DayKey;
+    } catch {
+      // fall through to UTC
+    }
+  }
   const d = new Date();
   const idx = d.getUTCDay();
   return WEEKDAYS[idx];
@@ -33,9 +45,10 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
  */
 export function resolveMatchingSlot(
   schedule: ScheduleDays | null | undefined,
-  location: string
+  location: string,
+  timezone?: string
 ): string {
-  const day = getCurrentWeekday();
+  const day = getCurrentWeekday(timezone);
   const daySchedule = schedule?.[day];
   if (!daySchedule?.start_time) {
     throw new ManualSlotRequiredError(
@@ -64,11 +77,12 @@ function isDayKey(value: string): value is DayKey {
 export function resolveMatchingSlotWithOverride(
   schedule: ScheduleDays | null | undefined,
   residence: string | null | undefined,
-  override: { location?: string | null; time?: string | null; day?: string | null }
+  override: { location?: string | null; time?: string | null; day?: string | null; timezone?: string | null }
 ): string {
+  const timezone = override.timezone ?? undefined;
   const hasAnyOverride = Boolean(override.location || override.time || override.day);
   if (!hasAnyOverride) {
-    return resolveMatchingSlot(schedule, normalizeLocation(residence));
+    return resolveMatchingSlot(schedule, normalizeLocation(residence), timezone);
   }
 
   const locationRaw = override.location?.trim();
@@ -86,7 +100,7 @@ export function resolveMatchingSlotWithOverride(
     );
   }
 
-  let day: DayKey = getCurrentWeekday();
+  let day: DayKey = getCurrentWeekday(timezone);
   if (dayRaw) {
     if (!isDayKey(dayRaw)) {
       throw new SlotResolveError(

@@ -70,6 +70,7 @@ export default {
           location: url.searchParams.get("location"),
           time: url.searchParams.get("time"),
           day: url.searchParams.get("day"),
+          timezone: url.searchParams.get("timezone"),
         });
         return json({ ok: true, slot });
       } catch (e) {
@@ -97,6 +98,7 @@ export default {
         location: url.searchParams.get("location"),
         time: url.searchParams.get("time"),
         day: url.searchParams.get("day"),
+        timezone: url.searchParams.get("timezone"),
       });
     } catch (e) {
       if (e instanceof ManualSlotRequiredError) {

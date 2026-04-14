@@ -228,17 +228,17 @@ export default function OfferRide() {
   /* ── Validation & navigation (UNCHANGED logic) ── */
   function validateManual() {
     const pickup = manualPickup.trim();
-    const timeVal = manualTime.trim();
+    const classTime = manualClassTime.trim();
     if (!pickup) {
       setManualFieldError("Enter where you are picking up.");
       return null;
     }
-    if (!TIME_RE.test(timeVal)) {
-      setManualFieldError("Invalid time. Use 24h format like 14:30.");
+    if (!TIME_RE.test(classTime)) {
+      setManualFieldError("Enter a valid class start time (e.g. 14:30).");
       return null;
     }
     setManualFieldError(null);
-    return { pickup, time: timeVal, classTime: manualClassTime.trim() };
+    return { pickup, time: manualTime.trim() || subtractMinutes(classTime, 15), classTime };
   }
 
   function handleManualOffer() {

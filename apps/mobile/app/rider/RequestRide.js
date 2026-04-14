@@ -14,11 +14,12 @@ import {
   View,
 } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
-import LocationTimeline, { CircleIcon, SquareIcon } from "../../components/LocationTimeline";
+import { CircleIcon, SquareIcon } from "../../components/LocationTimeline";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 /* ─── Color tokens ─── */
 const C = {
@@ -146,13 +147,11 @@ export default function RequestRide() {
   const { pickup: landingPickup, destination: landingDestination } =
     useLocalSearchParams();
 
-  /* ── Data state (unchanged backend logic) ── */
+  /* ── Data state ── */
   const [loading, setLoading] = useState(true);
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
-  const [classStart, setClassStart] = useState(null);
-  const [classEnd, setClassEnd] = useState(null);
   const [firstName, setFirstName] = useState("");
 
   /* ── UI state ── */
@@ -161,7 +160,12 @@ export default function RequestRide() {
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
   const [manualFieldError, setManualFieldError] = useState(null);
-  const [showScheduleDetails, setShowScheduleDetails] = useState(false);
+
+  /* ── Editable schedule fields ── */
+  const [schedPickupLoc, setSchedPickupLoc] = useState("");
+  const [schedDropoffLoc, setSchedDropoffLoc] = useState("");
+  const [schedClassStart, setSchedClassStart] = useState("");
+  const [schedFieldError, setSchedFieldError] = useState(null);
 
   /* ── Animations ── */
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -190,7 +194,6 @@ export default function RequestRide() {
         "";
       setManualPickup((prev) => (prev.trim() ? prev : seed));
     }
-    
     if (landingDestination) {
       setManualDropoff(landingDestination);
     } else if (dropoffLoc) {
@@ -203,13 +206,12 @@ export default function RequestRide() {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
-      // Give preference to `given_name`, then `name`, then `email`.
       const nameComponent = user.given_name || (user.name ? user.name.split(" ")[0] : "");
       setFirstName(nameComponent);
 
       const [scheduleRes, userRes] = await Promise.all([
         fetch(
-          `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=pickup_loc,dropoff_loc`,
+          `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=pickup_loc,dropoff_loc,days`,
           {
             headers: {
               apikey: SUPABASE_ANON_KEY,
@@ -233,14 +235,22 @@ export default function RequestRide() {
         userRes.json(),
       ]);
 
-      const startT = scheduleData?.[0]?.start_time;
-      const endT = scheduleData?.[0]?.end_time;
+      const today = WEEKDAYS[new Date().getDay()];
+      const todaySchedule = scheduleData?.[0]?.days?.[today];
+      const startT = todaySchedule?.start_time ?? null;
 
-      setPickupLoc(scheduleData?.[0]?.pickup_loc ?? null);
-      setDropoffLoc(scheduleData?.[0]?.dropoff_loc ?? null);
-      setResidence(userData?.[0]?.residence ?? null);
-      setClassStart(startT ?? null);
-      setClassEnd(endT ?? null);
+      const fetchedPickup = scheduleData?.[0]?.pickup_loc ?? null;
+      const fetchedDropoff = scheduleData?.[0]?.dropoff_loc ?? null;
+      const fetchedResidence = userData?.[0]?.residence ?? null;
+
+      setPickupLoc(fetchedPickup);
+      setDropoffLoc(fetchedDropoff);
+      setResidence(fetchedResidence);
+
+      // Seed editable schedule fields
+      setSchedPickupLoc(fetchedPickup || fetchedResidence || "");
+      setSchedDropoffLoc(fetchedDropoff || "");
+      setSchedClassStart(startT || "");
     } catch (_) {
       // leave blank
     } finally {
@@ -281,12 +291,24 @@ export default function RequestRide() {
   }
 
   function handleScheduleRequest() {
+    const pickup = schedPickupLoc.trim();
+    const classTime = schedClassStart.trim();
+    if (!pickup) {
+      setSchedFieldError("Enter your pickup location.");
+      return;
+    }
+    if (!TIME_RE.test(classTime)) {
+      setSchedFieldError("Enter a valid class start time (e.g. 14:30).");
+      return;
+    }
+    setSchedFieldError(null);
     router.push({
       pathname: "/rider/RiderWaitingRoom",
       params: {
-        from: pickupLoc ?? "",
-        to: dropoffLoc ?? "",
-        matchMode: "schedule",
+        from: pickup,
+        to: schedDropoffLoc.trim(),
+        time: classTime,
+        matchMode: "manual",
       },
     });
   }
@@ -401,7 +423,7 @@ export default function RequestRide() {
               {/* Pickup Time */}
               <View style={{ marginBottom: 0 }}>
                 <View style={styles.timeLabelRow}>
-                  <Text style={styles.fieldLabel}>PICKUP TIME (24H)</Text>
+                  <Text style={styles.fieldLabel}>CLASS START TIME (24H)</Text>
                 </View>
                 <View style={styles.timeDisplay}>
                   <Text style={styles.timeDayLabel}>TODAY</Text>
@@ -438,27 +460,66 @@ export default function RequestRide() {
         ) : (
           /* ── Schedule Mode ── */
           <View style={styles.modeContent}>
-            <Text style={{ fontSize: 13, color: C.muted, marginHorizontal: 4, lineHeight: 20, fontWeight: "500" }}>
-              This is your upcoming schedule. Would you like to request a ride for this configuration?
-            </Text>
+            <View style={styles.card}>
+              {/* Pickup Location */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>PICKUP LOCATION</Text>
+                <View style={styles.fieldRow}>
+                  <View style={styles.fieldIconWrap}>
+                    <CircleIcon size={18} color={C.text} />
+                  </View>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="e.g. Westerlin Hall"
+                    placeholderTextColor={C.subtle}
+                    value={schedPickupLoc}
+                    onChangeText={(t) => { setSchedPickupLoc(t); setSchedFieldError(null); }}
+                  />
+                </View>
+              </View>
 
-            <TouchableOpacity 
-              activeOpacity={0.7} 
-              style={[styles.card, styles.scheduleCard, { paddingVertical: 12 }]}
-              onPress={() => setShowScheduleDetails(true)}
-            >
-              <LocationTimeline
-                noTimeLine={true}
-                dateValue={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                timeLabel="Class start time"
-                timeValue="From first class"
-                pickupValue={pickupLoc ?? "Not set"}
-                dropoffValue={dropoffLoc ?? "Not selected"}
-              />
-              <Text style={{ fontSize: 11, color: C.brand, textAlign: "center", marginTop: 8, fontWeight: "700" }}>
-                TAP TO VIEW FULL DETAILS
-              </Text>
-            </TouchableOpacity>
+              {/* Drop-off Location */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>DROP LOCATION (OPTIONAL)</Text>
+                <View style={styles.fieldRow}>
+                  <View style={styles.fieldIconWrap}>
+                    <SquareIcon size={18} color={C.text} />
+                  </View>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="Where are you heading?"
+                    placeholderTextColor={C.subtle}
+                    value={schedDropoffLoc}
+                    onChangeText={setSchedDropoffLoc}
+                  />
+                </View>
+              </View>
+
+              {/* Class Start Time */}
+              <View style={{ marginBottom: 0 }}>
+                <View style={styles.timeLabelRow}>
+                  <Text style={styles.fieldLabel}>CLASS START TIME (24H)</Text>
+                </View>
+                <View style={styles.timeDisplay}>
+                  <Text style={styles.timeDayLabel}>TODAY</Text>
+                  <View style={styles.timeRow}>
+                    <TextInput
+                      style={styles.timeBigInput}
+                      placeholder="e.g. 15:30"
+                      placeholderTextColor={C.border}
+                      value={schedClassStart}
+                      onChangeText={(t) => { setSchedClassStart(t); setSchedFieldError(null); }}
+                      keyboardType="numbers-and-punctuation"
+                      maxLength={5}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {schedFieldError ? (
+                <Text style={styles.fieldError}>{schedFieldError}</Text>
+              ) : null}
+            </View>
 
             <AnimatedPrimaryButton
               style={styles.primaryButton}
@@ -471,46 +532,6 @@ export default function RequestRide() {
 
       </ScrollView>
 
-      {/* Schedule Detail Modal */}
-      {showScheduleDetails && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Event Details</Text>
-              <TouchableOpacity onPress={() => setShowScheduleDetails(false)} style={{ padding: 4 }}>
-                <Text style={{ fontSize: 20, color: C.muted, fontWeight: "600" }}>×</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.modalBody}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Date</Text>
-                <Text style={styles.detailVal}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Pickup Location</Text>
-                <Text style={styles.detailVal}>{pickupLoc ?? "Not set"}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Drop-off Location</Text>
-                <Text style={styles.detailVal}>{dropoffLoc ?? "Not selected"}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Class Start Time</Text>
-                <Text style={styles.detailVal}>{formatTime(classStart)}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Class End Time</Text>
-                <Text style={styles.detailVal}>{formatTime(classEnd)}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowScheduleDetails(false)}>
-              <Text style={styles.modalCloseText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </Animated.View>
   );
 }
@@ -691,72 +712,6 @@ const styles = StyleSheet.create({
       web: { outlineStyle: "none" },
       default: {},
     }),
-  },
-
-  /* Modal Details */
-  modalOverlay: {
-    position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    zIndex: 999,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    width: "100%",
-    maxWidth: 400,
-    padding: 24,
-    ...Platform.select({
-      web: { boxShadow: "0 10px 30px rgba(0,0,0,0.15)" },
-      default: { elevation: 10, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20 }
-    })
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: C.text,
-  },
-  modalBody: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  detailRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    paddingBottom: 12,
-  },
-  detailLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: C.brand,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  detailVal: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: C.text,
-  },
-  modalCloseBtn: {
-    backgroundColor: C.text,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  modalCloseText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
   },
 
   /* Primary button */
