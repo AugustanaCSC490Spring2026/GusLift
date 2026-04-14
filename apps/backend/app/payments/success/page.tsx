@@ -91,7 +91,7 @@ export default async function PaymentsSuccessPage({
             marginBottom: 18,
           }}
         >
-          Stripe test checkout
+          Checkout complete
         </div>
         <h1
           style={{
@@ -101,11 +101,11 @@ export default async function PaymentsSuccessPage({
             color: "#0f172a",
           }}
         >
-          Demo payment submitted
+          Payment submitted
         </h1>
         <p style={{ color: "#475569", fontSize: 16, lineHeight: 1.6 }}>
-          This page is meant for the sprint demo. If you used a Stripe test card,
-          the session details below should reflect the sandbox payment state.
+          Your payment has been processed. The details below reflect the current
+          checkout status from Stripe.
         </p>
 
         {summary ? (

@@ -15,6 +15,18 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+function buildWaitingRoomReturnPath(params) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value == null) return;
+    const normalized = String(value).trim();
+    if (!normalized) return;
+    searchParams.set(key, normalized);
+  });
+  const query = searchParams.toString();
+  return `/rider/RiderWaitingRoom${query ? `?${query}` : ""}`;
+}
+
 export default function RequestRide() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -89,24 +101,33 @@ export default function RequestRide() {
   function handleManualRequest() {
     const v = validateManual();
     if (!v) return;
+    const destination = (manualDropoff.trim() || dropoffLoc || "").trim();
     router.push({
-      pathname: "/rider/RiderWaitingRoom",
+      pathname: "/payments/demo",
       params: {
-        from: v.pickup,
-        to: (manualDropoff.trim() || dropoffLoc || "").trim(),
-        time: v.time,
-        matchMode: "manual",
+        paymentStage: "request",
+        rideLabel: "Ride request payment",
+        returnPath: buildWaitingRoomReturnPath({
+          from: v.pickup,
+          to: destination,
+          time: v.time,
+          matchMode: "manual",
+        }),
       },
     });
   }
 
   function handleScheduleRequest() {
     router.push({
-      pathname: "/rider/RiderWaitingRoom",
+      pathname: "/payments/demo",
       params: {
-        from: pickupLoc ?? "",
-        to: dropoffLoc ?? "",
-        matchMode: "schedule",
+        paymentStage: "request",
+        rideLabel: "Ride request payment",
+        returnPath: buildWaitingRoomReturnPath({
+          from: pickupLoc ?? "",
+          to: dropoffLoc ?? "",
+          matchMode: "schedule",
+        }),
       },
     });
   }

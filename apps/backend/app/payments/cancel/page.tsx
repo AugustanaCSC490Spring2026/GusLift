@@ -65,8 +65,8 @@ export default async function PaymentsCancelPage({
           No payment was completed
         </h1>
         <p style={{ color: "#475569", fontSize: 16, lineHeight: 1.6 }}>
-          The Stripe test checkout was canceled before completion. You can close
-          this page and return to GusLift, or start the demo checkout again.
+          Checkout was canceled before completion. You can return to GusLift and
+          try again whenever you’re ready.
         </p>
         {returnUrl ? (
           <a

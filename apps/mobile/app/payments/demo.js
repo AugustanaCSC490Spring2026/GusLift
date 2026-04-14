@@ -14,7 +14,7 @@ import {
 } from "react-native";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
-const DEMO_AMOUNT_CENTS = 500;
+const CHECKOUT_AMOUNT_CENTS = 500;
 
 export default function PaymentsDemo() {
   const router = useRouter();
@@ -31,7 +31,11 @@ export default function PaymentsDemo() {
   const rideLabel =
     typeof params.rideLabel === "string" && params.rideLabel.trim()
       ? params.rideLabel.trim()
-      : "GusLift Demo Ride Payment";
+      : "GusLift Ride Payment";
+  const paymentStage =
+    typeof params.paymentStage === "string" && params.paymentStage.trim()
+      ? params.paymentStage.trim()
+      : "checkout";
   const returnPath =
     typeof params.returnPath === "string" && params.returnPath.trim()
       ? params.returnPath.trim()
@@ -114,7 +118,7 @@ export default function PaymentsDemo() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            amount: DEMO_AMOUNT_CENTS,
+            amount: CHECKOUT_AMOUNT_CENTS,
             rideLabel,
             rideId,
             returnUrl,
@@ -150,7 +154,7 @@ export default function PaymentsDemo() {
         error instanceof Error ? error.message : "Unable to launch checkout.";
       setLaunchError(message);
       Alert.alert(
-        "Stripe demo failed",
+        "Checkout failed",
         message,
       );
     } finally {
@@ -159,7 +163,7 @@ export default function PaymentsDemo() {
   }
 
   const isReady = Boolean(config?.ready);
-  const amountLabel = `$${(DEMO_AMOUNT_CENTS / 100).toFixed(2)}`;
+  const amountLabel = `$${(CHECKOUT_AMOUNT_CENTS / 100).toFixed(2)}`;
 
   return (
     <View style={styles.outer}>
@@ -172,50 +176,42 @@ export default function PaymentsDemo() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.header}>Stripe Demo Checkout</Text>
+        <Text style={styles.header}>Ride Checkout</Text>
         <Text style={styles.subtitle}>
-          This is a sprint demo flow using Stripe test mode and a hosted Checkout
-          page.
+          Complete payment to continue with your ride request.
         </Text>
 
-        <View style={styles.statusCard}>
-          <Text style={styles.statusTitle}>Environment status</Text>
-          {loadingConfig ? (
+        {loadingConfig ? (
+          <View style={styles.statusCard}>
             <ActivityIndicator color="#1a3a6b" />
-          ) : !BACKEND_URL ? (
+          </View>
+        ) : !BACKEND_URL || config?.error || !isReady ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusTitle}>Checkout unavailable</Text>
             <Text style={styles.statusError}>
-              Missing `EXPO_PUBLIC_BACKEND_URL` in the mobile env.
+              {config?.error ||
+                (!BACKEND_URL
+                  ? "The backend payment service is not configured."
+                  : "Payment configuration is incomplete.")}
             </Text>
-          ) : config?.error ? (
-            <Text style={styles.statusError}>{config.error}</Text>
-          ) : (
-            <>
-              <Text style={styles.statusLine}>
-                Stripe configured: {isReady ? "Yes" : "No"}
-              </Text>
-              <Text style={styles.statusLine}>
-                Mode: {config?.mode || "unknown"}
-              </Text>
-              <Text style={styles.statusLine}>
-                Publishable key:{" "}
-                {config?.publishableKeyConfigured ? "present" : "missing"}
-              </Text>
-              <Text style={styles.statusLine}>
-                Secret key: {config?.secretKeyConfigured ? "present" : "missing"}
-              </Text>
-            </>
-          )}
-        </View>
+          </View>
+        ) : null}
 
         <View style={styles.demoCard}>
           <Text style={styles.demoTitle}>
-            {rideId ? "Ride payment" : "Demo purchase"}
+            {rideId
+              ? "Ride payment"
+              : paymentStage === "request"
+                ? "Payment before matching"
+                : "Checkout"}
           </Text>
           <Text style={styles.demoPrice}>{amountLabel}</Text>
           <Text style={styles.demoBody}>
             {rideId
               ? "This checkout will create or update a RidePayments record for the accepted ride before sending you back into GusLift."
-              : "Charges a fixed sandbox amount for a fake GusLift ride payment. Stripe hosts the actual card form."}
+              : paymentStage === "request"
+                ? "This checkout happens immediately after the rider requests a ride. After payment, GusLift returns you to the waiting room to continue matching."
+                : "Continue to Stripe to complete your ride payment."}
           </Text>
           {launchError ? (
             <Text style={styles.demoError}>{launchError}</Text>
@@ -233,22 +229,16 @@ export default function PaymentsDemo() {
             {launching ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.primaryButtonText}>Open Stripe Test Checkout</Text>
+              <Text style={styles.primaryButtonText}>Continue to Checkout</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Suggested test card</Text>
-          <Text style={styles.mono}>4242 4242 4242 4242</Text>
-          <Text style={styles.helperText}>Use any future expiration date, any 3-digit CVC, and any ZIP code.</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Demo notes</Text>
+          <Text style={styles.cardTitle}>What happens next</Text>
           <Text style={styles.helperText}>
             The success and cancel pages live in the backend app. After checkout,
-            Stripe redirects there so the demo has a visible ending state and can
+            Stripe redirects there so GusLift can show the payment result and
             sync payment metadata.
           </Text>
         </View>
@@ -311,14 +301,9 @@ const styles = StyleSheet.create({
     color: "#1f2937",
     marginBottom: 10,
   },
-  statusLine: {
-    fontSize: 15,
-    color: "#374151",
-    marginBottom: 6,
-  },
   statusError: {
     fontSize: 15,
-    color: "#b91c1c",
+    color: "#4b5563",
     lineHeight: 22,
   },
   demoCard: {
@@ -378,13 +363,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: "#1f2937",
-    marginBottom: 10,
-  },
-  mono: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-    letterSpacing: 1,
     marginBottom: 10,
   },
   helperText: {
