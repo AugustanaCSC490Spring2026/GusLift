@@ -114,6 +114,7 @@ export default function AvailableRidersScreen() {
   const [pendingRiderIds, setPendingRiderIds] = useState(new Set());
   const [capacity, setCapacity] = useState(4);
   const [seatsUsed, setSeatsUsed] = useState(0);
+  const [offlineHovered, setOfflineHovered] = useState(false);
 
   // Animations
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -270,8 +271,24 @@ export default function AvailableRidersScreen() {
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.offlineButton} onPress={handleGoOffline} activeOpacity={0.85}>
-          <Text style={styles.offlineButtonText}>Go Offline</Text>
+        <TouchableOpacity 
+          style={[
+            styles.offlineButton,
+            offlineHovered && styles.offlineButtonHovered
+          ]} 
+          onPress={handleGoOffline} 
+          activeOpacity={0.85}
+          onHoverIn={() => setOfflineHovered(true)}
+          onHoverOut={() => setOfflineHovered(false)}
+          onPressIn={() => setOfflineHovered(true)}
+          onPressOut={() => setOfflineHovered(false)}
+        >
+          <Text style={[
+            styles.offlineButtonText,
+            offlineHovered && styles.offlineButtonTextHovered
+          ]}>
+            Go Offline
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -370,6 +387,19 @@ const styles = StyleSheet.create({
 
   // Bottom Bar
   bottomBar: { padding: 20, paddingBottom: Platform.OS === 'android' ? 24 : 20, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray100 },
-  offlineButton: { backgroundColor: COLORS.gray100, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  offlineButton: { 
+    backgroundColor: COLORS.gray100, 
+    paddingVertical: 16, 
+    borderRadius: 16, 
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...Platform.select({ web: { transition: 'all 0.2s' }, default: {} })
+  },
+  offlineButtonHovered: { 
+    backgroundColor: '#FEF2F2', 
+    borderColor: '#FCA5A5' 
+  },
   offlineButtonText: { color: COLORS.dark, fontSize: 15, fontWeight: '700' },
+  offlineButtonTextHovered: { color: '#DC2626' },
 });
