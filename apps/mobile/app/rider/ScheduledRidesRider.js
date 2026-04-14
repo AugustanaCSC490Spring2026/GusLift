@@ -51,19 +51,10 @@ export default function ScheduledRidesRider() {
       const ridesData = payload?.rides ?? [];
       if (!ridesData?.length) { setRides([]); return; }
 
-      const enriched = ridesData
-        .map((ride) => ({
-          ...ride,
-          day:
-            ride.day ??
-            (ride.ride_date
-              ? new Date(ride.ride_date)
-                  .toLocaleDateString("en-US", { weekday: "short" })
-                  .toLowerCase()
-                  .slice(0, 3)
-              : null),
-        }))
-        .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
+      const enriched = [...ridesData].sort(
+        (a, b) =>
+          DAY_ORDER.indexOf(a.day ?? "") - DAY_ORDER.indexOf(b.day ?? "")
+      );
 
       setRides(enriched);
     } catch (_) {
@@ -119,7 +110,7 @@ export default function ScheduledRidesRider() {
                 <Text style={styles.metaLabel}>From</Text>
                 <Text style={styles.metaValue}>{ride.location ?? "—"}</Text>
                 <Text style={styles.metaLabel}>  To</Text>
-                <Text style={styles.metaValue}>Augustana College</Text>
+                <Text style={styles.metaValue}>{ride.dropoff_loc ?? "—"}</Text>
               </View>
 
               <View style={styles.rowLine}>

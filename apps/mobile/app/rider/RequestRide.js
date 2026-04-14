@@ -11,9 +11,27 @@ import {
   View,
 } from "react-native";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function minusMinutes(timeStr, minutesToSubtract) {
+  if (!TIME_RE.test(String(timeStr || "").trim())) return null;
+  const [h, m] = String(timeStr).trim().split(":").map(Number);
+  const total = h * 60 + m - minutesToSubtract;
+  if (total < 0) return null;
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function formatTime12h(timeStr) {
+  if (!TIME_RE.test(String(timeStr || "").trim())) return "—";
+  const [h, m] = String(timeStr).trim().split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+}
 
 export default function RequestRide() {
   const router = useRouter();
@@ -21,6 +39,7 @@ export default function RequestRide() {
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
+  const [schedulePickupTime, setSchedulePickupTime] = useState(null);
   const [firstName, setFirstName] = useState("");
 
   const [manualPickup, setManualPickup] = useState("");
@@ -47,23 +66,22 @@ export default function RequestRide() {
       if (!stored) return;
       const user = JSON.parse(stored);
       setFirstName(user.given_name || (user.name ? user.name.split(" ")[0] : ""));
+      if (!BACKEND_URL || !user?.id) return;
 
-      const [scheduleRes, userRes] = await Promise.all([
-        fetch(
-          `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=pickup_loc,dropoff_loc`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-        fetch(
-          `${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-        ),
-      ]);
+      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
+      const scheduleRes = await fetch(
+        `${normalizedBackendUrl}/api/rider/schedule?userID=${encodeURIComponent(String(user.id))}`,
+        { headers: { "x-user-id": String(user.id) } }
+      );
+      if (!scheduleRes.ok) return;
 
-      const [scheduleData, userData] = await Promise.all([scheduleRes.json(), userRes.json()]);
-
-      setPickupLoc(scheduleData?.[0]?.pickup_loc ?? null);
-      setDropoffLoc(scheduleData?.[0]?.dropoff_loc ?? null);
-      setResidence(userData?.[0]?.residence ?? null);
+      const scheduleData = await scheduleRes.json();
+      setPickupLoc(scheduleData?.pickup_loc ?? null);
+      setDropoffLoc(scheduleData?.dropoff_loc ?? null);
+      setResidence(scheduleData?.residence ?? null);
+      const todayKey = DAY_KEYS[new Date().getDay()];
+      const firstClassStart = scheduleData?.days?.[todayKey]?.start_time ?? null;
+      setSchedulePickupTime(minusMinutes(firstClassStart, 15));
     } catch (_) {
       // leave blank
     } finally {
@@ -107,6 +125,7 @@ export default function RequestRide() {
         from: pickupLoc ?? "",
         to: dropoffLoc ?? "",
         matchMode: "schedule",
+        ...(schedulePickupTime ? { time: schedulePickupTime } : {}),
       },
     });
   }
@@ -214,7 +233,9 @@ export default function RequestRide() {
             <View style={styles.divider} />
             <View style={styles.row}>
               <Text style={styles.label}>Pick Up Time</Text>
-              <Text style={styles.value}>From first class today</Text>
+              <Text style={styles.value}>
+                {schedulePickupTime ? `${formatTime12h(schedulePickupTime)} (15 min before class)` : "—"}
+              </Text>
             </View>
           </View>
 
