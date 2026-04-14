@@ -164,9 +164,22 @@ export default function PaymentsDemo() {
 
   const isReady = Boolean(config?.ready);
   const amountLabel = `$${(CHECKOUT_AMOUNT_CENTS / 100).toFixed(2)}`;
+  const checkoutTitle = rideId
+    ? "Ride payment"
+    : paymentStage === "request"
+      ? "Payment before matching"
+      : "Checkout";
+  const checkoutDescription = rideId
+    ? "This checkout will create or update a RidePayments record for the accepted ride before sending you back into GusLift."
+    : paymentStage === "request"
+      ? "This checkout happens immediately after the rider requests a ride. After payment, GusLift returns you to the waiting room to continue matching."
+      : "Continue to Stripe to complete your ride payment.";
 
   return (
     <View style={styles.outer}>
+      <View style={styles.bgOrbLarge} />
+      <View style={styles.bgOrbSmall} />
+
       <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
@@ -176,10 +189,13 @@ export default function PaymentsDemo() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.header}>Ride Checkout</Text>
-        <Text style={styles.subtitle}>
-          Complete payment to continue with your ride request.
-        </Text>
+        <View style={styles.heroBlock}>
+          <Text style={styles.eyebrow}>Secure checkout</Text>
+          <Text style={styles.header}>Ride Checkout</Text>
+          <Text style={styles.subtitle}>
+            Complete payment to continue with your ride request.
+          </Text>
+        </View>
 
         {loadingConfig ? (
           <View style={styles.statusCard}>
@@ -198,21 +214,33 @@ export default function PaymentsDemo() {
         ) : null}
 
         <View style={styles.demoCard}>
-          <Text style={styles.demoTitle}>
-            {rideId
-              ? "Ride payment"
-              : paymentStage === "request"
-                ? "Payment before matching"
-                : "Checkout"}
-          </Text>
+          <View style={styles.cardGlow} />
+          <View style={styles.cardTopRow}>
+            <View style={styles.cardHeadingGroup}>
+              <Text style={styles.demoTitle}>{checkoutTitle}</Text>
+              <Text style={styles.cardMicrocopy}>Powered by Stripe</Text>
+            </View>
+            <View style={styles.stagePill}>
+              <Text style={styles.stagePillText}>
+                {rideId ? "Ride linked" : "Ready"}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.demoPrice}>{amountLabel}</Text>
-          <Text style={styles.demoBody}>
-            {rideId
-              ? "This checkout will create or update a RidePayments record for the accepted ride before sending you back into GusLift."
-              : paymentStage === "request"
-                ? "This checkout happens immediately after the rider requests a ride. After payment, GusLift returns you to the waiting room to continue matching."
-                : "Continue to Stripe to complete your ride payment."}
-          </Text>
+          <Text style={styles.demoBody}>{checkoutDescription}</Text>
+
+          <View style={styles.metaStrip}>
+            <View style={styles.metaBlock}>
+              <Text style={styles.metaLabel}>Payment</Text>
+              <Text style={styles.metaValue}>Card checkout</Text>
+            </View>
+            <View style={styles.metaDivider} />
+            <View style={styles.metaBlock}>
+              <Text style={styles.metaLabel}>Return</Text>
+              <Text style={styles.metaValue}>Back to GusLift</Text>
+            </View>
+          </View>
+
           {launchError ? (
             <Text style={styles.demoError}>{launchError}</Text>
           ) : null}
@@ -242,9 +270,27 @@ export default function PaymentsDemo() {
 const styles = StyleSheet.create({
   outer: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#f4efe5",
     paddingTop: 56,
     paddingHorizontal: 24,
+  },
+  bgOrbLarge: {
+    position: "absolute",
+    top: -60,
+    right: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(212, 170, 90, 0.18)",
+  },
+  bgOrbSmall: {
+    position: "absolute",
+    top: 140,
+    left: -50,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(26, 58, 107, 0.08)",
   },
   scroll: {
     flex: 1,
@@ -256,36 +302,54 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "rgba(255,255,255,0.72)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
     alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.28)",
   },
   closeText: {
     fontSize: 16,
     color: "#374151",
     fontWeight: "600",
   },
-  header: {
-    fontSize: 26,
+  heroBlock: {
+    marginBottom: 24,
+  },
+  eyebrow: {
+    alignSelf: "flex-start",
+    backgroundColor: "#eadfc6",
+    color: "#8b5e1a",
+    fontSize: 12,
     fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginBottom: 14,
+  },
+  header: {
+    fontSize: 30,
+    fontWeight: "800",
     color: "#1f2937",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#6b7280",
-    marginBottom: 24,
+    color: "#5f6675",
     lineHeight: 24,
+    maxWidth: 520,
   },
   statusCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 18,
     padding: 18,
-    marginBottom: 18,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#dbe4f0",
+    borderColor: "#d9dfeb",
   },
   statusTitle: {
     fontSize: 17,
@@ -299,38 +363,119 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   demoCard: {
-    backgroundColor: "#1a3a6b",
-    borderRadius: 16,
-    padding: 20,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#16345f",
+    borderRadius: 26,
+    padding: 22,
     marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    shadowColor: "#102746",
+    shadowOpacity: 0.24,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 18 },
+    elevation: 6,
+  },
+  cardGlow: {
+    position: "absolute",
+    top: -30,
+    right: -20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(245, 158, 11, 0.18)",
+  },
+  cardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 10,
+  },
+  cardHeadingGroup: {
+    flex: 1,
   },
   demoTitle: {
     fontSize: 16,
-    color: "#cbd5e1",
-    marginBottom: 6,
+    color: "#d8e4f2",
+    marginBottom: 4,
+    fontWeight: "700",
+  },
+  cardMicrocopy: {
+    fontSize: 13,
+    color: "#9eb6d3",
+  },
+  stagePill: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  stagePillText: {
+    color: "#f8fafc",
+    fontSize: 12,
+    fontWeight: "700",
   },
   demoPrice: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: "800",
     color: "#ffffff",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   demoBody: {
     fontSize: 15,
-    color: "#e5e7eb",
-    lineHeight: 22,
+    color: "#d8e4f2",
+    lineHeight: 23,
+    marginBottom: 20,
+  },
+  metaStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: 18,
+  },
+  metaBlock: {
+    flex: 1,
+  },
+  metaDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginHorizontal: 12,
+  },
+  metaLabel: {
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+    color: "#9eb6d3",
+    marginBottom: 4,
+    fontWeight: "700",
+  },
+  metaValue: {
+    fontSize: 15,
+    color: "#ffffff",
+    fontWeight: "700",
   },
   demoError: {
     fontSize: 14,
     lineHeight: 20,
     color: "#fde68a",
     marginBottom: 14,
+    backgroundColor: "rgba(127, 29, 29, 0.35)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   primaryButton: {
-    backgroundColor: "#f59e0b",
-    borderRadius: 12,
-    minHeight: 52,
+    backgroundColor: "#d7a24a",
+    borderRadius: 14,
+    minHeight: 56,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
@@ -339,8 +484,9 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   primaryButtonText: {
-    color: "#111827",
+    color: "#132642",
     fontSize: 15,
     fontWeight: "800",
+    letterSpacing: 0.2,
   },
 });
