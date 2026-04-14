@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  Image,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Platform,
   ActivityIndicator,
   Alert,
+  Image,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 const ClockIcon = ({ size = 16, color = "#000" }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -68,7 +67,7 @@ const formatRideDate = (dateInput) => {
   if (!dateInput) return "Today";
   const rideDate = new Date(dateInput);
   const localDate = new Date(rideDate.getTime() + rideDate.getTimezoneOffset() * 60000);
-  
+
   const today = new Date();
   const tomorrow = new Date();
   tomorrow.setDate(today.getDate() + 1);
@@ -163,7 +162,7 @@ const RideCard = ({ group, onPress, isFirstOfUpcoming }) => {
           <View style={{ marginLeft: 8 }}>
             <Text style={styles.driverLabel}>RIDERS</Text>
             <Text style={styles.driverName}>
-              {group.riders.length} {group.riders.length === 1 ? 'rider' : 'riders'} 
+              {group.riders.length} {group.riders.length === 1 ? 'rider' : 'riders'}
               {group.riders.length > 0 ? ` • ${group.riders.map(r => r.name.split(' ')[0]).join(', ')}` : ''}
             </Text>
           </View>
@@ -223,8 +222,8 @@ const RideDetail = ({ group, onBack, onComplete, completingKey }) => {
         </View>
 
         {!isCompleted && group.rideIds?.length > 0 && (
-          <TouchableOpacity 
-            style={[styles.actionButtonBlue, isCompleting && { opacity: 0.7 }]} 
+          <TouchableOpacity
+            style={[styles.actionButtonBlue, isCompleting && { opacity: 0.7 }]}
             activeOpacity={0.85}
             onPress={() => onComplete(group.key, group.rideIds)}
             disabled={isCompleting}
@@ -246,7 +245,7 @@ export default function ScheduledRidesDriver() {
   const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
   const [selectedRide, setSelectedRide] = useState(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [upcomingGroups, setUpcomingGroups] = useState([]);
   const [historyGroups, setHistoryGroups] = useState([]);
@@ -308,10 +307,10 @@ export default function ScheduledRidesDriver() {
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
       const isHistory = type === 'history';
       const url = `${normalizedBackendUrl}/api/driver/rides?driver_id=${encodeURIComponent(String(user.id))}${isHistory ? '&history=true' : ''}`;
-      
+
       const res = await fetch(url);
       if (!res.ok) return;
-      
+
       const payload = await res.json();
       const ridesData = payload?.rides ?? [];
 
@@ -333,7 +332,7 @@ export default function ScheduledRidesDriver() {
     const stored = await AsyncStorage.getItem("@user");
     if (!stored || !BACKEND_URL) return;
     const user = JSON.parse(stored);
-    
+
     setCompletingKey(groupKey);
     try {
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
@@ -347,11 +346,11 @@ export default function ScheduledRidesDriver() {
         Alert.alert("Could not complete ride", payload?.error || "Try again.");
         return;
       }
-      
+
       // If success, we should refresh both lists and close detail
       setSelectedRide(null);
       await Promise.all([loadRides('upcoming'), loadRides('history')]);
-      
+
     } catch {
       Alert.alert("Error", "Could not complete the route. Please try again.");
     } finally {
@@ -369,11 +368,11 @@ export default function ScheduledRidesDriver() {
 
   if (selectedRide) {
     return (
-      <RideDetail 
-        group={selectedRide} 
-        onBack={() => setSelectedRide(null)} 
-        onComplete={completeRides} 
-        completingKey={completingKey} 
+      <RideDetail
+        group={selectedRide}
+        onBack={() => setSelectedRide(null)}
+        onComplete={completeRides}
+        completingKey={completingKey}
       />
     );
   }
@@ -388,7 +387,7 @@ export default function ScheduledRidesDriver() {
         <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>Rides</Text>
           <TouchableOpacity onPress={() => router.replace("/driver/OfferRide")} style={styles.getRideButton} activeOpacity={0.85}>
-            <Text style={styles.getRideButtonText}>Offer Route  +</Text>
+            <Text style={styles.getRideButtonText}>Offer Ride +</Text>
           </TouchableOpacity>
         </View>
 
@@ -400,9 +399,9 @@ export default function ScheduledRidesDriver() {
               style={[styles.tab, activeTab === tab && styles.tabActive]}
               activeOpacity={0.8}
             >
-              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                {tab === 'upcoming' 
-                  ? <ClockIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} /> 
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {tab === 'upcoming'
+                  ? <ClockIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} />
                   : <HistoryLineIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} />}
                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -476,9 +475,9 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: '900', color: COLORS.dark, letterSpacing: -0.5 },
   getRideButton: { backgroundColor: COLORS.blue, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   getRideButtonText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-  tabRow: { flexDirection: 'row', gap: 6 },
+  tabRow: { flexDirection: 'row', gap: 6, paddingRight: 48 },
   tab: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  tabActive: { backgroundColor: COLORS.dark },
+  tabActive: { backgroundColor: COLORS.blue },
   tabText: { fontSize: 12, fontWeight: '700', color: COLORS.gray400, textTransform: 'capitalize' },
   tabTextActive: { color: COLORS.white },
   scrollContent: { padding: 16, paddingBottom: 40 },
