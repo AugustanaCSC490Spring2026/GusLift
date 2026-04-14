@@ -1,13 +1,61 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  ActivityIndicator,
+  Animated,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
 import { useMatching } from "../../context/MatchingContext";
+import Svg, { Path, Circle, Rect } from "react-native-svg";
+
+const COLORS = {
+  blue: '#3B82F6',
+  dark: '#0F172A',
+  bg: '#F8FAFC',
+  white: '#FFFFFF',
+  gray100: '#F1F5F9',
+  gray200: '#E2E8F0',
+  gray300: '#CBD5E1',
+  gray400: '#94A3B8',
+  green: '#22C55E',
+  greenBg: '#F0FDF4',
+};
+
+// ─── SVG Icons ──────────────────────────────────────────────────────────────
+const BackIcon = ({ size = 20, color = COLORS.dark }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M19 12H5" />
+    <Path d="M12 19l-7-7 7-7" />
+  </Svg>
+);
+
+const ClockIcon = ({ size = 16, color = COLORS.blue }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="10" />
+    <Path d="M12 6v6l4 2" />
+  </Svg>
+);
+
+const CarSvg = ({ size = 48, color = COLORS.blue }) => (
+  <Svg width={size} height={size * 0.6} viewBox="0 0 80 48" fill="none">
+    <Rect x="8" y="20" width="64" height="20" rx="6" fill={color} />
+    <Path d="M18 20 L26 8 L54 8 L62 20" fill={color} />
+    <Rect x="30" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
+    <Rect x="42" y="10" width="10" height="8" rx="1" fill="rgba(255,255,255,0.3)" />
+    <Circle cx="22" cy="40" r="6" fill={COLORS.dark} />
+    <Circle cx="22" cy="40" r="3" fill={COLORS.gray300} />
+    <Circle cx="58" cy="40" r="6" fill={COLORS.dark} />
+    <Circle cx="58" cy="40" r="3" fill={COLORS.gray300} />
+    <Circle cx="8" cy="28" r="2" fill="#FBBF24" />
+    <Circle cx="72" cy="28" r="2" fill="#EF4444" />
+  </Svg>
+);
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -17,6 +65,57 @@ function formatTime12h(timeStr) {
   const period = h >= 12 ? "PM" : "AM";
   const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+// ─── Animated Car Loader ────────────────────────────────────────────────────
+function CarLoader() {
+  const translateX = useRef(new Animated.Value(-60)).current;
+  const bounceY = useRef(new Animated.Value(0)).current;
+  const dotScale1 = useRef(new Animated.Value(0.4)).current;
+  const dotScale2 = useRef(new Animated.Value(0.4)).current;
+  const dotScale3 = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateX, { toValue: 60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: -60, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceY, { toValue: -3, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(bounceY, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
+
+    const animateDot = (dot, delay) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0.4, duration: 400, useNativeDriver: true }),
+        ])
+      ).start();
+    animateDot(dotScale1, 0);
+    animateDot(dotScale2, 200);
+    animateDot(dotScale3, 400);
+  }, []);
+
+  return (
+    <View style={styles.carLoaderWrap}>
+      <Animated.View style={{ transform: [{ translateX }, { translateY: bounceY }] }}>
+        <CarSvg size={64} color={COLORS.blue} />
+      </Animated.View>
+      <View style={styles.roadLine} />
+      <View style={styles.dotsRow}>
+        {[dotScale1, dotScale2, dotScale3].map((dot, i) => (
+          <Animated.View key={i} style={[styles.loaderDot, { transform: [{ scale: dot }] }]} />
+        ))}
+      </View>
+    </View>
+  );
 }
 
 export default function DriverWaitingRoom() {
@@ -37,11 +136,34 @@ export default function DriverWaitingRoom() {
   const [connected, setConnected] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
+  // Animations
+  const fadeIn = useRef(new Animated.Value(0)).current;
+  const slideUp = useRef(new Animated.Value(30)).current;
+  const greenPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeIn, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideUp, { toValue: 0, duration: 600, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  // Green dot pulse when connected
+  useEffect(() => {
+    if (connected) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(greenPulse, { toValue: 1.5, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(greenPulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [connected]);
+
   useEffect(() => {
     let unsubscribe;
 
     async function setup() {
-      // connect() runs GET preflight then opens the WebSocket; see MatchingContext.
       const result = isManualEntry 
         ? await connect({ location: from, time })
         : await connect();
@@ -59,7 +181,6 @@ export default function DriverWaitingRoom() {
       }
 
       unsubscribe = onMessage((msg) => {
-        // A rider joined the room — go to available riders
         if (msg.type === "rider_joined" || msg.type === "initial_state") {
           router.replace({
             pathname: "/driver/AvailableRiders",
@@ -89,143 +210,199 @@ export default function DriverWaitingRoom() {
     }
   }
 
+  const effectivePickupTime = isManualEntry ? time : pickupTime;
+
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={handleGoOffline} style={styles.closeButton}>
-        <Text style={styles.closeText}>✕</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
 
-      <Text style={styles.title}>Ride Offered</Text>
-
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Text style={styles.label}>Pick up at</Text>
-          <Text style={styles.value}>{from || "—"}</Text>
-        </View>
-        <View style={styles.divider} />
-        
-        {isManualEntry && to ? (
-          <>
-            <View style={styles.row}>
-              <Text style={styles.label}>To</Text>
-              <Text style={styles.value}>{to}</Text>
-            </View>
-            <View style={styles.divider} />
-          </>
-        ) : null}
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Pick Up Time</Text>
-          <Text style={styles.value}>
-            {formatTime12h(isManualEntry ? time : pickupTime)}
-          </Text>
-        </View>
-        
-        {!isManualEntry ? (
-          <>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Class Starts</Text>
-              <Text style={styles.value}>{formatTime12h(classStart)}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Class End</Text>
-              <Text style={styles.value}>{formatTime12h(classEnd)}</Text>
-            </View>
-          </>
-        ) : null}
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoOffline} style={styles.backButton} activeOpacity={0.7}>
+          <BackIcon size={20} color={COLORS.dark} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>RIDE OFFERED</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.statusRow}>
-        {connected ? (
-          <>
-            <View style={styles.dot} />
-            <Text style={styles.statusOnline}>Online — waiting for riders</Text>
-          </>
-        ) : !statusMessage ? (
-          <>
-            <ActivityIndicator size="small" color="#1a3a6b" />
-            <Text style={styles.statusConnecting}>Connecting...</Text>
-          </>
-        ) : (
-          <Text style={styles.statusConnecting}>Unable to connect</Text>
+      <Animated.View style={[styles.content, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
+        {/* Route Card */}
+        <View style={styles.card}>
+          <View style={styles.cardRow}>
+            <View style={styles.iconWrap}>
+              <View style={styles.timelineDotCircle} />
+            </View>
+            <View style={styles.cardRowContent}>
+              <Text style={styles.cardLabel}>PICK UP AT</Text>
+              <Text style={styles.cardValue} numberOfLines={1}>{from || "—"}</Text>
+            </View>
+          </View>
+
+          {isManualEntry && to ? (
+            <>
+              <View style={styles.timelineConnector} />
+              <View style={styles.cardRow}>
+                <View style={styles.iconWrap}>
+                  <View style={styles.timelineDotSquare} />
+                </View>
+                <View style={styles.cardRowContent}>
+                  <Text style={styles.cardLabel}>DESTINATION</Text>
+                  <Text style={styles.cardValue} numberOfLines={1}>{to}</Text>
+                </View>
+              </View>
+            </>
+          ) : null}
+
+          <View style={styles.cardDivider} />
+
+          <View style={styles.cardRow}>
+            <View style={styles.iconWrap}>
+              <ClockIcon size={16} color={COLORS.blue} />
+            </View>
+            <View style={styles.cardRowContent}>
+              <Text style={styles.cardLabel}>PICKUP TIME</Text>
+              <Text style={[styles.cardValue, { color: COLORS.blue }]}>
+                {formatTime12h(effectivePickupTime)}
+              </Text>
+            </View>
+          </View>
+
+          {!isManualEntry ? (
+            <>
+              <View style={styles.cardDivider} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={[styles.infoBox, { flex: 1 }]}>
+                  <Text style={styles.infoBoxLabel}>CLASS STARTS</Text>
+                  <Text style={styles.infoBoxValue}>{formatTime12h(classStart)}</Text>
+                </View>
+                <View style={[styles.infoBox, { flex: 1 }]}>
+                  <Text style={styles.infoBoxLabel}>CLASS END</Text>
+                  <Text style={styles.infoBoxValue}>{formatTime12h(classEnd)}</Text>
+                </View>
+              </View>
+            </>
+          ) : null}
+        </View>
+
+        {/* Connection Status */}
+        {connected && (
+          <View style={styles.statusPill}>
+            <Animated.View style={[styles.greenDotOuter, { transform: [{ scale: greenPulse }] }]}>
+              <View style={styles.greenDot} />
+            </Animated.View>
+            <Text style={styles.statusPillText}>Online — Waiting for riders</Text>
+          </View>
         )}
-      </View>
-      {!connected && !!statusMessage ? (
-        <Text style={styles.statusError}>{statusMessage}</Text>
-      ) : null}
 
-      <TouchableOpacity
-        style={styles.offlineButton}
-        onPress={handleGoOffline}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.offlineButtonText}>Go Offline</Text>
-      </TouchableOpacity>
-    </View>
+        {!connected && statusMessage ? (
+          <View style={styles.errorPill}>
+            <Text style={styles.errorPillText}>{statusMessage}</Text>
+          </View>
+        ) : null}
+
+        {/* Car Animation Loader */}
+        {!statusMessage && (
+          <View style={styles.loaderSection}>
+            <CarLoader />
+            <Text style={styles.loaderText}>
+              {connected ? "Waiting for riders to request a ride..." : "Connecting to matching..."}
+            </Text>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* Bottom Bar */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.offlineButton} onPress={handleGoOffline} activeOpacity={0.85}>
+          <Text style={styles.offlineButtonText}>Go Offline</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f6f1",
-    padding: 24,
-    paddingTop: 56,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  closeText: { fontSize: 16, color: "#374151", fontWeight: "600" },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 28,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    marginBottom: 28,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  screen: { flex: 1, backgroundColor: COLORS.bg },
+  header: {
+    backgroundColor: COLORS.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
   },
-  divider: { height: 1, backgroundColor: "#f0f0f0" },
-  label: { fontSize: 15, color: "#6b7280", fontWeight: "500" },
-  value: { fontSize: 15, color: "#1f2937", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 32,
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 12, fontWeight: '800', color: COLORS.dark, letterSpacing: 2 },
+  content: { flex: 1, padding: 20 },
+
+  // Route Card
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
   },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#22c55e" },
-  statusOnline: { fontSize: 14, color: "#22c55e", fontWeight: "600" },
-  statusConnecting: { fontSize: 14, color: "#6b7280", marginLeft: 8 },
-  statusError: { fontSize: 14, color: "#b91c1c", marginBottom: 20 },
-  offlineButton: {
-    backgroundColor: "#e5e7eb",
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: "center",
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconWrap: { width: 24, alignItems: 'center' },
+  timelineDotCircle: { width: 14, height: 14, borderRadius: 7, backgroundColor: COLORS.white, borderWidth: 3, borderColor: COLORS.blue },
+  timelineDotSquare: { width: 14, height: 14, borderRadius: 2, backgroundColor: COLORS.dark },
+  timelineConnector: { width: 1, height: 24, backgroundColor: COLORS.gray200, marginLeft: 12, borderStyle: 'dashed' },
+  cardRowContent: { flex: 1 },
+  cardLabel: { fontSize: 9, fontWeight: '700', color: COLORS.gray400, letterSpacing: 1, marginBottom: 2 },
+  cardValue: { fontSize: 14, fontWeight: '700', color: COLORS.dark },
+  cardDivider: { height: 1, backgroundColor: COLORS.gray100, marginVertical: 14 },
+  infoBox: { backgroundColor: COLORS.bg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: COLORS.gray100 },
+  infoBoxLabel: { fontSize: 9, fontWeight: '700', color: COLORS.gray400, letterSpacing: 1, marginBottom: 4 },
+  infoBoxValue: { fontSize: 14, fontWeight: '900', color: COLORS.dark },
+
+  // Status Pill
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.greenBg,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    gap: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
   },
-  offlineButtonText: { color: "#374151", fontSize: 17, fontWeight: "700" },
+  greenDotOuter: { width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(34,197,94,0.2)', alignItems: 'center', justifyContent: 'center' },
+  greenDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.green },
+  statusPillText: { fontSize: 13, fontWeight: '600', color: '#166534' },
+
+  // Error
+  errorPill: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorPillText: { fontSize: 13, color: '#991B1B', lineHeight: 18 },
+
+  // Car Loader
+  loaderSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
+  carLoaderWrap: { alignItems: 'center', gap: 16, paddingVertical: 20 },
+  roadLine: { width: 200, height: 2, backgroundColor: COLORS.gray200, borderRadius: 1 },
+  dotsRow: { flexDirection: 'row', gap: 8 },
+  loaderDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.blue },
+  loaderText: { fontSize: 14, fontWeight: '600', color: COLORS.gray400, textAlign: 'center' },
+
+  // Bottom Bar
+  bottomBar: { padding: 20, paddingBottom: Platform.OS === 'android' ? 24 : 20, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray100 },
+  offlineButton: { backgroundColor: COLORS.gray100, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  offlineButtonText: { color: COLORS.dark, fontSize: 15, fontWeight: '700' },
 });
