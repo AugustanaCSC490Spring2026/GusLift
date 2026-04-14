@@ -64,7 +64,7 @@ function getLocalTodayDate(): string {
 
 async function queryRides(
   supabase: ReturnType<typeof getSupabase>,
-  opts: { driverId?: string; riderId?: string; limit?: number },
+  opts: { driverId?: string; riderId?: string; limit?: number; history?: boolean },
 ): Promise<{ rows: RideRow[]; error: PostgrestError | null }> {
   const rideSelect =
     "id,driver_id,rider_id,ride_date,start_time,location,status,created_at";
@@ -73,9 +73,15 @@ async function queryRides(
     let query = supabase
       .from(tableName)
       .select(rideSelect)
-      .eq("status", "accepted")
-      .eq("ride_date", todayDate)
       .order("created_at", { ascending: false });
+
+    if (opts.history) {
+      // History: only completed rides (any date)
+      query = query.eq("status", "completed");
+    } else {
+      // Upcoming: only accepted rides for today
+      query = query.eq("status", "accepted").eq("ride_date", todayDate);
+    }
 
     if (opts.driverId) query = query.eq("driver_id", opts.driverId);
     if (opts.riderId) query = query.eq("rider_id", opts.riderId);
@@ -189,6 +195,7 @@ export async function GET(request: NextRequest) {
     const limitParam = Number(request.nextUrl.searchParams.get("limit"));
     const limit =
       Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined;
+    const history = request.nextUrl.searchParams.get("history") === "true";
 
     if (!driverId && !riderId) {
       return withCors(
@@ -204,6 +211,7 @@ export async function GET(request: NextRequest) {
       driverId,
       riderId,
       limit,
+      history,
     });
 
     if (ridesError) {
