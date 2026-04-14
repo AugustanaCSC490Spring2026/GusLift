@@ -136,14 +136,29 @@ export default function GlobalMenu() {
           <View style={styles.menuContainer} onStartShouldSetResponder={() => true}>
             
             {/* Menu Items */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); /* add route later */ }}>
+            {/* Menu Items */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => { 
+                setIsOpen(false); 
+                if (currentRole === "driver") {
+                  router.push("/driver/ScheduledRidesDriver?tab=upcoming");
+                } else if (currentRole === "rider") {
+                  router.push("/rider/ScheduledRidesRider?tab=upcoming");
+                }
+              }}>
               <CarIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Upcoming Rides
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); /* add route later */ }}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { 
+                setIsOpen(false); 
+                if (currentRole === "driver") {
+                  router.push("/driver/ScheduledRidesDriver?tab=history");
+                } else if (currentRole === "rider") {
+                  router.push("/rider/ScheduledRidesRider?tab=history");
+                }
+              }}>
               <HistoryIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 History

@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -228,7 +228,8 @@ const RideDetail = ({ ride, onBack }) => {
 
 export default function ScheduledRidesRider() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const params = useLocalSearchParams();
+  const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRide, setSelectedRide] = useState(null);
   
