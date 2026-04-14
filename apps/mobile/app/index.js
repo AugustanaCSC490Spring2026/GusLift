@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -124,14 +123,14 @@ export default function Welcome() {
           parsed = JSON.parse(stored);
         } catch {
           await AsyncStorage.removeItem("@user");
-          router.push({ pathname: "/signup", params: { role: desiredRole || undefined } });
+          router.push({ pathname: "/signup", params: { role: desiredRole || undefined, ...(extraParams || {}) } });
           return;
         }
 
         const sevenDays = 7 * 24 * 60 * 60 * 1000;
         if (Date.now() - parsed.savedAt > sevenDays) {
           await AsyncStorage.removeItem("@user");
-          router.push({ pathname: "/signup", params: { role: desiredRole || undefined } });
+          router.push({ pathname: "/signup", params: { role: desiredRole || undefined, ...(extraParams || {}) } });
           return;
         }
 
@@ -152,12 +151,12 @@ export default function Welcome() {
         if (role === "driver") {
           router.push(parsed.driverSetupComplete ? "/driver/OfferRide" : "/driver/DriverSetup");
         } else {
-          // Riders go straight to RequestRide — rider setup is optional
-          router.push("/rider/RequestRide");
+          // Riders go straight to RequestRide — pass any landing page params
+          router.push({ pathname: "/rider/RequestRide", params: extraParams || {} });
         }
       } else {
-        // No session — go sign up with role hint
-        router.push({ pathname: "/signup", params: { role: desiredRole || undefined } });
+        // No session — go sign up with role hint + landing page params
+        router.push({ pathname: "/signup", params: { role: desiredRole || undefined, ...(extraParams || {}) } });
       }
     } catch {
       router.push("/signup");
@@ -227,17 +226,14 @@ export default function Welcome() {
     <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
       {/* ── NAV ── */}
       <View style={styles.nav}>
-        <Pressable style={styles.logoGroup}>
-          <View style={styles.logoBox}>
-            <Ionicons name="shield-checkmark" size={20} color="#fff" />
-          </View>
+        <Pressable style={styles.logoGroup} onPress={() => router.push({ pathname: "/", params: { preview: "true" } })}>
           <Text style={styles.logoText}>GusLift</Text>
         </Pressable>
 
         <View style={styles.navLinks}>
           <HoverButton
             style={styles.navLinkBtn}
-            textStyle={[styles.navLinkText, styles.navLinkActive]}
+            textStyle={styles.navLinkText}
             label="Ride"
             onPress={() => smartRoute("rider")}
             hoverText={C.brand}
@@ -253,7 +249,7 @@ export default function Welcome() {
             style={styles.navLinkBtn}
             textStyle={styles.navLinkText}
             label="About"
-            onPress={() => router.push("/about")}
+            onPress={() => router.push("/About")}
             hoverText={C.brand}
           />
         </View>
@@ -386,24 +382,7 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  logoBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: C.brand,
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      web: { boxShadow: `0 4px 10px ${C.brandLight}` },
-      default: {
-        shadowColor: C.brand,
-        shadowOpacity: 0.25,
-        shadowRadius: 5,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
-      },
-    }),
-  },
+
   logoText: {
     fontSize: 21,
     fontWeight: "800",

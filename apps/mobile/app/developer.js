@@ -64,7 +64,7 @@ export default function DeveloperMenu() {
           <TouchableOpacity style={styles.button} onPress={() => router.push("/?preview=true")}>
             <Text style={styles.buttonText}>Landing Page (Home)</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => router.push("/about")}>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/About")}>
             <Text style={styles.buttonText}>About Page</Text>
           </TouchableOpacity>
            <TouchableOpacity style={styles.button} onPress={() => router.push("/role")}>

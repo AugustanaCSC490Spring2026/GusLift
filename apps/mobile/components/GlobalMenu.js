@@ -1,9 +1,46 @@
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path, Circle } from "react-native-svg";
+import MenuAvatar from "./MenuAvatar";
+
+// Custom SVG Icons
+function CarIcon({ size = 20, color = "#64748B" }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 14l2-8a2 2 0 012-1.5h10A2 2 0 0121 6l2 8" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Circle cx={7.5} cy={14.5} r={1.5} fill={color} />
+      <Circle cx={16.5} cy={14.5} r={1.5} fill={color} />
+    </Svg>
+  );
+}
+
+function HistoryIcon({ size = 20, color = "#64748B" }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function CodeIcon({ size = 20, color = "#64748B" }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M16 18l6-6-6-6M8 6l-6 6 6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function LogOutIcon({ size = 20, color = "#dc2626" }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 export default function GlobalMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,10 +48,11 @@ export default function GlobalMenu() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [currentRole, setCurrentRole] = useState(null);
+  const [avatarUri, setAvatarUri] = useState(null);
 
-  // Do not show the menu on login/signup pages
-  const hidePaths = ["/", "/index", "/signup", "/role", "/about"];
-  if (hidePaths.includes(pathname)) {
+  // Do not show the menu on login/signup/setup pages
+  const hidePaths = ["/", "/index", "/signup", "/role", "/About"];
+  if (hidePaths.includes(pathname) || pathname?.toLowerCase().includes("setup")) {
     return null;
   }
 
@@ -25,6 +63,7 @@ export default function GlobalMenu() {
         if (stored) {
           const parsed = JSON.parse(stored);
           setCurrentRole(parsed?.role);
+          setAvatarUri(parsed?.picture || parsed?.avatar_url || null);
         }
       } catch (e) {
         // ignore
@@ -76,17 +115,17 @@ export default function GlobalMenu() {
   return (
     <>
       <TouchableOpacity
-        style={[styles.menuButton, { top: insets.top + 10 }]}
+        style={[styles.menuButton, { top: insets.top + (Platform.OS === 'web' ? 20 : 10) }]}
         onPress={toggleMenu}
         activeOpacity={0.8}
       >
-        <Ionicons name="menu" size={32} color="#1f2937" />
+        <MenuAvatar uri={avatarUri} />
       </TouchableOpacity>
 
       <Modal
         visible={isOpen}
         transparent={true}
-        animationType="fade"
+        animationType="slide"
         onRequestClose={toggleMenu}
       >
         <TouchableOpacity
@@ -94,25 +133,32 @@ export default function GlobalMenu() {
           activeOpacity={1}
           onPress={toggleMenu}
         >
-          <View style={styles.menuContainer}>
-            <Text style={styles.menuTitle}>Menu</Text>
-
-            <TouchableOpacity style={styles.menuItem} onPress={handleSwitchRole}>
-              <Ionicons name="swap-horizontal" size={24} color="#1f2937" />
+          <View style={styles.menuContainer} onStartShouldSetResponder={() => true}>
+            
+            {/* Menu Items */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); /* add route later */ }}>
+              <CarIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
-                {currentRole === "driver" ? "Change to Rider" : "Change to Driver"}
+                Upcoming Rides
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/developer"); }}>
-              <Ionicons name="code-slash-outline" size={24} color="#1f2937" />
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); /* add route later */ }}>
+              <HistoryIcon size={20} color="#64748B" />
+              <Text style={styles.menuItemText}>
+                History
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/Developer"); }}>
+              <CodeIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Developer Options
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={handleSignout}>
-              <Ionicons name="log-out-outline" size={24} color="#dc2626" />
+              <LogOutIcon size={20} color="#dc2626" />
               <Text style={[styles.menuItemText, { color: "#dc2626" }]}>
                 Sign Out
               </Text>
@@ -129,45 +175,33 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 20,
     zIndex: 999,
-    padding: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
-    justifyContent: "center",
+    justifyContent: "flex-end", // slide from bottom or center
     alignItems: "center",
   },
   menuContainer: {
-    width: 250,
+    width: "90%",
+    maxWidth: 400,
     backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
+    paddingTop: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  menuTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#1f2937",
-    textAlign: "center",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    marginBottom: 40,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#f3f4f6",
   },
   menuItemText: {
     fontSize: 16,

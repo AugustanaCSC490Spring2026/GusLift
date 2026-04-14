@@ -1,35 +1,66 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  LayoutAnimation,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
+  View,
   Text,
   TextInput,
   TouchableOpacity,
-  UIManager,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+  ScrollView,
+  StyleSheet,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+  Animated,
+  ActivityIndicator,
+  Image,
+  Pressable,
+  FlatList,
+  Alert
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { CircleIcon, SquareIcon, ClockIcon } from '../../components/LocationTimeline';
+import Svg, { Path, Circle, Rect, Polyline, Line } from 'react-native-svg';
 
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+const ArrowLeftIcon = ({ size = 24, color = "#000" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Line x1="19" y1="12" x2="5" y2="12" />
+    <Polyline points="12 19 5 12 12 5" />
+  </Svg>
+);
 
+const UserIcon = ({ size = 24, color = "#000" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+    <Circle cx="12" cy="7" r="4" />
+  </Svg>
+);
+
+const CameraIcon = ({ size = 24, color = "#000" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+    <Circle cx="12" cy="13" r="4" />
+  </Svg>
+);
+
+const TrashIcon = ({ size = 24, color = "#000" }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="3 6 5 6 21 6" />
+    <Path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+  </Svg>
+);
+
+const CheckIcon = ({ size = 24, color = "#000", strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="20 6 9 17 4 12" />
+  </Svg>
+);
+
+// ─── BACKGROUND CONFIG ────────────────────────────────────────────────────────
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -38,313 +69,228 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/webp",
 ]);
 
-const FIELD_CONFIG = {
-  residenceLocation: {
-    label: "Residence Hall / Default Pickup",
-    placeholder: "Tap to enter residence hall or pickup location",
-    keyboardType: "default",
-  },
-  dropoffLocation: {
-    label: "Default Dropoff Location",
-    placeholder: "Tap to enter default dropoff (e.g. Academic Bldg)",
-    keyboardType: "default",
-  },
+// ─── BRAND TOKENS ─────────────────────────────────────────────────────────────
+const B = {
+  blue: '#3B82F6',
+  blueDark: '#1E40AF',
+  blueLight: '#EFF6FF',
+  bg: '#F8FAFC',
+  text: '#0F172A',
+  muted: '#94A3B8',
+  border: '#E2E8F0',
+  white: '#FFFFFF',
+  green: '#10B981',
+  slate50: '#F8FAFC',
+  slate100: '#F1F5F9',
+  slate200: '#E2E8F0',
+  slate300: '#CBD5E1',
+  slate400: '#94A3B8',
+  slate500: '#64748B',
+  slate600: '#475569',
+  red400: '#F87171',
+  emerald500: '#10B981',
 };
 
-const WEEKDAY_FIELDS = [
-  { key: "mon", label: "Monday" },
-  { key: "tue", label: "Tuesday" },
-  { key: "wed", label: "Wednesday" },
-  { key: "thu", label: "Thursday" },
-  { key: "fri", label: "Friday" },
+// ─── STEP CONFIG ──────────────────────────────────────────────────────────────
+const STEPS = [
+  { eyebrow: 'Pickup', question: 'Where do you live?', hint: "We'll suggest this by default." },
+  { eyebrow: 'Dropoff', question: 'Where to most?', hint: 'What is your usual drop off location?' },
+  { eyebrow: 'Schedule', question: 'Input schedule', hint: 'Rides will be prioritized for these blocks.' },
+  { eyebrow: 'Identity', question: 'Put a face to the name', hint: 'Helps drivers recognize you instantly.' },
 ];
+const CTA_LABELS = ["That's my place", 'Confirmed', 'Confirm Schedule', 'Finish Setup'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, idx) => {
-  const totalMinutes = idx * 15;
-  const hh = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
-  const mm = String(totalMinutes % 60).padStart(2, "0");
-  return hh + ":" + mm;
-});
+// ─── WHEEL PICKER MODAL ───────────────────────────────────────────────────────
+const WheelPicker = ({ isOpen, type, title, onCancel, onSave }) => {
+  const hours = type === 'time'
+    ? Array.from({ length: 12 }, (_, i) => String(i + 1))
+    : Array.from({ length: 13 }, (_, i) => String(i));
+  const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+  const ampm = ['AM', 'PM'];
 
-const EMPTY_WEEKLY_SCHEDULE = Object.fromEntries(
-  WEEKDAY_FIELDS.map(({ key }) => [
-    key,
-    { enabled: false, start_time: "", end_time: "" },
-  ]),
-);
+  const [selH, setSelH] = useState(type === 'time' ? '9' : '0');
+  const [selM, setSelM] = useState('00');
+  const [selP, setSelP] = useState('AM');
 
-function isStartBeforeEnd(startTime, endTime) {
-  if (!startTime || !endTime) return false;
-  return String(startTime) < String(endTime);
-}
-
-function cloneWeeklySchedule(schedule) {
-  return Object.fromEntries(
-    WEEKDAY_FIELDS.map(({ key }) => [key, { ...(schedule[key] || {}) }]),
+  const renderColumn = (
+    items,
+    selected,
+    onSelect,
+    suffix
+  ) => (
+    <View style={s.pickerColumn}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        snapToInterval={44}
+        decelerationRate="fast"
+      >
+        {items.map((item) => (
+          <TouchableOpacity
+            key={item}
+            style={[s.pickerItem, selected === item && s.pickerItemSelected]}
+            onPress={() => onSelect(item)}
+          >
+            <Text style={[s.pickerItemText, selected === item && s.pickerItemTextSelected]}>
+              {item}{suffix ?? ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
-}
 
+  return (
+    <Modal visible={isOpen} transparent animationType="slide">
+      <View style={s.pickerOverlay}>
+        <View style={s.pickerSheet}>
+          <View style={s.pickerHeader}>
+            <TouchableOpacity onPress={onCancel}>
+              <Text style={s.pickerHeaderCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={s.pickerHeaderTitle}>{title}</Text>
+            <TouchableOpacity onPress={() => onSave({ h: selH, m: selM, p: selP })}>
+              <Text style={s.pickerHeaderDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={s.pickerBody}>
+            <View style={s.pickerHighlight} />
+            <View style={s.pickerColumns}>
+              {renderColumn(hours, selH, setSelH)}
+              <Text style={s.pickerSep}>{type === 'time' ? ':' : 'h'}</Text>
+              {renderColumn(minutes, selM, setSelM)}
+              {type === 'time' ? (
+                <>
+                  <Text style={[s.pickerSep, { opacity: 0 }]}>:</Text>
+                  {renderColumn(ampm, selP, setSelP)}
+                </>
+              ) : (
+                <Text style={s.pickerSep}>m</Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function RiderSetup() {
   const router = useRouter();
+  const { pickup: landingPickup, destination: landingDestination } = useLocalSearchParams();
 
-  const [residenceLocation, setResidenceLocation] = useState("");
-  const [dropoffLocation, setDropoffLocation] = useState("");
-  const [sameAsPickup, setSameAsPickup] = useState(false);
+  const [step, setStep] = useState(0);
+  const [pickup, setPickup] = useState(landingPickup || '');
+  const [dropoff, setDropoff] = useState(landingDestination || '');
+  const [isSameAsPickup, setIsSameAsPickup] = useState(false);
+  const [photo, setPhoto] = useState(null);
+  const [selectedImageData, setSelectedImageData] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  const [activeField, setActiveField] = useState(null);
-  const [draftValue, setDraftValue] = useState("");
+  const [classBlocks, setClassBlocks] = useState([]);
+  const [tempFrom, setTempFrom] = useState('');
+  const [tempTo, setTempTo] = useState('');
+  const [tempDays, setTempDays] = useState([]);
+  const [startTime, setStartTime] = useState('');
+  const [startTime24, setStartTime24] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [duration, setDuration] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(0);
+  const [isAllDay, setIsAllDay] = useState(false);
 
-  const [weeklySchedule, setWeeklySchedule] = useState(() =>
-    cloneWeeklySchedule(EMPTY_WEEKLY_SCHEDULE),
-  );
-  const [scheduleDraft, setScheduleDraft] = useState(() =>
-    cloneWeeklySchedule(EMPTY_WEEKLY_SCHEDULE),
-  );
-  const [scheduleError, setScheduleError] = useState("");
-  const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
-  const [timePickerVisible, setTimePickerVisible] = useState(false);
-  const [activeTimeField, setActiveTimeField] = useState(null);
+  const progressAnim = useRef(new Animated.Value(25)).current;
 
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const submitInFlightRef = useRef(false);
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: (step + 1) * 25,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  }, [step]);
 
-  const fieldValues = {
-    residenceLocation,
-    dropoffLocation,
+  useEffect(() => {
+    if (isSameAsPickup && pickup.trim()) setDropoff(pickup);
+  }, [isSameAsPickup, pickup]);
+
+  useEffect(() => {
+    if (startTime24 && durationMinutes > 0) {
+      const [h, m] = startTime24.split(':').map(Number);
+      const date = new Date();
+      date.setHours(h);
+      date.setMinutes(m + durationMinutes);
+      const endH = date.getHours();
+      const endM = date.getMinutes();
+      const ap = endH >= 12 ? 'PM' : 'AM';
+      const displayH = endH % 12 || 12;
+      setEndTime(`${displayH}:${String(endM).padStart(2, '0')} ${ap}`);
+    }
+  }, [startTime24, durationMinutes]);
+
+  const canAdvance = () => {
+    if (step === 0) return pickup.trim().length > 0;
+    if (step === 1) return (isSameAsPickup && pickup.trim().length > 0) || dropoff.trim().length > 0;
+    if (step === 2) return true; // Class schedule is optional logically, but if require, condition it.
+    if (step === 3) return true; // Photo optional
+    return true;
   };
 
-  const scheduleEntryCount = Object.values(weeklySchedule).filter(
-    (entry) => entry?.enabled && entry?.start_time && entry?.end_time,
-  ).length;
-  const selectedImageLabel = selectedImage?.name || selectedImage?.uri || "";
+  const convertTo24Hour = (time12h) => {
+    if (!time12h || time12h === 'All Day') return '08:00';
+    let [time, modifier] = time12h.split(' ');
+    if (!modifier) return time; // Already 24h?
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') hours = '00';
+    if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
+    return `${hours.padStart(2, '0')}:${minutes}`;
+  };
 
-  function formatTime12h(timeValue) {
-    if (!timeValue) return "Select";
-    const [hoursRaw, minutesRaw] = String(timeValue).split(":");
-    const hours = Number(hoursRaw);
-    const minutes = Number(minutesRaw);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeValue;
-    const period = hours >= 12 ? "PM" : "AM";
-    const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-    return `${displayHour}:${String(minutes).padStart(2, "0")} ${period}`;
-  }
-
-  function openTimePicker(dayKey, field) {
-    setActiveTimeField({ dayKey, field });
-    setTimePickerVisible(true);
-  }
-
-  function selectTimeValue(value) {
-    if (!activeTimeField) return;
-    setScheduleDraft((prev) => ({
-      ...prev,
-      [activeTimeField.dayKey]: {
-        ...(prev[activeTimeField.dayKey] || {}),
-        [activeTimeField.field]: value,
-      },
-    }));
-    setTimePickerVisible(false);
-    setActiveTimeField(null);
-  }
-
-  function openFieldInput(fieldKey) {
-    setDraftValue(fieldValues[fieldKey] ?? "");
-    setActiveField(fieldKey);
-  }
-
-  function closeFieldInput() {
-    setActiveField(null);
-    setDraftValue("");
-  }
-
-  function saveFieldInput() {
-    if (!activeField) return;
-    const value = draftValue.trim();
-
-    if (activeField === "residenceLocation") {
-      setResidenceLocation(value);
-    } else if (activeField === "dropoffLocation") {
-      setDropoffLocation(value);
-    }
-
-    closeFieldInput();
-  }
-
-  function openScheduleInput() {
-    setScheduleDraft(cloneWeeklySchedule(weeklySchedule));
-    setScheduleError("");
-    setScheduleModalVisible(true);
-  }
-
-  function closeScheduleInput() {
-    setScheduleModalVisible(false);
-    setScheduleError("");
-    setScheduleDraft(cloneWeeklySchedule(weeklySchedule));
-  }
-
-  function saveScheduleInput() {
-    for (const day of WEEKDAY_FIELDS) {
-      const entry = scheduleDraft[day.key];
-      if (!entry?.enabled) continue;
-      const startTime = (entry.start_time || "").trim();
-      const endTime = (entry.end_time || "").trim();
-      if (!startTime || !endTime) {
-        setScheduleError(`${day.label}: please select both start and end times.`);
-        return;
-      }
-      if (!isStartBeforeEnd(startTime, endTime)) {
-        setScheduleError(`${day.label}: start time must be earlier than end time.`);
-        return;
-      }
-    }
-
-    const cleanedSchedule = Object.fromEntries(
-      Object.entries(scheduleDraft).map(([day, entry]) => {
-        const enabled = Boolean(entry?.enabled);
-        return [
-          day,
-          {
-            enabled,
-            start_time: enabled ? (entry?.start_time || "").trim() : "",
-            end_time: enabled ? (entry?.end_time || "").trim() : "",
-          },
-        ];
-      }),
-    );
-    setScheduleError("");
-    setWeeklySchedule(cleanedSchedule);
-    setScheduleModalVisible(false);
-  }
-
-  async function pickRiderImage() {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert(
-        "Permission needed",
-        "Allow photo library access to upload a rider photo.",
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      quality: 0.8,
-    });
-
-    if (result.canceled || !result.assets?.length) return;
-
-    const asset = result.assets[0];
-    const normalizedMime = String(asset.mimeType || "").toLowerCase();
-    if (normalizedMime && !ALLOWED_MIME_TYPES.has(normalizedMime)) {
-      Alert.alert("Invalid image", "Please choose a JPG, PNG, GIF, or WEBP image.");
-      return;
-    }
-    if (asset.fileSize && asset.fileSize > MAX_UPLOAD_BYTES) {
-      Alert.alert("Image too large", "Please choose an image smaller than 5 MB.");
-      return;
-    }
-    const ext = asset?.fileName?.split(".").pop()?.toLowerCase() || "jpg";
-    const normalizedExt = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext) ? ext : "jpg";
-    setSelectedImage({
-      uri: asset.uri,
-      name: asset.fileName || `rider-photo.${normalizedExt}`,
-      type: asset.mimeType || `image/${normalizedExt === "jpg" ? "jpeg" : normalizedExt}`,
-      file: asset.file || null,
-    });
-  }
-
-  async function handleContinue() {
-    const finalDropoff = sameAsPickup ? residenceLocation.trim() : dropoffLocation.trim();
-
-    if (!residenceLocation.trim() || !finalDropoff) {
-      Alert.alert("Missing info", "Please enter both your default pickup and dropoff locations.");
-      return;
-    }
-
-    if (!BACKEND_URL) {
-      Alert.alert(
-        "Backend URL missing",
-        "Set BACKEND_URL in apps/mobile/.env and restart Expo.",
-      );
-      return;
-    }
-
-    const daysPayload = {};
-    for (const { key } of WEEKDAY_FIELDS) {
-      const entry = weeklySchedule[key];
-      if (!entry?.enabled) continue;
-      if (!entry.start_time || !entry.end_time) {
-        Alert.alert(
-          "Missing schedule time",
-          "Each enabled day must have both start and end times selected.",
-        );
-        return;
-      }
-      if (!isStartBeforeEnd(entry.start_time, entry.end_time)) {
-        const dayLabel = WEEKDAY_FIELDS.find((d) => d.key === key)?.label || key;
-        Alert.alert(
-          "Invalid schedule time",
-          `${dayLabel}: start time must be earlier than end time.`,
-        );
-        return;
-      }
-      daysPayload[key] = {
-        start_time: entry.start_time,
-        end_time: entry.end_time,
-      };
-    }
-
-    if (submitInFlightRef.current) return;
-    submitInFlightRef.current = true;
-
-    let finishedOk = false;
+  const submitRiderProfile = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      setSubmitting(true);
       const stored = await AsyncStorage.getItem("@user");
-
       if (!stored) {
         Alert.alert("Session missing", "Please sign in again.");
         router.replace("/signup");
         return;
       }
-
       const parsed = JSON.parse(stored);
       const userId = String(parsed?.id || "").trim();
-      if (!userId) {
-        Alert.alert("Session error", "Google user id is missing. Please sign in again.");
-        router.replace("/signup");
-        return;
-      }
 
-      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
+      const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
       const formData = new FormData();
       formData.append("userID", userId);
       formData.append("name", String(parsed?.name || "").trim());
-      formData.append("residence", residenceLocation.trim());
-      formData.append("pickup_loc", residenceLocation.trim());
-      formData.append("dropoff_loc", finalDropoff);
+      formData.append("residence", pickup.trim());
+      formData.append("pickup_loc", pickup.trim());
+      formData.append("dropoff_loc", isSameAsPickup ? pickup.trim() : dropoff.trim());
+
+      const daysPayload = {};
+      classBlocks.forEach(block => {
+        block.days.forEach(day => {
+          const key = day.toLowerCase();
+          daysPayload[key] = {
+            start_time: convertTo24Hour(block.start),
+            end_time: convertTo24Hour(block.end)
+          };
+        });
+      });
       formData.append("days", JSON.stringify(daysPayload));
 
-      if (selectedImage?.uri) {
-        if (selectedImage.type && !ALLOWED_MIME_TYPES.has(String(selectedImage.type).toLowerCase())) {
-          Alert.alert("Invalid image", "Please choose a JPG, PNG, GIF, or WEBP image.");
-          return;
-        }
+      if (selectedImageData?.uri) {
         if (Platform.OS === "web") {
-          const webFile = selectedImage.file;
-          if (webFile) {
-            formData.append("picture", webFile);
-          } else {
-            Alert.alert("Upload error", "Could not read the selected image file.");
-            return;
+          if (selectedImageData.file) {
+             formData.append("picture", selectedImageData.file);
           }
         } else {
           formData.append("picture", {
-            uri: selectedImage.uri,
-            name: selectedImage.name || "rider-photo.jpg",
-            type: selectedImage.type || "image/jpeg",
+            uri: selectedImageData.uri,
+            name: selectedImageData.name || "rider-photo.jpg",
+            type: selectedImageData.type || "image/jpeg",
           });
         }
       }
@@ -354,11 +300,8 @@ export default function RiderSetup() {
         body: formData,
       });
 
-      const responseBody = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const errorMessage = responseBody?.error || responseBody?.details || "Failed to register rider profile.";
-        Alert.alert("Registration failed", String(errorMessage));
-        return;
+        throw new Error("Failed to register rider profile.");
       }
 
       const updated = {
@@ -367,401 +310,776 @@ export default function RiderSetup() {
       };
 
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
-      finishedOk = true;
-      router.replace("/rider/RequestRide");
-    } catch {
-      Alert.alert("Error", "Could not save rider info. Try again.");
-    } finally {
-      submitInFlightRef.current = false;
-      if (!finishedOk) {
-        setSubmitting(false);
-      }
+      setIsSubmitting(false);
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.replace({ pathname: "/rider/RequestRide", params: { pickup: landingPickup, destination: landingDestination } });
+      }, 1000);
+
+    } catch (e) {
+      setIsSubmitting(false);
+      Alert.alert("Error", "Could not save rider info. " + e.message);
     }
-  }
+  };
+
+  const handleNext = () => {
+    if (!canAdvance() || isSubmitting || isSuccess) return;
+    if (step < 3) {
+      setStep((s) => s + 1);
+    } else {
+      submitRiderProfile();
+    }
+  };
+
+  const addBlock = () => {
+    if (!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime)) return;
+    const block = {
+      id: Math.random().toString(36).substr(2, 9),
+      from: tempFrom,
+      to: tempTo,
+      days: [...tempDays],
+      start: isAllDay ? 'All Day' : startTime,
+      end: isAllDay ? '' : endTime,
+      recurrence: 'Weekly',
+    };
+    setClassBlocks((prev) => [...prev, block]);
+    setTempFrom('');
+    setTempTo('');
+    setTempDays([]);
+    setStartTime('');
+    setEndTime('');
+    setDuration('');
+    setDurationMinutes(0);
+  };
+
+  const pickPhotoWrapper = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      const ext = result.assets[0].fileName?.split('.').pop()?.toLowerCase() || 'jpg';
+      setPhoto(result.assets[0].uri);
+      setSelectedImageData({
+        uri: result.assets[0].uri,
+        name: result.assets[0].fileName || `rider.${ext}`,
+        type: result.assets[0].mimeType || `image/${ext}`,
+        file: result.assets[0].file || null
+      });
+    }
+  };
+
+  const currentStep = STEPS[step];
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="car" size={32} color="#1a3a6b" />
-        </View>
-        <Text style={styles.title}>Rider Setup</Text>
-        <Text style={styles.subtitle}>Let's set your default locations and schedule to get you riding faster.</Text>
-      </View>
-
-      <TouchableOpacity
-        style={styles.fieldButton}
-        onPress={() => openFieldInput("residenceLocation")}
-        activeOpacity={0.7}
+    <SafeAreaView style={s.safeArea}>
+      <KeyboardAvoidingView
+        style={s.flex1}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <Ionicons name="home" size={24} color="#1a3a6b" style={styles.fieldIcon} />
-        <View style={styles.fieldTextContainer}>
-          <Text style={styles.fieldLabel}>{FIELD_CONFIG.residenceLocation.label}</Text>
-          <Text
-            style={[styles.fieldValue, !residenceLocation && styles.fieldPlaceholder]}
-          >
-            {residenceLocation || FIELD_CONFIG.residenceLocation.placeholder}
-          </Text>
+        {/* ── Header ── */}
+        <View style={s.header}>
+          {step > 0 ? (
+            <TouchableOpacity style={s.backBtn} onPress={() => setStep(step - 1)}>
+              <ArrowLeftIcon size={18} color={B.muted} />
+              <Text style={s.backText}>Back</Text>
+            </TouchableOpacity>
+          ) : (
+            <View />
+          )}
+          <TouchableOpacity onPress={() => router.replace("/rider/RequestRide")}>
+            <Text style={s.skipSetup}>Skip setup</Text>
+          </TouchableOpacity>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-      </TouchableOpacity>
 
-      <View style={styles.switchRowContainer}>
-        <View style={styles.switchRowText}>
-          <Ionicons name="git-compare" size={20} color="#4b5563" style={styles.switchIcon} />
-          <Text style={styles.switchRowLabel}>Default dropoff is same as pickup</Text>
+        {/* ── Progress ── */}
+        <View style={s.progressContainer}>
+          <View style={s.progressLabelRow}>
+            <Text style={s.progressLabel}>Step {step + 1} of 4</Text>
+            <Text style={s.progressPercent}>{(step + 1) * 25}%</Text>
+          </View>
+          <View style={s.progressTrack}>
+            <Animated.View style={[s.progressFill, { width: progressWidth }]} />
+          </View>
         </View>
-        <Switch
-          value={sameAsPickup}
-          onValueChange={(val) => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSameAsPickup(val);
-          }}
-          trackColor={{ false: "#d1d5db", true: "#bfdbfe" }}
-          thumbColor={sameAsPickup ? "#1a3a6b" : "#f3f4f6"}
-        />
-      </View>
 
-      {!sameAsPickup && (
-        <TouchableOpacity
-          style={styles.fieldButton}
-          onPress={() => openFieldInput("dropoffLocation")}
-          activeOpacity={0.7}
+        {/* ── Scrollable content ── */}
+        <ScrollView
+          style={s.flex1}
+          contentContainerStyle={s.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="business" size={24} color="#1a3a6b" style={styles.fieldIcon} />
-          <View style={styles.fieldTextContainer}>
-            <Text style={styles.fieldLabel}>{FIELD_CONFIG.dropoffLocation.label}</Text>
-            <Text
-              style={[styles.fieldValue, !dropoffLocation && styles.fieldPlaceholder]}
-            >
-              {dropoffLocation || FIELD_CONFIG.dropoffLocation.placeholder}
-            </Text>
+          {/* Step header */}
+          <View style={s.stepHeader}>
+            <Text style={s.eyebrow}>{currentStep.eyebrow}</Text>
+            <Text style={s.question}>{currentStep.question}</Text>
+            <Text style={s.hint}>{currentStep.hint}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-        </TouchableOpacity>
-      )}
 
-      <TouchableOpacity
-        style={styles.fieldButton}
-        onPress={openScheduleInput}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="calendar-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
-        <View style={styles.fieldTextContainer}>
-          <Text style={styles.fieldLabel}>Weekly Class Schedule (Optional)</Text>
-          <Text
-            style={[
-              styles.fieldValue,
-              scheduleEntryCount === 0 && styles.fieldPlaceholder,
-            ]}
-          >
-            {scheduleEntryCount > 0
-              ? `${scheduleEntryCount} weekday entries added`
-              : "Tap to add your semester schedule"}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-      </TouchableOpacity>
+          {/* ── Step 0: Pickup ── */}
+          {step === 0 && (
+            <View style={s.inputWrapper}>
+              <View style={s.inputIcon}>
+                <CircleIcon size={20} color="#0F172A" />
+              </View>
+              <TextInput
+                autoFocus
+                style={s.textInput}
+                value={pickup}
+                onChangeText={setPickup}
+                placeholder="e.g. Westerlin"
+                placeholderTextColor={B.muted}
+              />
+            </View>
+          )}
 
-      <TouchableOpacity
-        style={styles.fieldButton}
-        onPress={pickRiderImage}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="person-circle-outline" size={24} color="#1a3a6b" style={styles.fieldIcon} />
-        <View style={styles.fieldTextContainer}>
-          <Text style={styles.fieldLabel}>Profile Photo (Optional)</Text>
-          <Text
-            style={[
-              styles.fieldValue,
-              !selectedImageLabel && styles.fieldPlaceholder,
-            ]}
-          >
-            {selectedImageLabel || "Tap to choose a photo"}
-          </Text>
-          {selectedImage?.uri ? (
-            <View style={styles.photoPreviewRow}>
-              <Image source={{ uri: selectedImage.uri }} style={styles.photoPreview} />
+          {/* ── Step 1: Dropoff ── */}
+          {step === 1 && (
+            <View style={{ gap: 12 }}>
+              <View style={s.inputWrapper}>
+                <View style={s.inputIcon}>
+                  <SquareIcon size={20} color="#0F172A" />
+                </View>
+                <TextInput
+                  autoFocus
+                  style={[s.textInput, isSameAsPickup && s.textInputDisabled]}
+                  value={isSameAsPickup ? pickup : dropoff}
+                  onChangeText={setDropoff}
+                  editable={!isSameAsPickup}
+                  placeholder={isSameAsPickup ? 'Same as pickup' : 'e.g. Old Main'}
+                  placeholderTextColor={B.muted}
+                />
+              </View>
               <TouchableOpacity
-                onPress={() => setSelectedImage(null)}
-                activeOpacity={0.8}
-                style={styles.removePhotoButton}
+                style={s.checkRow}
+                onPress={() => setIsSameAsPickup(!isSameAsPickup)}
               >
-                <Ionicons name="trash-outline" size={16} color="#b91c1c" />
-                <Text style={styles.removePhotoText}>Remove</Text>
+                <View
+                  style={[
+                    s.checkbox,
+                    isSameAsPickup && pickup.trim() && s.checkboxChecked,
+                  ]}
+                >
+                  {isSameAsPickup && pickup.trim() ? (
+                    <Feather name="check" size={12} color={B.white} strokeWidth={4} />
+                  ) : null}
+                </View>
+                <Text
+                  style={[
+                    s.checkLabel,
+                    isSameAsPickup && pickup.trim() && { color: B.blue },
+                  ]}
+                >
+                  Same as primary
+                </Text>
               </TouchableOpacity>
             </View>
-          ) : null}
-        </View>
-        {!selectedImage?.uri && <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}
-      </TouchableOpacity>
+          )}
 
-      <TouchableOpacity
-        style={[styles.button, submitting && styles.buttonDisabled]}
-        onPress={handleContinue}
-        disabled={submitting}
-        activeOpacity={0.8}
-      >
-        {submitting ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text style={styles.buttonText}>Finish Setup</Text>
-        )}
-      </TouchableOpacity>
-
-      <Modal
-        visible={Boolean(activeField)}
-        transparent
-        animationType="fade"
-        onRequestClose={closeFieldInput}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {activeField ? FIELD_CONFIG[activeField].label : ""}
-            </Text>
-            <TextInput
-              style={styles.modalInput}
-              value={draftValue}
-              onChangeText={setDraftValue}
-              autoFocus
-              placeholder={activeField ? FIELD_CONFIG[activeField].placeholder : ""}
-              keyboardType={activeField ? FIELD_CONFIG[activeField].keyboardType : "default"}
-              returnKeyType="done"
-              onSubmitEditing={saveFieldInput}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={closeFieldInput}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={saveFieldInput}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={scheduleModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeScheduleInput}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.scheduleModalCard}>
-            <Text style={styles.modalTitle}>Weekly Schedule</Text>
-            <Text style={styles.scheduleSubtitle}>
-              Select start/end class times for each day you need rides.
-            </Text>
-            {scheduleError ? (
-              <Text style={styles.scheduleErrorText}>{scheduleError}</Text>
-            ) : null}
-            <ScrollView
-              style={styles.scheduleList}
-              contentContainerStyle={styles.scheduleListContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {WEEKDAY_FIELDS.map((day) => (
-                <View key={day.key} style={styles.scheduleRow}>
-                  <View style={styles.dayHeaderRow}>
-                    <Text style={styles.scheduleDay}>{day.label}</Text>
-                    <Switch
-                      value={Boolean(scheduleDraft[day.key]?.enabled)}
-                      onValueChange={(value) =>
-                        setScheduleDraft((prev) => ({
-                          ...prev,
-                          [day.key]: {
-                            ...(prev[day.key] || {}),
-                            enabled: value,
-                            start_time: value ? prev[day.key]?.start_time || "" : "",
-                            end_time: value ? prev[day.key]?.end_time || "" : "",
-                          },
-                        }))
-                      }
+          {/* ── Step 2: Schedule ── */}
+          {step === 2 && (
+            <View style={{ gap: 32 }}>
+              {/* Add block card */}
+              <View style={s.card}>
+                {/* From / To */}
+                <View style={s.row}>
+                  <View style={s.halfField}>
+                    <View style={s.inlineLabelRow}>
+                      <CircleIcon size={12} color="#0F172A" />
+                      <Text style={s.fieldLabel}>From</Text>
+                    </View>
+                    <TextInput
+                      style={s.fieldInput}
+                      value={tempFrom}
+                      onChangeText={setTempFrom}
+                      placeholder="Pickup"
+                      placeholderTextColor={B.muted}
                     />
                   </View>
-                  <View style={styles.timeRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.timeButton,
-                        !scheduleDraft[day.key]?.enabled && styles.timeButtonDisabled,
-                      ]}
-                      disabled={!scheduleDraft[day.key]?.enabled}
-                      onPress={() => openTimePicker(day.key, "start_time")}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.timeButtonLabel}>Start</Text>
-                      <Text style={styles.timeButtonValue}>
-                        {formatTime12h(scheduleDraft[day.key]?.start_time || "")}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.timeButton,
-                        !scheduleDraft[day.key]?.enabled && styles.timeButtonDisabled,
-                      ]}
-                      disabled={!scheduleDraft[day.key]?.enabled}
-                      onPress={() => openTimePicker(day.key, "end_time")}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.timeButtonLabel}>End</Text>
-                      <Text style={styles.timeButtonValue}>
-                        {formatTime12h(scheduleDraft[day.key]?.end_time || "")}
-                      </Text>
-                    </TouchableOpacity>
+                  <View style={s.halfField}>
+                    <View style={s.inlineLabelRow}>
+                      <SquareIcon size={12} color="#0F172A" />
+                      <Text style={s.fieldLabel}>To</Text>
+                    </View>
+                    <TextInput
+                      style={s.fieldInput}
+                      value={tempTo}
+                      onChangeText={setTempTo}
+                      placeholder="Dropoff"
+                      placeholderTextColor={B.muted}
+                    />
                   </View>
                 </View>
-              ))}
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={closeScheduleInput}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={saveScheduleInput}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.saveButtonText}>Save Schedule</Text>
+
+                {/* Days */}
+                <View style={{ gap: 8 }}>
+                  <Text style={s.fieldLabel}>Select Days</Text>
+                  <View style={s.daysRow}>
+                    {DAY_LABELS.map((d, i) => (
+                      <TouchableOpacity
+                        key={d}
+                        style={[
+                          s.dayBtn,
+                          tempDays.includes(d) && s.dayBtnSelected,
+                        ]}
+                        onPress={() =>
+                          setTempDays((prev) =>
+                            prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+                          )
+                        }
+                      >
+                        <Text
+                          style={[
+                            s.dayBtnText,
+                            tempDays.includes(d) && s.dayBtnTextSelected,
+                          ]}
+                        >
+                          {DAY_SHORT[i]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Duration / Time */}
+                <View style={{ gap: 12 }}>
+                  <View style={s.row}>
+                    <View style={[s.halfField, isAllDay && s.dimmed]}>
+                      <View style={s.inlineLabelRow}>
+                        <ClockIcon size={12} color="#0F172A" />
+                        <Text style={s.fieldLabel}>Start (24H)</Text>
+                      </View>
+                      <TextInput
+                        style={[s.fieldInput, { textAlign: 'center' }]}
+                        value={startTime24}
+                        onChangeText={setStartTime24}
+                        placeholder="e.g. 14:00"
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                        editable={!isAllDay}
+                      />
+                    </View>
+                    <View style={[s.halfField, isAllDay && s.dimmed]}>
+                      <View style={s.inlineLabelRow}>
+                        <ClockIcon size={12} color="#0F172A" />
+                        <Text style={s.fieldLabel}>End (24H)</Text>
+                      </View>
+                      <TextInput
+                        style={[s.fieldInput, { textAlign: 'center' }]}
+                        value={endTime}
+                        onChangeText={setEndTime}
+                        placeholder="e.g. 15:15"
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                        editable={!isAllDay}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* All day toggle */}
+                <TouchableOpacity
+                  style={s.checkRow}
+                  onPress={() => setIsAllDay(!isAllDay)}
+                >
+                  <View style={[s.checkbox, isAllDay && s.checkboxChecked]}>
+                    {isAllDay ? <CheckIcon size={12} color={B.white} strokeWidth={3} /> : null}
+                  </View>
+                  <Text style={s.checkLabelUpper}>All day event</Text>
+                </TouchableOpacity>
+
+                {/* Add button */}
+                <TouchableOpacity
+                  style={[
+                    s.addBtn,
+                    (!tempFrom || !tempTo || tempDays.length === 0 || !startTime24 || !endTime) && s.addBtnDisabled,
+                  ]}
+                  onPress={addBlock}
+                  disabled={!tempFrom || !tempTo || tempDays.length === 0 || !startTime24 || !endTime}
+                >
+                  <Text style={s.addBtnText}>Add to Week</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Active blocks */}
+              <View style={{ gap: 16 }}>
+                <View style={s.sectionDivider}>
+                  <Text style={s.sectionLabel}>Active Week</Text>
+                  <View style={s.dividerLine} />
+                </View>
+                {classBlocks.length === 0 ? (
+                  <Text style={s.emptyText}>No periods scheduled yet.</Text>
+                ) : (
+                  classBlocks.map((block) => (
+                    <View key={block.id} style={s.blockCard}>
+                      <View style={s.flex1}>
+                        <Text style={s.blockTime}>
+                          {block.start}
+                          {block.end ? ` — ${block.end}` : ''}{' '}
+                          <Text style={{ color: B.muted }}>/ </Text>
+                          <Text style={{ color: B.blue }}>{block.days.join(', ')}</Text>
+                        </Text>
+                        <View style={s.blockRoute}>
+                          <View style={s.routeLine} />
+                          <View style={s.routeStops}>
+                            <View style={s.routeStop}>
+                              <View style={s.customDotHolder}>
+                                <CircleIcon size={14} color="#0F172A" />
+                              </View>
+                              <Text style={s.routeLabel}>{block.from}</Text>
+                            </View>
+                            <View style={s.routeStop}>
+                              <View style={s.customDotHolder}>
+                                <SquareIcon size={14} color="#0F172A" />
+                              </View>
+                              <Text style={s.routeLabel}>{block.to}</Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setClassBlocks((prev) => prev.filter((b) => b.id !== block.id))
+                        }
+                        style={s.deleteBtn}
+                      >
+                        <TrashIcon size={18} color={B.slate300} />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* ── Step 3: Photo ── */}
+          {step === 3 && (
+            <View style={s.photoSection}>
+              <TouchableOpacity style={s.photoCircleWrapper} onPress={pickPhotoWrapper}>
+                <View style={[s.photoCircle, photo && { borderStyle: 'solid', borderColor: B.blue }]}>
+                  {photo ? (
+                    <Image source={{ uri: photo }} style={s.photoImage} />
+                  ) : (
+                    <UserIcon size={56} color={B.slate200} />
+                  )}
+                </View>
+                <View style={s.cameraBtn}>
+                  <CameraIcon size={20} color={B.white} />
+                </View>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
+          )}
+        </ScrollView>
 
-      {/* Time Picker Modal inside the Schedule Modal */}
-      <Modal
-        visible={timePickerVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setTimePickerVisible(false)}
-      >
-        <View style={styles.timePickerOverlay}>
-          <View style={styles.timePickerCard}>
-            <Text style={styles.timePickerTitle}>Select Time</Text>
-            <ScrollView style={styles.timePickerList}>
-              {["", ...TIME_OPTIONS].map((opt) => (
-                <TouchableOpacity
-                  key={opt || "clear"}
-                  style={styles.timeOptionButton}
-                  onPress={() => selectTimeValue(opt)}
-                >
-                  <Text style={styles.timeOptionText}>
-                    {opt ? formatTime12h(opt) : "Clear"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.timePickerClose}
-              onPress={() => setTimePickerVisible(false)}
-            >
-              <Text style={styles.timePickerCloseText}>Close</Text>
-            </TouchableOpacity>
-          </View>
+        {/* ── Footer ── */}
+        <View style={s.footer}>
+          <TouchableOpacity
+            style={[
+              s.ctaBtn,
+              !canAdvance() && s.ctaBtnDisabled,
+              isSuccess && s.ctaBtnSuccess,
+            ]}
+            onPress={handleNext}
+            disabled={!canAdvance() || isSubmitting || isSuccess}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color={B.white} size="small" />
+            ) : isSuccess ? (
+              <CheckIcon size={24} color={B.white} strokeWidth={4} />
+            ) : (
+              <View style={s.ctaBtnInner}>
+                <Text style={[s.ctaBtnText, !canAdvance() && s.ctaBtnTextDisabled]}>
+                  {CTA_LABELS[step]}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.skipBtn}
+            onPress={() => (step < 3 ? setStep(step + 1) : submitRiderProfile())}
+          >
+            <Text style={s.skipBtnText}>Skip this step</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-// Trigger Metro bundler hot reload
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-  contentContainer: { padding: 24, paddingTop: 60, paddingBottom: 60 },
-  header: { marginBottom: 32 },
-  iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#e0e7ff", justifyContent: "center", alignItems: "center", marginBottom: 16 },
-  title: { fontSize: 32, fontWeight: "800", color: "#111827", marginBottom: 8, letterSpacing: -0.5 },
-  subtitle: { fontSize: 16, color: "#6b7280", lineHeight: 22 },
-  fieldButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: B.bg },
+  flex1: { flex: 1 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 40, paddingBottom: 32 },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backText: { fontSize: 13, fontWeight: '700', color: B.muted },
+  skipSetup: { fontSize: 13, fontWeight: '700', color: B.muted },
+
+  // Progress
+  progressContainer: { paddingHorizontal: 24, marginTop: 12 },
+  progressLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  progressLabel: { fontSize: 10, fontWeight: '800', color: B.slate300, letterSpacing: 2, textTransform: 'uppercase' },
+  progressPercent: { fontSize: 11, fontWeight: '700', color: B.blue },
+  progressTrack: {
+    height: 4,
+    backgroundColor: B.slate100,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: B.blue,
+    borderRadius: 2,
+  },
+
+  // Step header
+  stepHeader: { marginBottom: 24, paddingTop: 16 },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: B.blue,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  question: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: B.text,
+    lineHeight: 32,
+  },
+  hint: {
+    fontSize: 15,
+    color: B.slate400,
+    marginTop: 12,
+    fontWeight: '500',
+    lineHeight: 22,
+  },
+
+  // Text input
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: B.white,
     borderRadius: 16,
-    padding: 16,
-    paddingVertical: 18,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
     borderWidth: 1,
-    borderColor: "#f3f4f6",
+    borderColor: B.slate200,
+    paddingHorizontal: 20,
+    paddingVertical: Platform.OS === 'ios' ? 18 : 14,
   },
-  fieldIcon: { marginRight: 16, backgroundColor: "#f3f4f6", padding: 10, borderRadius: 12, overflow: "hidden" },
-  fieldTextContainer: { flex: 1 },
-  fieldLabel: { fontSize: 12, color: "#9ca3af", fontWeight: "700", textTransform: "uppercase", marginBottom: 4, letterSpacing: 0.5 },
-  fieldValue: { fontSize: 16, color: "#1f2937", fontWeight: "600" },
-  fieldPlaceholder: { color: "#9ca3af", fontWeight: "400" },
-  switchRowContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f9fafb", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 16, borderWidth: 1, borderColor: "#e5e7eb" },
-  switchRowText: { flexDirection: "row", alignItems: "center" },
-  switchIcon: { marginRight: 10 },
-  switchRowLabel: { fontSize: 15, fontWeight: "600", color: "#374151" },
-  photoPreviewRow: { flexDirection: "row", alignItems: "center", marginTop: 12 },
-  photoPreview: { width: 48, height: 48, borderRadius: 24, marginRight: 16, borderWidth: 1, borderColor: "#e5e7eb" },
-  removePhotoButton: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: "#fee2e2", borderRadius: 8 },
-  removePhotoText: { color: "#b91c1c", fontSize: 13, fontWeight: "600" },
-  button: {
-    backgroundColor: "#1a3a6b",
+  inputIcon: { marginRight: 12 },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: B.text,
+    outlineStyle: 'none',
+  },
+  textInputDisabled: { color: B.muted, fontStyle: 'italic' },
+
+  // Checkbox row
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 4 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: B.slate300,
+    backgroundColor: B.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: B.blue, borderColor: B.blue },
+  checkLabel: { fontSize: 13, fontWeight: '700', color: B.slate400 },
+  checkLabelUpper: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: B.slate500,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+
+  // Schedule card
+  card: {
+    backgroundColor: B.white,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: B.slate200,
+    padding: 24,
+    gap: 24,
+  },
+  row: { flexDirection: 'row', gap: 12 },
+  halfField: { flex: 1, gap: 6 },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: B.slate400,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginLeft: 4,
+  },
+  inlineLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  fieldInput: {
+    backgroundColor: B.slate50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: B.slate100,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    height: 48,
+    outlineStyle: 'none',
+  },
+  fieldInputText: { fontSize: 14, fontWeight: '700', color: B.text, outlineStyle: 'none' },
+
+  // Days
+  daysRow: { flexDirection: 'row', gap: 4 },
+  dayBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: B.slate100,
+    backgroundColor: B.slate50,
+    alignItems: 'center',
+  },
+  dayBtnSelected: { backgroundColor: B.blue, borderColor: B.blue },
+  dayBtnText: { fontSize: 11, fontWeight: '800', color: B.slate400 },
+  dayBtnTextSelected: { color: B.white },
+
+  // Dimmed
+  dimmed: { opacity: 0.3 },
+
+  // Add button
+  addBtn: {
+    backgroundColor: B.blue,
     borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: "center",
-    marginTop: 24,
-    shadowColor: "#1a3a6b",
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
   },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#ffffff", fontSize: 18, fontWeight: "700", letterSpacing: 0.5 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
-  modalCard: { width: "100%", backgroundColor: "#ffffff", borderRadius: 16, padding: 24, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
-  scheduleModalCard: { width: "100%", maxHeight: "85%", backgroundColor: "#ffffff", borderRadius: 16, padding: 20, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
-  modalTitle: { fontSize: 20, fontWeight: "700", color: "#1f2937", marginBottom: 16 },
-  scheduleSubtitle: { fontSize: 14, color: "#4b5563", marginBottom: 16 },
-  scheduleErrorText: { color: "#b45309", fontSize: 14, marginBottom: 12, fontWeight: "500", backgroundColor: "#fef3c7", padding: 10, borderRadius: 8 },
-  modalInput: { backgroundColor: "#f3f4f6", borderRadius: 10, padding: 16, fontSize: 18, color: "#1f2937", marginBottom: 24 },
-  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 12 },
-  modalButton: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10 },
-  cancelButton: { backgroundColor: "#f3f4f6" },
-  cancelButtonText: { color: "#4b5563", fontSize: 16, fontWeight: "600" },
-  saveButton: { backgroundColor: "#1a3a6b" },
-  saveButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "600" },
-  scheduleList: { flexGrow: 0, marginBottom: 20 },
-  scheduleListContent: { gap: 16 },
-  scheduleRow: { backgroundColor: "#f9fafb", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: "#e5e7eb" },
-  dayHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  scheduleDay: { fontSize: 16, fontWeight: "600", color: "#1f2937" },
-  timeRow: { flexDirection: "row", gap: 12 },
-  timeButton: { flex: 1, backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d1d5db", borderRadius: 10, padding: 12 },
-  timeButtonDisabled: { backgroundColor: "#f3f4f6", borderColor: "#e5e7eb" },
-  timeButtonLabel: { fontSize: 12, color: "#6b7280", fontWeight: "600", textTransform: "uppercase", marginBottom: 4 },
-  timeButtonValue: { fontSize: 15, color: "#1f2937", fontWeight: "500" },
-  timePickerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  timePickerCard: { backgroundColor: "#ffffff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "50%", padding: 20 },
-  timePickerTitle: { fontSize: 20, fontWeight: "700", textAlign: "center", marginBottom: 16, color: "#1f2937" },
-  timePickerList: { flex: 1 },
-  timeOptionButton: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", alignItems: "center" },
-  timeOptionText: { fontSize: 18, color: "#1a3a6b", fontWeight: "500" },
-  timePickerClose: { marginTop: 16, paddingVertical: 16, alignItems: "center", backgroundColor: "#f3f4f6", borderRadius: 12 },
-  timePickerCloseText: { fontSize: 16, fontWeight: "600", color: "#4b5563" },
+  addBtnDisabled: { opacity: 0.2 },
+  addBtnText: {
+    color: B.white,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+  },
+
+  // Section divider
+  sectionDivider: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: B.slate300,
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: B.slate100 },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 40,
+    fontStyle: 'italic',
+    color: B.slate300,
+    fontSize: 14,
+  },
+
+  // Block card
+  blockCard: {
+    backgroundColor: B.white,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: B.slate100,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  blockTime: { fontSize: 15, fontWeight: '800', color: B.text, marginBottom: 20 },
+  blockRoute: { flexDirection: 'row', paddingLeft: 28 },
+  routeLine: {
+    position: 'absolute',
+    left: 1,
+    top: 6,
+    bottom: 6,
+    width: 1,
+    borderLeftWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: B.slate200,
+  },
+  routeStops: { gap: 16 },
+  routeStop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  customDotHolder: {
+    position: 'absolute',
+    left: -33,
+    backgroundColor: B.white,
+    paddingVertical: 2,
+  },
+  routeLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: B.slate600,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  deleteBtn: { padding: 8 },
+
+  // Photo
+  photoSection: { alignItems: 'center', paddingVertical: 40 },
+  photoCircleWrapper: { position: 'relative' },
+  photoCircle: {
+    width: 144,
+    height: 144,
+    borderRadius: 72,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: B.slate200,
+    backgroundColor: B.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  photoImage: { width: '100%', height: '100%', borderRadius: 72 },
+  cameraBtn: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: B.blue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: B.bg,
+  },
+
+  // Footer
+  footer: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    backgroundColor: B.white,
+    borderTopWidth: 1,
+    borderTopColor: B.slate100,
+    alignItems: 'center',
+    gap: 4,
+  },
+  ctaBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 22,
+    backgroundColor: B.blue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaBtnDisabled: { backgroundColor: B.slate100 },
+  ctaBtnSuccess: { backgroundColor: B.emerald500 },
+  ctaBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ctaBtnText: { fontSize: 15, fontWeight: '700', color: B.white },
+  ctaBtnTextDisabled: { color: B.muted },
+  skipBtn: { paddingVertical: 8, paddingHorizontal: 16 },
+  skipBtnText: { fontSize: 13, fontWeight: '700', color: B.slate400 },
+
+  // Wheel Picker Modal
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: B.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: B.slate50,
+    borderBottomWidth: 1,
+    borderBottomColor: B.slate100,
+  },
+  pickerHeaderCancel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: B.slate400,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  pickerHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: B.text,
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+  },
+  pickerHeaderDone: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: B.blue,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  pickerBody: {
+    padding: 32,
+    height: 192,
+    justifyContent: 'center',
+  },
+  pickerHighlight: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    height: 48,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#DBEAFE',
+    backgroundColor: 'rgba(239,246,255,0.3)',
+    borderRadius: 12,
+    top: '50%',
+    marginTop: -24,
+  },
+  pickerColumns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  pickerColumn: { width: 52, height: 132 },
+  pickerItem: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  pickerItemSelected: { backgroundColor: 'rgba(59,130,246,0.08)' },
+  pickerItemText: { fontSize: 20, fontWeight: '700', color: B.muted },
+  pickerItemTextSelected: { color: B.text },
+  pickerSep: { fontSize: 20, fontWeight: '700', color: B.slate300 },
 });

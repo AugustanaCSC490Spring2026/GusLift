@@ -22,7 +22,7 @@ const SCHOOL_DOMAIN = "augustana.edu";
 
 export default function Signup() {
   const router = useRouter();
-  const { role: presetRole } = useLocalSearchParams();
+  const { role: presetRole, pickup: landingPickup, destination: landingDestination } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const enforceSchoolEmail =
     process.env.EXPO_PUBLIC_ENFORCE_SCHOOL_EMAIL !== "false";
@@ -99,8 +99,11 @@ export default function Signup() {
               router.replace("/driver/DriverSetup");
             }
           } else {
-            // Riders go straight to RequestRide — rider setup is optional
-            router.replace("/rider/RequestRide");
+            // Riders go straight to RequestRide — forward landing page params if present
+            const riderParams = {};
+            if (landingPickup) riderParams.pickup = landingPickup;
+            if (landingDestination) riderParams.destination = landingDestination;
+            router.replace({ pathname: "/rider/RequestRide", params: riderParams });
           }
         } else {
           await AsyncStorage.removeItem("@user");
@@ -161,7 +164,11 @@ export default function Signup() {
 
       // Route based on pre-set role or go to role selection
       if (presetRole === "rider") {
-        router.push("/rider/RiderSetup");
+        // Forward landing page params through RiderSetup → RequestRide
+        const riderParams = {};
+        if (landingPickup) riderParams.pickup = landingPickup;
+        if (landingDestination) riderParams.destination = landingDestination;
+        router.push({ pathname: "/rider/RiderSetup", params: riderParams });
       } else if (presetRole === "driver") {
         router.push("/driver/DriverSetup");
       } else {
