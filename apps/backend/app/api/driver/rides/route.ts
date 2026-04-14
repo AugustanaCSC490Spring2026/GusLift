@@ -250,21 +250,21 @@ export async function GET(request: NextRequest) {
     const [ridersRes, driversRes, carsRes] = await Promise.all([
       riderIds.length
         ? supabase
-            .from("User")
-            .select("id,name,residence,picture_url")
-            .in("id", riderIds)
+          .from("User")
+          .select("id,name,residence,picture_url")
+          .in("id", riderIds)
         : Promise.resolve({ data: [], error: null }),
       queriedDriverIds.length
         ? supabase
-            .from("User")
-            .select("id,name,residence,picture_url")
-            .in("id", queriedDriverIds)
+          .from("User")
+          .select("id,name,residence,picture_url")
+          .in("id", queriedDriverIds)
         : Promise.resolve({ data: [], error: null }),
       queriedDriverIds.length
         ? supabase
-            .from("Car")
-            .select("user_id,make,model,color,license_plate")
-            .in("user_id", queriedDriverIds)
+          .from("Car")
+          .select("user_id,make,model,color,license_plate")
+          .in("user_id", queriedDriverIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
