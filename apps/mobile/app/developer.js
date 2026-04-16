@@ -27,7 +27,7 @@ export default function DeveloperMenu() {
             <Text style={styles.buttonText}>Rider Setup</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RiderHome")}>
-            <Text style={styles.buttonText}>Rider Home Dashboard</Text>
+            <Text style={styles.buttonText}>Rider Dashboard</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RiderWaitingRoom")}>
             <Text style={styles.buttonText}>Rider Waiting Room</Text>
@@ -46,7 +46,7 @@ export default function DeveloperMenu() {
             <Text style={styles.buttonText}>Driver Setup</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/driver/DriverHome")}>
-            <Text style={styles.buttonText}>Driver Home Dashboard</Text>
+            <Text style={styles.buttonText}>Driver Dashboard</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => router.push("/driver/DriverWaitingRoom")}>
             <Text style={styles.buttonText}>Driver Waiting Room</Text>
@@ -61,6 +61,12 @@ export default function DeveloperMenu() {
         
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Auth Flows</Text>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/?preview=true")}>
+            <Text style={styles.buttonText}>Landing Page (Home)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/About")}>
+            <Text style={styles.buttonText}>About Page</Text>
+          </TouchableOpacity>
            <TouchableOpacity style={styles.button} onPress={() => router.push("/role")}>
             <Text style={styles.buttonText}>Role Selection Page</Text>
           </TouchableOpacity>

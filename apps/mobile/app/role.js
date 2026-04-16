@@ -1,276 +1,499 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Svg, { Path } from "react-native-svg";
+import CarIllustration from "../components/CarIllustration";
+import RiderIllustration from "../components/RiderIllustration";
+
+/* ─── Color tokens ─── */
+const C = {
+  brand: "#3B82F6",
+  brandDeep: "#1D4ED8",
+  brandBg: "#EFF6FF",
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  text: "#0F172A",
+  muted: "#64748B",
+  subtle: "#94A3B8",
+  border: "#E2E8F0",
+};
 
 const VALID_ROLES = new Set(["driver", "rider"]);
 
-const ROLE_OPTIONS = [
-  {
-    id: "driver",
-    icon: "car-sport",
-    label: "I'm a Driver",
-    description: "Offer rides to campus and help fellow Vikings get to class.",
-    filled: true,
-  },
-  {
-    id: "rider",
-    icon: "walk",
-    label: "I'm a Rider",
-    description: "Request a ride and get to class on time, stress-free.",
-    filled: false,
-  },
-];
-
-export default function Role() {
-  const router = useRouter();
-  const [submittingRole, setSubmittingRole] = useState(null);
-
-  async function chooseRole(role) {
-    if (!VALID_ROLES.has(role)) {
-      Alert.alert("Invalid role", "Please choose a valid role.");
-      return;
-    }
-    if (submittingRole) return;
-
-    setSubmittingRole(role);
-    try {
-      const stored = await AsyncStorage.getItem("@user");
-      if (!stored) {
-        Alert.alert("Session missing", "Please sign in again.");
-        router.replace("/signup");
-        return;
-      }
-      let parsed;
-      try {
-        parsed = JSON.parse(stored);
-      } catch {
-        await AsyncStorage.removeItem("@user");
-        Alert.alert("Session error", "Please sign in again.");
-        router.replace("/signup");
-        return;
-      }
-      const updated = { ...parsed, role };
-      await AsyncStorage.setItem("@user", JSON.stringify(updated));
-
-      // Kept from main: route based on setup completion state
-      if (role === "driver") {
-        if (parsed.driverSetupComplete) {
-          router.push("/driver/DriverHome");
-        } else {
-          router.push("/driver/DriverSetup");
-        }
-      } else {
-        if (parsed.riderSetupComplete) {
-          router.replace("/rider/RiderHome");
-        } else {
-          router.replace("/rider/RiderSetup");
-        }
-      }
-    } catch {
-      Alert.alert("Error", "Could not save your role. Try again.");
-    } finally {
-      setSubmittingRole(null);
-    }
-  }
-
+/* ─── Small inline helpers ─── */
+function ChevronRight({ color }) {
   return (
-    <View style={styles.container}>
-      {/* Back button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.replace("/signup")}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="chevron-back" size={20} color="#1a3a6b" />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M9 18L15 12L9 6"
+        stroke={color}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.logoMini}>
-          <Ionicons name="car-sport" size={20} color="#ffffff" />
-        </View>
-        <Text style={styles.title}>How will you ride?</Text>
-        <Text style={styles.subtitle}>
-          Pick your role — you can always update this later.
-        </Text>
-      </View>
-
-      {/* Role cards */}
-      <View style={styles.cards}>
-        {ROLE_OPTIONS.map((option) => {
-          const isSubmitting = submittingRole === option.id;
-          const isDisabled = Boolean(submittingRole);
-          return (
-            <TouchableOpacity
-              key={option.id}
-              style={[
-                styles.card,
-                option.filled ? styles.cardFilled : styles.cardOutlined,
-                isDisabled && !isSubmitting && styles.cardFaded,
-              ]}
-              onPress={() => chooseRole(option.id)}
-              disabled={isDisabled}
-              activeOpacity={0.82}
-            >
-              <View style={[
-                styles.iconWrap,
-                option.filled ? styles.iconWrapFilled : styles.iconWrapOutlined,
-              ]}>
-                <Ionicons
-                  name={option.icon}
-                  size={28}
-                  color={option.filled ? "#1a3a6b" : "#ffffff"}
-                />
-              </View>
-
-              <View style={styles.cardBody}>
-                <Text style={[
-                  styles.cardLabel,
-                  { color: option.filled ? "#ffffff" : "#0f172a" },
-                ]}>
-                  {option.label}
-                </Text>
-                <Text style={[
-                  styles.cardDescription,
-                  { color: option.filled ? "rgba(255,255,255,0.72)" : "#64748b" },
-                ]}>
-                  {option.description}
-                </Text>
-              </View>
-
-              <View style={[
-                styles.arrowWrap,
-                { borderColor: option.filled ? "rgba(255,255,255,0.25)" : "#e2e8f0" },
-              ]}>
-                <Ionicons
-                  name={isSubmitting ? "ellipsis-horizontal" : "arrow-forward"}
-                  size={16}
-                  color={option.filled ? "#ffffff" : "#1a3a6b"}
-                />
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text style={styles.footer}>Restricted to Augustana College students</Text>
+function RadioDot({ selected }) {
+  return (
+    <View style={[styles.radio, selected && styles.radioSelected]}>
+      {selected && <View style={styles.radioDot} />}
     </View>
   );
 }
 
+/* ════════════════════════════════════════════════════════
+   MAIN ROLE SCREEN
+   ════════════════════════════════════════════════════════ */
+export default function Role() {
+  const router = useRouter();
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [launching, setLaunching] = useState(false);
+  const [driverHovered, setDriverHovered] = useState(false);
+  const [riderHovered, setRiderHovered] = useState(false);
+
+  // Card animations
+  const driverOpacity = useRef(new Animated.Value(1)).current;
+  const riderOpacity = useRef(new Animated.Value(1)).current;
+  const driverScale = useRef(new Animated.Value(1)).current;
+  const riderScale = useRef(new Animated.Value(1)).current;
+  const exitAnim = useRef(new Animated.Value(0)).current;
+  const fadeIn = useRef(new Animated.Value(0)).current;
+
+  // Fade in on mount
+  useEffect(() => {
+    Animated.timing(fadeIn, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeIn]);
+
+  // Dim/undim effect
+  useEffect(() => {
+    if (!selectedRole) {
+      Animated.parallel([
+        Animated.timing(driverOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.timing(riderOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+    } else if (selectedRole === "driver") {
+      Animated.parallel([
+        Animated.timing(driverOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.timing(riderOpacity, { toValue: 0.25, duration: 250, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(driverOpacity, { toValue: 0.25, duration: 250, useNativeDriver: true }),
+        Animated.timing(riderOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [selectedRole, driverOpacity, riderOpacity]);
+
+  const selectRole = useCallback((role) => {
+    if (launching) return;
+    if (selectedRole === role) {
+      setSelectedRole(null);
+    } else {
+      setSelectedRole(role);
+    }
+  }, [selectedRole, launching]);
+
+  const handleStart = useCallback(async () => {
+    if (!selectedRole || launching) return;
+    if (!VALID_ROLES.has(selectedRole)) {
+      Alert.alert("Invalid role", "Please choose a valid role.");
+      return;
+    }
+
+    setLaunching(true);
+
+    // Exit animation
+    const targetAnim = selectedRole === "driver" ? driverScale : riderScale;
+    Animated.parallel([
+      Animated.timing(targetAnim, {
+        toValue: 0.8,
+        duration: 400,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(exitAnim, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(async () => {
+      try {
+        const stored = await AsyncStorage.getItem("@user");
+        if (!stored) {
+          Alert.alert("Session missing", "Please sign in again.");
+          router.replace("/signup");
+          return;
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(stored);
+        } catch {
+          await AsyncStorage.removeItem("@user");
+          Alert.alert("Session error", "Please sign in again.");
+          router.replace("/signup");
+          return;
+        }
+
+        const updated = { ...parsed, role: selectedRole };
+        await AsyncStorage.setItem("@user", JSON.stringify(updated));
+
+        if (selectedRole === "driver") {
+          if (parsed.driverSetupComplete) {
+            router.push("/driver/DriverHome");
+          } else {
+            router.push("/driver/DriverSetup");
+          }
+        } else {
+          if (parsed.riderSetupComplete) {
+            router.push("/rider/RiderHome");
+          } else {
+            router.push("/rider/RiderSetup");
+          }
+        }
+      } catch {
+        Alert.alert("Error", "Could not save your role. Try again.");
+      } finally {
+        // Reset state in case user navigates back
+        setLaunching(false);
+        setSelectedRole(null);
+        exitAnim.setValue(0);
+        driverScale.setValue(1);
+        riderScale.setValue(1);
+      }
+    });
+  }, [selectedRole, launching, router, driverScale, riderScale, exitAnim]);
+
+  const driverExitTranslateX = exitAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 400],
+  });
+
+  const riderExitTranslateY = exitAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -400],
+  });
+
+  const buttonLabel = !selectedRole
+    ? "Start Journey"
+    : launching
+    ? "Taking off!"
+    : selectedRole === "driver"
+    ? "Drive now"
+    : "Find a ride";
+
+  const isButtonActive = !!selectedRole && !launching;
+
+  return (
+    <Animated.View style={[styles.screen, { opacity: fadeIn }]}>
+      {/* Heading */}
+      <View style={styles.heading}>
+        <Text style={styles.headingTitle}>Choose your role</Text>
+        <Text style={styles.headingSubtitle}>
+          Select your mode to start your journey.
+        </Text>
+      </View>
+
+      {/* Cards */}
+      <View style={styles.cards}>
+        {/* DRIVER CARD */}
+        <Animated.View
+          style={[
+            {
+              flex: 1,
+              opacity: driverOpacity,
+              transform: [
+                { scale: driverScale },
+                ...(selectedRole === "driver" && launching
+                  ? [{ translateX: driverExitTranslateX }]
+                  : []),
+              ],
+            },
+          ]}
+        >
+          <Pressable
+            style={[
+              styles.roleCard,
+              selectedRole === "driver" && styles.roleCardSelected,
+            ]}
+            onPress={() => selectRole("driver")}
+            onHoverIn={() => setDriverHovered(true)}
+            onHoverOut={() => setDriverHovered(false)}
+            onPressIn={() => setDriverHovered(true)}
+            onPressOut={() => setDriverHovered(false)}
+            disabled={launching || (selectedRole && selectedRole !== "driver")}
+          >
+            <CarIllustration isHovered={driverHovered || selectedRole === "driver"} />
+            <View style={styles.cardFooter}>
+              <View style={styles.cardText}>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    selectedRole === "driver" && styles.cardTitleSelected,
+                  ]}
+                >
+                  I'm a driver
+                </Text>
+                <Text style={styles.cardDesc}>
+                  Earn money by sharing your ride with others.
+                </Text>
+              </View>
+              <RadioDot selected={selectedRole === "driver"} />
+            </View>
+          </Pressable>
+        </Animated.View>
+
+        {/* RIDER CARD */}
+        <Animated.View
+          style={[
+            {
+              flex: 1,
+              opacity: riderOpacity,
+              transform: [
+                { scale: riderScale },
+                ...(selectedRole === "rider" && launching
+                  ? [{ translateY: riderExitTranslateY }]
+                  : []),
+              ],
+            },
+          ]}
+        >
+          <Pressable
+            style={[
+              styles.roleCard,
+              selectedRole === "rider" && styles.roleCardSelected,
+            ]}
+            onPress={() => selectRole("rider")}
+            onHoverIn={() => setRiderHovered(true)}
+            onHoverOut={() => setRiderHovered(false)}
+            onPressIn={() => setRiderHovered(true)}
+            onPressOut={() => setRiderHovered(false)}
+            disabled={launching || (selectedRole && selectedRole !== "rider")}
+          >
+            <RiderIllustration isHovered={riderHovered || selectedRole === "rider"} />
+            <View style={styles.cardFooter}>
+              <View style={styles.cardText}>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    selectedRole === "rider" && styles.cardTitleSelected,
+                  ]}
+                >
+                  I'm a rider
+                </Text>
+                <Text style={styles.cardDesc}>
+                  Fast, affordable commutes.
+                </Text>
+              </View>
+              <RadioDot selected={selectedRole === "rider"} />
+            </View>
+          </Pressable>
+        </Animated.View>
+      </View>
+
+      {/* START BUTTON */}
+      <Pressable
+        style={[
+          styles.startBtn,
+          isButtonActive && styles.startBtnActive,
+          launching && styles.startBtnLaunching,
+        ]}
+        onPress={handleStart}
+        disabled={!selectedRole || launching}
+      >
+        <Text
+          style={[
+            styles.startBtnText,
+            isButtonActive && styles.startBtnTextActive,
+            launching && styles.startBtnTextActive,
+          ]}
+        >
+          {buttonLabel}
+        </Text>
+        <ChevronRight color={isButtonActive || launching ? "#fff" : C.subtle} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   STYLES
+   ════════════════════════════════════════════════════════ */
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: C.bg,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
-    gap: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
   },
-  backButton: {
-    position: "absolute",
-    top: 52,
-    left: 24,
-    flexDirection: "row",
+
+  /* Heading */
+  heading: {
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    marginBottom: 32,
   },
-  backText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1a3a6b",
-  },
-  header: {
-    alignItems: "center",
-    gap: 10,
-  },
-  logoMini: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: "#1a3a6b",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-    shadowColor: "#1a3a6b",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#0f172a",
+  headingTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: C.text,
+    letterSpacing: -0.5,
+    marginBottom: 8,
     textAlign: "center",
-    letterSpacing: -0.3,
   },
-  subtitle: {
-    fontSize: 15,
-    color: "#64748b",
+  headingSubtitle: {
+    fontSize: 16,
+    color: C.muted,
+    fontWeight: "500",
     textAlign: "center",
-    lineHeight: 22,
   },
+
+  /* Cards container */
   cards: {
     width: "100%",
-    gap: 14,
-  },
-  card: {
+    maxWidth: 700,
     flexDirection: "row",
+    gap: 18,
+  },
+
+  /* Role card */
+  roleCard: {
+    flex: 1,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: C.card,
+    backgroundColor: C.card,
+    padding: 16,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+        transition: "border-color 0.25s, box-shadow 0.25s, transform 0.15s",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+      },
+      default: {
+        shadowColor: "#000",
+        shadowOpacity: 0.07,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
+      },
+    }),
+  },
+  roleCardSelected: {
+    borderColor: C.brand,
+    backgroundColor: C.brandBg,
+  },
+
+  /* Card footer */
+  cardFooter: {
+    flexDirection: "column",
     alignItems: "center",
-    borderRadius: 18,
-    padding: 18,
-    gap: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    gap: 8,
   },
-  cardFilled: { backgroundColor: "#1a3a6b" },
-  cardOutlined: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-  },
-  cardFaded: { opacity: 0.5 },
-  iconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
+  cardText: {
     alignItems: "center",
-    justifyContent: "center",
   },
-  iconWrapFilled: { backgroundColor: "rgba(255,255,255,0.15)" },
-  iconWrapOutlined: { backgroundColor: "#1a3a6b" },
-  cardBody: { flex: 1, gap: 4 },
-  cardLabel: { fontSize: 17, fontWeight: "700" },
-  cardDescription: { fontSize: 13, lineHeight: 19 },
-  arrowWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  footer: {
-    fontSize: 12,
-    color: "#94a3b8",
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: C.text,
     textAlign: "center",
+  },
+  cardTitleSelected: {
+    color: C.brand,
+  },
+  cardDesc: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: C.subtle,
+    marginTop: 3,
+    textAlign: "center",
+  },
+
+  /* Radio button */
+  radio: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: C.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioSelected: {
+    borderColor: C.brand,
+    backgroundColor: C.brand,
+  },
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#fff",
+  },
+
+  /* Start button */
+  startBtn: {
+    width: "100%",
+    maxWidth: 700,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: C.border,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 24,
+    ...Platform.select({
+      web: {
+        cursor: "not-allowed",
+        transition: "background 0.3s, color 0.3s, box-shadow 0.3s, transform 0.15s",
+      },
+      default: {},
+    }),
+  },
+  startBtnActive: {
+    backgroundColor: C.brand,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+        boxShadow: "0 8px 24px rgba(59,130,246,0.35)",
+      },
+      default: {
+        shadowColor: C.brand,
+        shadowOpacity: 0.35,
+        shadowRadius: 24,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 8,
+      },
+    }),
+  },
+  startBtnLaunching: {
+    backgroundColor: C.brandDeep,
+  },
+  startBtnText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: C.subtle,
+  },
+  startBtnTextActive: {
+    color: "#fff",
   },
 });
