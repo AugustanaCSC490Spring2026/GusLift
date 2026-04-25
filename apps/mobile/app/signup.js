@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { registerCurrentUserPushToken } from "../lib/pushNotifications";
 
 //Tech Tutorial Followed: https://www.youtube.com/watch?v=BDeKTPQzvR4&t=584s
 //Got help from Claude to handle errors properly for redirects and to check for stored user session on app load.
@@ -143,6 +144,7 @@ export default function Signup() {
         "@user",
         JSON.stringify({ ...data, savedAt: Date.now() }),
       );
+      void registerCurrentUserPushToken();
 
       // Surface the id once to make it very easy to copy.
       if (data?.id) {

@@ -12074,14 +12074,106 @@ var AuthError2 = class extends Error {
 };
 __name(AuthError2, "AuthError");
 
+// src/pushNotifications.ts
+function buildPushContent(eventType) {
+  if (eventType === "driver_selected_rider") {
+    return {
+      title: "Driver found",
+      body: "A driver accepted your ride request."
+    };
+  }
+  return {
+    title: "Rider confirmed",
+    body: "A rider confirmed your ride offer."
+  };
+}
+__name(buildPushContent, "buildPushContent");
+async function deactivateTokens(env, tokens) {
+  const uniq = Array.from(new Set(tokens.filter(Boolean)));
+  if (uniq.length === 0)
+    return;
+  const supabase = getSupabase(env);
+  const { error } = await supabase.from("PushTokens").update({ is_active: false, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).in("token", uniq);
+  if (error) {
+    console.error("[push] Failed to deactivate tokens:", error.message);
+  }
+}
+__name(deactivateTokens, "deactivateTokens");
+async function sendMatchPushNotification(env, params) {
+  const supabase = getSupabase(env);
+  const { data, error } = await supabase.from("PushTokens").select("token").eq("user_id", params.recipientUserId).eq("is_active", true);
+  if (error) {
+    console.error(
+      `[push] token lookup failed for user ${params.recipientUserId}:`,
+      error.message
+    );
+    return;
+  }
+  const tokens = Array.from(
+    new Set(
+      (data || []).map((row) => typeof row.token === "string" ? row.token.trim() : "").filter(Boolean)
+    )
+  );
+  if (tokens.length === 0)
+    return;
+  const content = buildPushContent(params.eventType);
+  const messages = tokens.map((to) => ({
+    to,
+    sound: "default",
+    title: content.title,
+    body: content.body,
+    data: {
+      type: params.eventType,
+      rider_id: params.riderId,
+      driver_id: params.driverId,
+      ...params.rideId ? { ride_id: params.rideId } : {}
+    }
+  }));
+  try {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(messages)
+    });
+    if (!response.ok) {
+      console.error(
+        `[push] expo send failed (${response.status}) for user ${params.recipientUserId}`
+      );
+      return;
+    }
+    const json2 = await response.json();
+    const tickets = Array.isArray(json2?.data) ? json2.data : [];
+    const invalidTokens = [];
+    tickets.forEach((ticket, idx) => {
+      if (ticket?.status === "error" && ticket?.details?.error === "DeviceNotRegistered") {
+        invalidTokens.push(tokens[idx] || "");
+      }
+    });
+    if (invalidTokens.length > 0) {
+      await deactivateTokens(env, invalidTokens);
+    }
+  } catch (err) {
+    console.error(
+      `[push] send exception for user ${params.recipientUserId}:`,
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+__name(sendMatchPushNotification, "sendMatchPushNotification");
+
 // src/durableObjects/MatchingRoom.ts
 var MATCH_TIMEOUT_MS = 4 * 60 * 1e3;
+var PUSH_DEDUPE_BUCKET_MS = 30 * 1e3;
+var PUSH_DEDUPE_RETENTION_MS = 2 * 60 * 1e3;
 var MatchingRoom = class {
   drivers = /* @__PURE__ */ new Map();
   riders_waiting = [];
   pending_matches = /* @__PURE__ */ new Map();
   connections = /* @__PURE__ */ new Map();
   matchTimeouts = /* @__PURE__ */ new Map();
+  pushDedupes = /* @__PURE__ */ new Map();
   slotKey = "";
   env;
   constructor(_ctx, env) {
@@ -12119,14 +12211,16 @@ var MatchingRoom = class {
         to_location: profile?.to_location ?? null
       };
     });
-    const drivers = Array.from(this.drivers.entries()).map(([driver_id, s]) => ({
-      driver_id,
-      seats_remaining: s.seats_remaining,
-      name: s.name,
-      picture_url: s.picture_url,
-      to_location: s.to_location,
-      car: s.car
-    }));
+    const drivers = Array.from(this.drivers.entries()).map(
+      ([driver_id, s]) => ({
+        driver_id,
+        seats_remaining: s.seats_remaining,
+        name: s.name,
+        picture_url: s.picture_url,
+        to_location: s.to_location,
+        car: s.car
+      })
+    );
     const pending_matches = Array.from(this.pending_matches.entries()).map(
       ([rider_id, driver_id]) => ({ rider_id, driver_id })
     );
@@ -12181,20 +12275,39 @@ var MatchingRoom = class {
       start_time: parts[2] ?? ""
     };
   }
-  async insertRide(driver_id, rider_id) {
+  shouldSendPush(eventType, riderId, driverId) {
+    const now = Date.now();
+    const bucket = Math.floor(now / PUSH_DEDUPE_BUCKET_MS);
+    const key = `${this.slotKey}:${riderId}:${driverId}:${eventType}:${bucket}`;
+    if (this.pushDedupes.has(key))
+      return false;
+    this.pushDedupes.set(key, now);
+    const cutoff = now - PUSH_DEDUPE_RETENTION_MS;
+    for (const [k, ts] of this.pushDedupes.entries()) {
+      if (ts < cutoff)
+        this.pushDedupes.delete(k);
+    }
+    return true;
+  }
+  async insertRide(driver_id, rider_id, rider_to_location) {
     const { location, start_time } = this.parseSlotKey();
     const dbStartTime = start_time && !start_time.includes(":") ? `${start_time}:00` : start_time;
     const ride_date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const riderDrop = typeof rider_to_location === "string" ? rider_to_location.trim() : "";
     const supabase = getSupabase(this.env);
-    const { data, error } = await supabase.from("Rides").insert({
+    const insertRow = {
       driver_id,
       rider_id,
       ride_date,
       start_time: dbStartTime,
       location,
       status: "accepted"
-    }).select(
-      "id,driver_id,rider_id,ride_date,start_time,location,status,created_at"
+    };
+    if (riderDrop) {
+      insertRow.rider_dropoff_loc = riderDrop;
+    }
+    const { data, error } = await supabase.from("Rides").insert(insertRow).select(
+      "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at"
     ).single();
     if (error || !data) {
       throw new Error(error?.message || "Failed to insert accepted ride");
@@ -12300,7 +12413,9 @@ var MatchingRoom = class {
     const ds = this.drivers.get(ev.driver_id);
     if (!ds)
       return;
-    const idx = this.riders_waiting.findIndex((r) => r.rider_id === ev.rider_id);
+    const idx = this.riders_waiting.findIndex(
+      (r) => r.rider_id === ev.rider_id
+    );
     if (idx === -1)
       return;
     this.riders_waiting.splice(idx, 1);
@@ -12321,6 +12436,14 @@ var MatchingRoom = class {
         car: ds.car
       }
     });
+    if (this.shouldSendPush("driver_selected_rider", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.rider_id,
+        eventType: "driver_selected_rider",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id
+      });
+    }
     this.scheduleMatchTimeout(ev.rider_id);
   }
   async handleAcceptMatch(userId, ev) {
@@ -12344,7 +12467,11 @@ var MatchingRoom = class {
       driver_id: ev.driver_id,
       seats_remaining: driver.seats_remaining
     });
-    const ride = await this.insertRide(ev.driver_id, ev.rider_id);
+    const ride = await this.insertRide(
+      ev.driver_id,
+      ev.rider_id,
+      ev.rider_to_location
+    );
     const rider = await this.fetchRiderProfile(ev.rider_id);
     this.sendTo(ev.driver_id, {
       type: "match_confirmed",
@@ -12357,6 +12484,15 @@ var MatchingRoom = class {
         to_location: rider.to_location
       }
     });
+    if (this.shouldSendPush("rider_confirmed_match", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.driver_id,
+        eventType: "rider_confirmed_match",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id,
+        rideId: ride.id
+      });
+    }
   }
   async handleRejectMatch(userId, ev) {
     if (ev.rider_id !== userId)
@@ -12424,7 +12560,9 @@ var MatchingRoom = class {
     ws.addEventListener("close", () => {
       this.connections.delete(userId);
       this.drivers.delete(userId);
-      this.riders_waiting = this.riders_waiting.filter((r) => r.rider_id !== userId);
+      this.riders_waiting = this.riders_waiting.filter(
+        (r) => r.rider_id !== userId
+      );
       this.pending_matches.delete(userId);
       this.clearMatchTimeout(userId);
     });
@@ -12532,15 +12670,43 @@ var ManualSlotRequiredError = class extends SlotResolveError {
 __name(ManualSlotRequiredError, "ManualSlotRequiredError");
 
 // src/index.ts
+var CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization"
+};
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" }
+    headers: {
+      "Content-Type": "application/json",
+      ...CORS_HEADERS
+    }
   });
 }
 __name(json, "json");
+function withCors(response) {
+  if (response.status === 101) {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => headers.set(key, value));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+__name(withCors, "withCors");
 var src_default = {
   async fetch(request, env, _ctx) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: CORS_HEADERS
+      });
+    }
+    const url = new URL(request.url);
     const userId = authenticateRequest(request);
     if (!userId) {
       return json({ error: "Unauthorized" }, 401);
@@ -12549,7 +12715,6 @@ var src_default = {
     if (request.method === "GET" && !isWebSocket) {
       try {
         const { residence, schedule } = await fetchUserAndSchedule(env, userId);
-        const url = new URL(request.url);
         const slot2 = resolveMatchingSlotWithOverride(schedule, residence, {
           location: url.searchParams.get("location"),
           time: url.searchParams.get("time"),
@@ -12576,7 +12741,6 @@ var src_default = {
     let slot;
     try {
       const { residence, schedule } = await fetchUserAndSchedule(env, userId);
-      const url = new URL(request.url);
       slot = resolveMatchingSlotWithOverride(schedule, residence, {
         location: url.searchParams.get("location"),
         time: url.searchParams.get("time"),
@@ -12612,7 +12776,7 @@ var src_default = {
         return h;
       })()
     });
-    return stub.fetch(forwardedRequest);
+    return withCors(await stub.fetch(forwardedRequest));
   }
 };
 export {

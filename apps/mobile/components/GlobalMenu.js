@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { deactivateCurrentUserPushToken } from "../lib/pushNotifications";
 
 export default function GlobalMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,6 +37,7 @@ export default function GlobalMenu() {
   const handleSignout = async () => {
     setIsOpen(false);
     try {
+      await deactivateCurrentUserPushToken();
       await AsyncStorage.removeItem("@user");
       router.replace("/");
     } catch (e) {

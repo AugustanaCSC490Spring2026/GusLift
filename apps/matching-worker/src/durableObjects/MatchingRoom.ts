@@ -1,5 +1,6 @@
 import type { Env } from "../db";
 import { getSupabase } from "../db";
+import { sendMatchPushNotification } from "../pushNotifications";
 import type {
   AcceptMatchEvent,
   ClientEvent,
@@ -14,6 +15,8 @@ import type { CarDetails, DriverState, RiderWaiting } from "../types/state";
 // How long a driver has to confirm a match before the rider is returned
 // to the waiting queue. Increased to 4 minutes for demo stability.
 const MATCH_TIMEOUT_MS = 4 * 60 * 1000; // 240_000 ms
+const PUSH_DEDUPE_BUCKET_MS = 30 * 1000;
+const PUSH_DEDUPE_RETENTION_MS = 2 * 60 * 1000;
 
 type RideRow = {
   id: string;
@@ -53,6 +56,7 @@ export class MatchingRoom implements DurableObject {
   private pending_matches: Map<string, string> = new Map();
   private connections: Map<string, WebSocket> = new Map();
   private matchTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private pushDedupes: Map<string, number> = new Map();
   private slotKey: string = "";
   private env: Env;
 
@@ -164,6 +168,24 @@ export class MatchingRoom implements DurableObject {
       day: parts[1] ?? "",
       start_time: parts[2] ?? "",
     };
+  }
+
+  private shouldSendPush(
+    eventType: "driver_selected_rider" | "rider_confirmed_match",
+    riderId: string,
+    driverId: string,
+  ): boolean {
+    const now = Date.now();
+    const bucket = Math.floor(now / PUSH_DEDUPE_BUCKET_MS);
+    const key = `${this.slotKey}:${riderId}:${driverId}:${eventType}:${bucket}`;
+    if (this.pushDedupes.has(key)) return false;
+    this.pushDedupes.set(key, now);
+
+    const cutoff = now - PUSH_DEDUPE_RETENTION_MS;
+    for (const [k, ts] of this.pushDedupes.entries()) {
+      if (ts < cutoff) this.pushDedupes.delete(k);
+    }
+    return true;
   }
 
   private async insertRide(
@@ -380,6 +402,14 @@ export class MatchingRoom implements DurableObject {
         car: ds.car,
       },
     });
+    if (this.shouldSendPush("driver_selected_rider", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.rider_id,
+        eventType: "driver_selected_rider",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id,
+      });
+    }
     this.scheduleMatchTimeout(ev.rider_id);
   }
 
@@ -425,6 +455,15 @@ export class MatchingRoom implements DurableObject {
         to_location: rider.to_location,
       },
     });
+    if (this.shouldSendPush("rider_confirmed_match", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.driver_id,
+        eventType: "rider_confirmed_match",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id,
+        rideId: ride.id,
+      });
+    }
   }
 
   private async handleRejectMatch(
