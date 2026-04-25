@@ -74,3 +74,6 @@
 
 Pickup field on the upcoming rides tiles, uses class start time
 Fix the user flow for upcoming rides esp for rider. the shouldnt be able to go back and request a ride again(maybe have a checker for double scheduling)
+
+Ride details when you click on the upcoming rides for rider still has hardcoded "To"
+the handle select rider tile is not showing the users correct To location. 
