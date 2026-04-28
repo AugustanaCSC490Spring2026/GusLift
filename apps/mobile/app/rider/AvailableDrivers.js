@@ -1,9 +1,22 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useMatching } from "../../context/MatchingContext";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+const BACKEND_URL =
+  process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+
+function getInitial(name) {
+  const trimmed = String(name || "").trim();
+  return trimmed ? trimmed[0].toUpperCase() : "D";
+}
 
 export default function AvailableDrivers() {
   const router = useRouter();
@@ -13,9 +26,10 @@ export default function AvailableDrivers() {
     driverPic: initialDriverPic,
     driverTo: initialDriverTo,
     driverCar: initialDriverCar,
-    to: riderToParam,
+    from,
+    to,
   } = useLocalSearchParams();
-  const { connect, send, onMessage, userId, disconnect } = useMatching();
+  const { send, onMessage, userId, disconnect } = useMatching();
   const [matchedDriver, setMatchedDriver] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const driverDirectoryRef = useRef(new Map());
@@ -42,8 +56,8 @@ export default function AvailableDrivers() {
   useEffect(() => {
     const unsubscribe = onMessage(async (msg) => {
       if (msg.type === "initial_state" && Array.isArray(msg.drivers)) {
-        msg.drivers.forEach((d) => {
-          upsertDriverDirectory(d.driver_id, d);
+        msg.drivers.forEach((driver) => {
+          upsertDriverDirectory(driver.driver_id, driver);
         });
       }
       if (msg.type === "driver_joined") {
@@ -87,27 +101,30 @@ export default function AvailableDrivers() {
   }, [userId]);
 
   useEffect(() => {
-    if (initialDriverId) {
-      const hydratedFromParams = {
-        name: initialDriverName ? String(initialDriverName) : null,
-        picture_url: initialDriverPic ? String(initialDriverPic) : null,
-        to_location: initialDriverTo ? String(initialDriverTo) : null,
-        car: initialDriverCar ? String(initialDriverCar) : null,
-      };
-      setMatchedDriver({
-        ...hydratedFromParams,
-        driver_id: initialDriverId,
-      });
-
-    }
-  }, [initialDriverId, initialDriverName, initialDriverPic, initialDriverTo, initialDriverCar]);
+    if (!initialDriverId) return;
+    setMatchedDriver({
+      name: initialDriverName ? String(initialDriverName) : null,
+      picture_url: initialDriverPic ? String(initialDriverPic) : null,
+      to_location: initialDriverTo ? String(initialDriverTo) : null,
+      car: initialDriverCar ? String(initialDriverCar) : null,
+      driver_id: initialDriverId,
+    });
+  }, [
+    initialDriverId,
+    initialDriverName,
+    initialDriverPic,
+    initialDriverTo,
+    initialDriverCar,
+  ]);
 
   async function waitForAcceptedRide(driverId) {
     if (!driverId || !userId) return null;
     if (!BACKEND_URL) return null;
     const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
     const endpoint =
-      `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(String(userId))}` +
+      `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(
+        String(userId),
+      )}` +
       `&driver_id=${encodeURIComponent(String(driverId))}&limit=1`;
 
     for (let i = 0; i < 8; i += 1) {
@@ -118,7 +135,9 @@ export default function AvailableDrivers() {
           const rows = payload?.rides ?? [];
           if (Array.isArray(rows) && rows[0]?.id) return rows[0].id;
         }
-      } catch (_) {}
+      } catch (_) {
+        // Keep polling briefly while the backend writes the accepted ride.
+      }
       await new Promise((resolve) => setTimeout(resolve, 750));
     }
 
@@ -128,8 +147,8 @@ export default function AvailableDrivers() {
   async function handleConfirm() {
     if (!matchedDriver) return;
     setConfirming(true);
-    const riderTo = riderToParam
-      ? String(Array.isArray(riderToParam) ? riderToParam[0] : riderToParam).trim()
+    const riderTo = to
+      ? String(Array.isArray(to) ? to[0] : to).trim()
       : "";
     send({
       type: "accept_match",
@@ -145,7 +164,7 @@ export default function AvailableDrivers() {
     });
   }
 
-  async function handleRejectAndKeepSearching() {
+  function handleRejectAndKeepSearching() {
     if (!matchedDriver || !userId) return;
     setConfirming(true);
     send({
@@ -159,217 +178,371 @@ export default function AvailableDrivers() {
 
   function handleCancel() {
     disconnect();
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/");
-            }
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/");
+    }
   }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-        <Text style={styles.closeText}>✕</Text>
-      </TouchableOpacity>
+    <View style={styles.screen}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          onPress={handleCancel}
+          style={styles.closeButton}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.closeText}>✕</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.ridesButton}
-        onPress={() => router.push("/rider/ScheduledRidesRider")}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.ridesButtonText}>Rides</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.ridesButton}
+          onPress={() => router.push("/rider/ScheduledRidesRider")}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.ridesButtonText}>My rides</Text>
+        </TouchableOpacity>
+      </View>
 
       {!matchedDriver ? (
-        // Waiting state
-        <View style={styles.waitingContainer}>
-          <ActivityIndicator size="large" color="#1a3a6b" style={{ marginBottom: 16 }} />
-          <Text style={styles.waitingTitle}>Looking for a driver...</Text>
-          <Text style={styles.waitingSub}>You will be notified when a driver accepts your ride.</Text>
-        </View>
-      ) : (
-        // Driver accepted — show confirm card
-        <View style={styles.matchContainer}>
-          <Text style={styles.matchTitle}>Driver accepted the ride</Text>
-          <Text style={styles.matchSub}>Tap below to confirm</Text>
+        <>
+          <View style={styles.heroCard}>
+            <View style={styles.heroGlow} />
+            <Text style={styles.heroEyebrow}>Match search</Text>
+            <Text style={styles.heroTitle}>Looking for a driver</Text>
+            <Text style={styles.heroBody}>
+              Stay here while matching runs. As soon as a driver accepts, you can review the
+              details and confirm the ride.
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            style={[styles.driverCard, confirming && styles.driverCardDisabled]}
-            onPress={handleConfirm}
-            activeOpacity={0.8}
-            disabled={confirming}
-          >
+          <View style={styles.tripCard}>
+            <Text style={styles.tripTitle}>Current request</Text>
+            <View style={styles.tripRow}>
+              <Text style={styles.tripLabel}>From</Text>
+              <Text style={styles.tripValue}>{from || "—"}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.tripRow}>
+              <Text style={styles.tripLabel}>To</Text>
+              <Text style={styles.tripValue}>{to || "—"}</Text>
+            </View>
+          </View>
+
+          <View style={styles.waitingCard}>
+            <ActivityIndicator size="small" color="#17365e" />
+            <Text style={styles.waitingTitle}>Matching is active</Text>
+            <Text style={styles.waitingBody}>
+              We will move you forward as soon as a driver becomes available for this route.
+            </Text>
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.heroCardMatched}>
+            <View style={styles.heroGlowMatched} />
+            <Text style={styles.heroEyebrow}>Driver found</Text>
+            <Text style={styles.heroTitle}>Review your match</Text>
+            <Text style={styles.heroBody}>
+              Confirm this driver to lock in the ride, or reject and keep searching for another
+              option.
+            </Text>
+          </View>
+
+          <View style={styles.driverCard}>
             {matchedDriver.picture_url ? (
               <Image source={{ uri: matchedDriver.picture_url }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Text style={styles.avatarInitial}>
-                  {matchedDriver.name ? matchedDriver.name[0].toUpperCase() : "?"}
+                  {getInitial(matchedDriver.name)}
                 </Text>
               </View>
             )}
 
-            <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>{matchedDriver.name ?? "Unknown Driver"}</Text>
-              {matchedDriver.to_location ? (
-                <Text style={styles.driverMeta}>To: {matchedDriver.to_location}</Text>
-              ) : null}
-              {matchedDriver.car && <Text style={styles.driverCar}>{matchedDriver.car}</Text>}
+            <View style={styles.driverMeta}>
+              <Text style={styles.driverName}>
+                {matchedDriver.name ?? "Unknown driver"}
+              </Text>
+              <Text style={styles.driverLabel}>Assigned driver</Text>
             </View>
+          </View>
 
-            {confirming ? (
-              <ActivityIndicator size="small" color="#1a3a6b" />
-            ) : (
-              <Text style={styles.confirmArrow}>→</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.matchInfoCard}>
+            {matchedDriver.to_location ? (
+              <>
+                <View style={styles.tripRow}>
+                  <Text style={styles.tripLabel}>Driver route</Text>
+                  <Text style={styles.tripValue}>{matchedDriver.to_location}</Text>
+                </View>
+                <View style={styles.divider} />
+              </>
+            ) : null}
+            <View style={styles.tripRow}>
+              <Text style={styles.tripLabel}>Vehicle</Text>
+              <Text style={styles.tripValue}>
+                {matchedDriver.car || "Vehicle details unavailable"}
+              </Text>
+            </View>
+          </View>
+
           <TouchableOpacity
-            style={styles.rejectButton}
-            onPress={handleRejectAndKeepSearching}
-            activeOpacity={0.8}
+            style={[styles.primaryButton, confirming && styles.primaryButtonDisabled]}
+            onPress={handleConfirm}
+            activeOpacity={0.86}
             disabled={confirming}
           >
-            <Text style={styles.rejectButtonText}>Reject and keep searching</Text>
+            {confirming ? (
+              <ActivityIndicator size="small" color="#fff9ef" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Confirm this driver</Text>
+            )}
           </TouchableOpacity>
-        </View>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleRejectAndKeepSearching}
+            activeOpacity={0.86}
+            disabled={confirming}
+          >
+            <Text style={styles.secondaryButtonText}>Reject and keep searching</Text>
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
-    padding: 24,
-    paddingTop: 56,
+    backgroundColor: "#f4efe5",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    gap: 16,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    width: 40,
+    height: 40,
+    borderRadius: 16,
+    backgroundColor: "#ebe4d7",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#45556d",
   },
   ridesButton: {
-    position: "absolute",
-    top: 56,
-    right: 24,
-    backgroundColor: "#1a3a6b",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#fffaf0",
+    borderWidth: 1,
+    borderColor: "#ded2be",
   },
   ridesButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#45556d",
   },
-  waitingContainer: {
-    flex: 1,
+  heroCard: {
+    backgroundColor: "#17365e",
+    borderRadius: 26,
+    padding: 22,
+    overflow: "hidden",
+    gap: 10,
+  },
+  heroGlow: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "#315b90",
+    top: -58,
+    right: -28,
+    opacity: 0.45,
+  },
+  heroCardMatched: {
+    backgroundColor: "#7c5120",
+    borderRadius: 26,
+    padding: 22,
+    overflow: "hidden",
+    gap: 10,
+  },
+  heroGlowMatched: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "#d8b172",
+    top: -58,
+    right: -28,
+    opacity: 0.28,
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "#f0dcc0",
+  },
+  heroTitle: {
+    fontSize: 29,
+    fontWeight: "800",
+    color: "#fff9ef",
+    letterSpacing: -0.7,
+  },
+  heroBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#efe0cb",
+    maxWidth: "94%",
+  },
+  tripCard: {
+    backgroundColor: "#fffdf8",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#e7dcc9",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  tripTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#17365e",
+    marginBottom: 10,
+  },
+  tripRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    gap: 16,
+    paddingVertical: 14,
+  },
+  tripLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#6e7d92",
+  },
+  tripValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1d304a",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#ece3d4",
+  },
+  waitingCard: {
+    backgroundColor: "#fbf7ef",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#e7dcc9",
+    padding: 22,
+    alignItems: "center",
+    gap: 10,
   },
   waitingTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  waitingSub: {
-    fontSize: 14,
-    color: "#6b7280",
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#17365e",
     textAlign: "center",
   },
-  matchContainer: {
-    flex: 1,
-    justifyContent: "center",
-    gap: 12,
-  },
-  matchTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  matchSub: {
+  waitingBody: {
     fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 8,
+    lineHeight: 20,
+    color: "#67748d",
+    textAlign: "center",
   },
   driverCard: {
+    backgroundColor: "#fffdf8",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#ead6b8",
+    padding: 18,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 2,
-    borderColor: "#1a3a6b",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
     gap: 14,
   },
-  driverCardDisabled: {
-    opacity: 0.6,
-  },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 62,
+    height: 62,
+    borderRadius: 22,
   },
   avatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#dbeafe",
+    width: 62,
+    height: 62,
+    borderRadius: 22,
+    backgroundColor: "#e7eef8",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarInitial: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1a3a6b",
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#17365e",
   },
-  driverInfo: {
+  driverMeta: {
     flex: 1,
     gap: 4,
   },
   driverName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  driverMeta: {
-    fontSize: 13,
-    color: "#6b7280",
-  },
-  driverCar: {
-    fontSize: 13,
-    color: "#6b7280",
-  },
-  confirmArrow: {
     fontSize: 20,
-    color: "#1a3a6b",
+    fontWeight: "800",
+    color: "#2a251d",
+  },
+  driverLabel: {
+    fontSize: 13,
     fontWeight: "700",
+    color: "#8d6b3f",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
-  rejectButton: {
-    backgroundColor: "#e5e7eb",
-    borderRadius: 12,
+  matchInfoCard: {
+    backgroundColor: "#fff8ef",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#ead6b8",
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    alignItems: "center",
   },
-  rejectButtonText: {
-    color: "#374151",
-    fontSize: 14,
-    fontWeight: "600",
+  primaryButton: {
+    minHeight: 52,
+    borderRadius: 18,
+    backgroundColor: "#7c5120",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  primaryButtonText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#fff9ef",
+  },
+  secondaryButton: {
+    minHeight: 52,
+    borderRadius: 18,
+    backgroundColor: "#efe3d2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#5f4a32",
   },
 });

@@ -20,6 +20,7 @@ export function MatchingProvider({ children }) {
   const wsRef = useRef(null);
   const listenersRef = useRef(new Set());
   const userIdRef = useRef(null);
+  const ridersSnapshotRef = useRef([]);
   const [userId, setUserId] = useState(null);
 
   function onMessage(handler) {
@@ -134,6 +135,20 @@ export function MatchingProvider({ children }) {
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
+        if (msg.type === "initial_state" && Array.isArray(msg.riders)) {
+          ridersSnapshotRef.current = msg.riders;
+        }
+        if (msg.type === "rider_joined" && msg.rider) {
+          const already = ridersSnapshotRef.current.some(
+            (r) => r.rider_id === msg.rider.rider_id
+          );
+          if (!already) ridersSnapshotRef.current = [...ridersSnapshotRef.current, msg.rider];
+        }
+        if (msg.type === "rider_removed") {
+          ridersSnapshotRef.current = ridersSnapshotRef.current.filter(
+            (r) => r.rider_id !== msg.rider_id
+          );
+        }
         listenersRef.current.forEach((handler) => handler(msg));
       };
 
@@ -155,11 +170,16 @@ export function MatchingProvider({ children }) {
   function disconnect() {
     wsRef.current?.close();
     wsRef.current = null;
+    ridersSnapshotRef.current = [];
+  }
+
+  function getRidersSnapshot() {
+    return ridersSnapshotRef.current;
   }
 
   return (
     <MatchingContext.Provider
-      value={{ connect, send, disconnect, onMessage, userId }}
+      value={{ connect, send, disconnect, onMessage, userId, getRidersSnapshot }}
     >
       {children}
     </MatchingContext.Provider>

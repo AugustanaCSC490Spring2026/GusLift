@@ -407,12 +407,8 @@ export class MatchingRoom implements DurableObject {
       seats_remaining: driver.seats_remaining,
     });
 
-    const ride = await this.insertRide(
-      ev.driver_id,
-      ev.rider_id,
-      ev.rider_to_location,
-    );
     const rider = await this.fetchRiderProfile(ev.rider_id);
+    const ride = await this.insertRide(ev.driver_id, ev.rider_id, ev.rider_to_location);
 
     this.sendTo(ev.driver_id, {
       type: "match_confirmed",
