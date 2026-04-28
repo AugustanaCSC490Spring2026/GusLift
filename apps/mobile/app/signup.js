@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -22,6 +22,7 @@ const SCHOOL_DOMAIN = "augustana.edu";
 
 export default function Signup() {
   const router = useRouter();
+  const { role: presetRole, pickup: landingPickup, destination: landingDestination } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const enforceSchoolEmail =
     process.env.EXPO_PUBLIC_ENFORCE_SCHOOL_EMAIL !== "false";
@@ -93,13 +94,13 @@ export default function Signup() {
 
           if (parsed.role === "driver") {
             if (parsed.driverSetupComplete) {
-              router.replace("/driver/OfferRide");
+              router.replace("/driver/DriverHome");
             } else {
               router.replace("/driver/DriverSetup");
             }
           } else {
             if (parsed.riderSetupComplete) {
-              router.replace("/rider/RequestRide");
+              router.replace("/rider/RiderHome");
             } else {
               router.replace("/rider/RiderSetup");
             }
@@ -139,29 +140,38 @@ export default function Signup() {
         return;
       }
 
-      await AsyncStorage.setItem(
-        "@user",
-        JSON.stringify({ ...data, savedAt: Date.now() }),
-      );
-
-      // Surface the id once to make it very easy to copy.
-      if (data?.id) {
-        Alert.alert(
-          "Google user id",
-          `Copy this id for seeding:\n\n${data.id}`,
-          [{ text: "OK" }],
+      // If a role was passed from the landing page, auto-assign and skip role selection
+      if (presetRole === "rider" || presetRole === "driver") {
+        const userData = { ...data, savedAt: Date.now(), role: presetRole };
+        await AsyncStorage.setItem("@user", JSON.stringify(userData));
+      } else {
+        await AsyncStorage.setItem(
+          "@user",
+          JSON.stringify({ ...data, savedAt: Date.now() }),
         );
       }
 
       setLoading(false);
-      router.push("/role");
+
+      // Route based on pre-set role or go to role selection
+      if (presetRole === "rider") {
+        // Forward landing page params through RiderSetup → RequestRide
+        const riderParams = {};
+        if (landingPickup) riderParams.pickup = landingPickup;
+        if (landingDestination) riderParams.destination = landingDestination;
+        router.push({ pathname: "/rider/RiderSetup", params: riderParams });
+      } else if (presetRole === "driver") {
+        router.push("/driver/DriverSetup");
+      } else {
+        router.push("/role");
+      }
     } catch {
       setLoading(false);
       Alert.alert("Error", "Could not fetch your Google profile. Try again.", [
         { text: "OK" },
       ]);
     }
-  }, [router, enforceSchoolEmail]);
+  }, [router, enforceSchoolEmail, presetRole]);
 
   useEffect(() => {
     if (response?.type === "success") {
