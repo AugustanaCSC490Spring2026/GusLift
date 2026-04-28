@@ -4,8 +4,6 @@ import { NextResponse } from "next/server";
 /**
  * Expo web (e.g. localhost:8081) calls the Next API on another origin (localhost:3000).
  * Browsers require CORS headers or the response is blocked and fetch() fails (no redirect).
- *
- * Next.js 16+: use `proxy.ts` instead of deprecated `middleware.ts` for this boundary.
  */
 function corsOrigin(request: NextRequest): string {
   const origin = request.headers.get("origin");
@@ -41,7 +39,7 @@ function withCors(request: NextRequest, response: NextResponse) {
   return response;
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   if (request.method === "OPTIONS") {
     const res = new NextResponse(null, { status: 204 });
     return withCors(request, res);

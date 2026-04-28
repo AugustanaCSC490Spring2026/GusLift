@@ -147,10 +147,14 @@ export default function AvailableDrivers() {
   async function handleConfirm() {
     if (!matchedDriver) return;
     setConfirming(true);
+    const riderTo = to
+      ? String(Array.isArray(to) ? to[0] : to).trim()
+      : "";
     send({
       type: "accept_match",
       rider_id: userId,
       driver_id: matchedDriver.driver_id,
+      ...(riderTo ? { rider_to_location: riderTo } : {}),
     });
     const rideId = await waitForAcceptedRide(matchedDriver.driver_id);
     setConfirming(false);
