@@ -15,7 +15,7 @@ function CodeIcon({ size = 20, color = "#64748B" }) {
   );
 }
 
-function LogOutIcon({ size = 20, color = "#dc2626" }) {
+function LogOutIcon({ size = 20, color = "#DC2626" }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -157,8 +157,8 @@ export default function GlobalMenu() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={handleSignout}>
-              <LogOutIcon size={20} color="#dc2626" />
-              <Text style={[styles.menuItemText, { color: "#dc2626" }]}>
+              <LogOutIcon size={20} color="#DC2626" />
+              <Text style={[styles.menuItemText, { color: "#DC2626" }]}>
                 Sign Out
               </Text>
             </TouchableOpacity>
@@ -184,8 +184,8 @@ const styles = StyleSheet.create({
   menuContainer: {
     width: "90%",
     maxWidth: 400,
-    backgroundColor: "#ffffff",
-    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     padding: 24,
     paddingTop: 12,
     shadowColor: "#000",
@@ -200,12 +200,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: "#F8FAFC",
   },
   menuItemText: {
     fontSize: 16,
     marginLeft: 12,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "500",
   },
 });

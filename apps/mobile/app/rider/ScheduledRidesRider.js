@@ -66,7 +66,7 @@ export default function ScheduledRidesRider() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1a3a6b" />
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }
@@ -138,7 +138,7 @@ export default function ScheduledRidesRider() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     padding: 24,
     paddingTop: 56,
   },
@@ -146,26 +146,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
   },
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#0F172A",
     fontWeight: "600",
   },
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 20,
   },
   list: {
@@ -173,8 +173,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     padding: 18,
     shadowColor: "#000",
     shadowOpacity: 0.06,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
     marginBottom: 4,
   },
   rowLine: {
@@ -196,38 +196,38 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 13,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   metaValue: {
     fontSize: 13,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "600",
   },
   driverBox: {
     marginTop: 8,
-    backgroundColor: "#f0f4ff",
+    backgroundColor: "#EFF6FF",
     borderRadius: 10,
     padding: 12,
     gap: 2,
   },
   driverLabel: {
     fontSize: 12,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   driverName: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
   },
   driverCar: {
     fontSize: 13,
-    color: "#374151",
+    color: "#0F172A",
   },
   emptyText: {
     fontSize: 15,
-    color: "#9ca3af",
+    color: "#94A3B8",
     textAlign: "center",
     marginTop: 40,
   },

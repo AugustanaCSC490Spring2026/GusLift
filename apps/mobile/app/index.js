@@ -346,7 +346,7 @@ export default function Welcome() {
                   width: "100%",
                   height: "100%",
                   border: "none",
-                  borderRadius: 16,
+                  borderRadius: 8,
                 }}
                 title="Campus Map"
               />
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 36,
     fontWeight: "800",
-    color: "#000000",
+    color: "#0F172A",
     lineHeight: 43,
     letterSpacing: -1,
   },
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
     width: "90%",
     height: "85%",
     maxWidth: 520,
-    borderRadius: 16,
+    borderRadius: 8,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: C.border,

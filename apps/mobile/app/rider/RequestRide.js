@@ -154,7 +154,7 @@ export default function RequestRide() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1a3a6b" />
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }
@@ -196,7 +196,7 @@ export default function RequestRide() {
           <TextInput
             style={styles.input}
             placeholder="e.g. Augie Hall, library, your dorm"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#94A3B8"
             value={manualPickup}
             onChangeText={(t) => {
               setManualPickup(t);
@@ -208,7 +208,7 @@ export default function RequestRide() {
           <TextInput
             style={styles.input}
             placeholder="Shown for your reference only"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#94A3B8"
             value={manualDropoff}
             onChangeText={setManualDropoff}
           />
@@ -217,7 +217,7 @@ export default function RequestRide() {
           <TextInput
             style={styles.input}
             placeholder="HH:MM — e.g. 16:45 after class"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#94A3B8"
             value={manualTime}
             onChangeText={(t) => {
               setManualTime(t);
@@ -272,7 +272,7 @@ export default function RequestRide() {
 const styles = StyleSheet.create({
   outer: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     paddingTop: 56,
     paddingHorizontal: 24,
   },
@@ -282,13 +282,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
   },
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -296,19 +296,19 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#0F172A",
     fontWeight: "600",
   },
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 20,
   },
   greeting: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#64748B",
     marginBottom: 8,
   },
   section: {
@@ -317,25 +317,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 8,
   },
   sectionTitleMuted: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#64748B",
     marginBottom: 12,
   },
   sectionSub: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#64748B",
     lineHeight: 20,
     marginBottom: 16,
   },
   fieldLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#64748B",
     marginBottom: 6,
     marginTop: 4,
   },
@@ -346,25 +346,25 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   input: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#E2E8F0",
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 4,
   },
   manualButton: {
-    backgroundColor: "#1a3a6b",
+    backgroundColor: "#3B82F6",
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
     marginTop: 16,
   },
   manualButtonText: {
-    color: "#ffffff",
+    color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "700",
   },
@@ -377,16 +377,16 @@ const styles = StyleSheet.create({
   orLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#d1d5db",
+    backgroundColor: "#CBD5E1",
   },
   orText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#6b7280",
+    color: "#64748B",
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 8,
     shadowColor: "#000",
@@ -404,30 +404,30 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#E2E8F0",
   },
   label: {
     fontSize: 15,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   value: {
     fontSize: 15,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "600",
     maxWidth: "58%",
     textAlign: "right",
   },
   scheduleButton: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#1a3a6b",
+    borderColor: "#3B82F6",
   },
   scheduleButtonText: {
-    color: "#1a3a6b",
+    color: "#3B82F6",
     fontSize: 17,
     fontWeight: "700",
   },

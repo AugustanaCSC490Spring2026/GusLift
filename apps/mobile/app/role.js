@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   /* Role card */
   roleCard: {
     flex: 1,
-    borderRadius: 24,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: C.card,
     backgroundColor: C.card,
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   radio: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: C.border,
     alignItems: "center",
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 700,
     height: 56,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: C.border,
     alignItems: "center",
     justifyContent: "center",

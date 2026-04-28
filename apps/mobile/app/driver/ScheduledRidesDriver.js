@@ -137,7 +137,7 @@ export default function ScheduledRidesDriver() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1a3a6b" />
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }
@@ -209,7 +209,7 @@ export default function ScheduledRidesDriver() {
                   activeOpacity={0.85}
                 >
                   {completingKey === group.key ? (
-                    <ActivityIndicator color="#ffffff" />
+                    <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={styles.completeButtonText}>Complete ride</Text>
                   )}
@@ -226,7 +226,7 @@ export default function ScheduledRidesDriver() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     padding: 24,
     paddingTop: 56,
   },
@@ -234,26 +234,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
   },
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#0F172A",
     fontWeight: "600",
   },
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 20,
   },
   list: {
@@ -261,8 +261,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     padding: 18,
     shadowColor: "#000",
     shadowOpacity: 0.06,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
     marginBottom: 4,
   },
   rowLine: {
@@ -284,17 +284,17 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 13,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   metaValue: {
     fontSize: 13,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "600",
   },
   riderCountBox: {
     marginTop: 8,
-    backgroundColor: "#f0f4ff",
+    backgroundColor: "#EFF6FF",
     borderRadius: 10,
     padding: 12,
     gap: 4,
@@ -302,16 +302,16 @@ const styles = StyleSheet.create({
   riderCountText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
     marginBottom: 4,
   },
   riderDot: {
     fontSize: 13,
-    color: "#374151",
+    color: "#0F172A",
   },
   completeButton: {
     marginTop: 14,
-    backgroundColor: "#1a3a6b",
+    backgroundColor: "#3B82F6",
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
@@ -320,13 +320,13 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   completeButtonText: {
-    color: "#ffffff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
   emptyText: {
     fontSize: 15,
-    color: "#9ca3af",
+    color: "#94A3B8",
     textAlign: "center",
     marginTop: 40,
   },

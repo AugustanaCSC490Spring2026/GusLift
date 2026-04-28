@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     color: C.brand,
     paddingVertical: 4,
     paddingHorizontal: 12,
-    borderRadius: 20,
+    borderRadius: 10,
     fontSize: 13,
     fontWeight: "700",
     overflow: "hidden",
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   featureItem: {
     padding: 24,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: C.border,
     ...Platform.select({
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   howItWorks: {
     backgroundColor: C.bg,
     padding: 36,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: C.border,
   },

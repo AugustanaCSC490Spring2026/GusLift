@@ -199,7 +199,7 @@ export default function PaymentsDemo() {
 
         {loadingConfig ? (
           <View style={styles.statusCard}>
-            <ActivityIndicator color="#1a3a6b" />
+            <ActivityIndicator color="#3B82F6" />
           </View>
         ) : !BACKEND_URL || config?.error || !isReady ? (
           <View style={styles.statusCard}>
@@ -255,7 +255,7 @@ export default function PaymentsDemo() {
             activeOpacity={0.85}
           >
             {launching ? (
-              <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.primaryButtonText}>Continue to Checkout</Text>
             )}
@@ -270,7 +270,7 @@ export default function PaymentsDemo() {
 const styles = StyleSheet.create({
   outer: {
     flex: 1,
-    backgroundColor: "#f4efe5",
+    backgroundColor: "#F8FAFC",
     paddingTop: 56,
     paddingHorizontal: 24,
   },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.72)",
     alignItems: "center",
     justifyContent: "center",
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#0F172A",
     fontWeight: "600",
   },
   heroBlock: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 30,
     fontWeight: "800",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 8,
   },
   subtitle: {
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   },
   statusCard: {
     backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 18,
+    borderRadius: 10,
     padding: 18,
     marginBottom: 20,
     borderWidth: 1,
@@ -354,19 +354,19 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 10,
   },
   statusError: {
     fontSize: 15,
-    color: "#4b5563",
+    color: "#64748B",
     lineHeight: 22,
   },
   demoCard: {
     position: "relative",
     overflow: "hidden",
     backgroundColor: "#16345f",
-    borderRadius: 26,
+    borderRadius: 10,
     padding: 22,
     marginBottom: 18,
     borderWidth: 1,
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   demoPrice: {
     fontSize: 42,
     fontWeight: "800",
-    color: "#ffffff",
+    color: "#FFFFFF",
     marginBottom: 10,
   },
   demoBody: {
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 18,
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   },
   metaValue: {
     fontSize: 15,
-    color: "#ffffff",
+    color: "#FFFFFF",
     fontWeight: "700",
   },
   demoError: {
@@ -468,13 +468,13 @@ const styles = StyleSheet.create({
     color: "#fde68a",
     marginBottom: 14,
     backgroundColor: "rgba(127, 29, 29, 0.35)",
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   primaryButton: {
     backgroundColor: "#d7a24a",
-    borderRadius: 14,
+    borderRadius: 8,
     minHeight: 56,
     alignItems: "center",
     justifyContent: "center",

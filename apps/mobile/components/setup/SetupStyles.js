@@ -69,7 +69,7 @@ export const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: B.white,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: B.slate200,
     paddingHorizontal: 20,
@@ -110,7 +110,7 @@ export const s = StyleSheet.create({
   // Schedule card
   card: {
     backgroundColor: B.white,
-    borderRadius: 24,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: B.slate200,
     padding: 24,
@@ -129,7 +129,7 @@ export const s = StyleSheet.create({
   inlineLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   fieldInput: {
     backgroundColor: B.slate50,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: B.slate100,
     paddingVertical: 12,
@@ -161,7 +161,7 @@ export const s = StyleSheet.create({
   dayBtn: {
     flex: 1,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: B.slate50,
     alignItems: 'center',
     justifyContent: 'center',
@@ -175,7 +175,7 @@ export const s = StyleSheet.create({
 
   addBtn: {
     backgroundColor: B.slate100,
-    borderRadius: 14,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
@@ -190,7 +190,7 @@ export const s = StyleSheet.create({
   emptyText: { fontSize: 14, color: B.slate400, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
   blockItem: {
     backgroundColor: B.white,
-    borderRadius: 20,
+    borderRadius: 10,
     padding: 20,
     borderWidth: 1,
     borderColor: B.slate200,
@@ -257,7 +257,7 @@ export const s = StyleSheet.create({
     right: 6,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 10,
     backgroundColor: B.blue,
     alignItems: 'center',
     justifyContent: 'center',
@@ -278,7 +278,7 @@ export const s = StyleSheet.create({
   ctaBtn: {
     width: '100%',
     height: 48,
-    borderRadius: 22,
+    borderRadius: 10,
     backgroundColor: B.blue,
     alignItems: 'center',
     justifyContent: 'center',

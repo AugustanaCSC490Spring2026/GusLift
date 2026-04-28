@@ -86,7 +86,7 @@ export default function DeveloperMenu() {
 const styles = StyleSheet.create({
   outer: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     paddingTop: 56,
     paddingHorizontal: 24,
   },
@@ -95,8 +95,8 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -104,18 +104,18 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#0F172A",
     fontWeight: "600",
   },
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#6b7280",
+    color: "#64748B",
     marginBottom: 24,
   },
   section: {
@@ -124,17 +124,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#64748B",
     marginBottom: 12,
   },
   button: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 10,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: "#1a3a6b",
+    borderLeftColor: "#3B82F6",
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   buttonText: {
-    color: "#1f2937",
+    color: "#0F172A",
     fontSize: 15,
     fontWeight: "600",
   },

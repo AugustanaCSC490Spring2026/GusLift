@@ -26,12 +26,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: "#eff6ff", // light blue brand tint
+    borderRadius: 10,
+    backgroundColor: "#EFF6FF", // light blue brand tint
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
-    borderColor: "#ffffff",
+    borderColor: "#FFFFFF",
     ...Platform.select({
       web: {
         boxShadow: "0 2px 8px rgba(0,0,0,0.08)",

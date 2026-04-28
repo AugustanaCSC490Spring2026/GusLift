@@ -82,33 +82,33 @@ export default function RideDetailDriver() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     padding: 24,
     paddingTop: 56,
   },
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#0F172A",
     fontWeight: "600",
   },
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 20,
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 8,
     shadowColor: "#000",
@@ -126,16 +126,16 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#E2E8F0",
   },
   label: {
     fontSize: 15,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   value: {
     fontSize: 15,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "600",
     maxWidth: "60%",
     textAlign: "right",
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   ridersHeader: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 12,
   },
   ridersList: {
@@ -153,8 +153,8 @@ const styles = StyleSheet.create({
   riderCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     padding: 16,
     shadowColor: "#000",
     shadowOpacity: 0.06,
@@ -166,12 +166,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 10,
   },
   avatarPlaceholder: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 10,
     backgroundColor: "#dbeafe",
     alignItems: "center",
     justifyContent: "center",
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
   },
   riderInfo: {
     flex: 1,
@@ -187,11 +187,11 @@ const styles = StyleSheet.create({
   riderName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 4,
   },
   riderResidence: {
     fontSize: 13,
-    color: "#6b7280",
+    color: "#64748B",
   },
 });

@@ -275,7 +275,7 @@ export default function DriverHome() {
               <Text style={styles.eyebrow}>Driver operations</Text>
               <Text style={styles.heroTitle}>Hello, {firstName || "Driver"}</Text>
               <View style={styles.rolePill}>
-                <Ionicons name="car-sport-outline" size={13} color="#183f2e" />
+                <Ionicons name="car-sport-outline" size={13} color="#3B82F6" />
                 <Text style={styles.rolePillText}>Driver mode</Text>
               </View>
             </View>
@@ -308,7 +308,7 @@ export default function DriverHome() {
               onPress={handleScheduleOffer}
               activeOpacity={0.88}
             >
-              <Ionicons name="flash-outline" size={16} color="#183f2e" />
+              <Ionicons name="flash-outline" size={16} color="#3B82F6" />
               <Text style={styles.heroPrimaryActionText}>Offer from schedule</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -333,14 +333,14 @@ export default function DriverHome() {
               <Text style={styles.cardTitle}>Use your default route for today</Text>
             </View>
             <View style={styles.iconBadge}>
-              <Ionicons name="trail-sign-outline" size={18} color="#183f2e" />
+              <Ionicons name="trail-sign-outline" size={18} color="#3B82F6" />
             </View>
           </View>
 
           {scheduleLoading ? (
             <ActivityIndicator
               size="small"
-              color="#183f2e"
+              color="#3B82F6"
               style={styles.inlineLoader}
             />
           ) : (
@@ -368,7 +368,7 @@ export default function DriverHome() {
                     value={pickupTime}
                     onChangeText={setPickupTime}
                     placeholder="HH:MM"
-                    placeholderTextColor="#7d8a98"
+                    placeholderTextColor="#94A3B8"
                     keyboardType="numbers-and-punctuation"
                   />
                 </View>
@@ -397,7 +397,7 @@ export default function DriverHome() {
               <Text style={styles.cardTitle}>Create a custom pickup window</Text>
             </View>
             <View style={styles.iconBadgeWarm}>
-              <Ionicons name="timer-outline" size={18} color="#83511c" />
+              <Ionicons name="timer-outline" size={18} color="#3B82F6" />
             </View>
           </View>
 
@@ -410,7 +410,7 @@ export default function DriverHome() {
           <TextInput
             style={styles.input}
             placeholder="Off-campus house, Westerlin, library"
-            placeholderTextColor="#8a93a5"
+            placeholderTextColor="#94A3B8"
             value={manualPickup}
             onChangeText={(value) => {
               setManualPickup(value);
@@ -422,7 +422,7 @@ export default function DriverHome() {
           <TextInput
             style={styles.input}
             placeholder="Optional destination for rider context"
-            placeholderTextColor="#8a93a5"
+            placeholderTextColor="#94A3B8"
             value={manualDropoff}
             onChangeText={setManualDropoff}
           />
@@ -431,7 +431,7 @@ export default function DriverHome() {
           <TextInput
             style={styles.input}
             placeholder="24h format, for example 08:30"
-            placeholderTextColor="#8a93a5"
+            placeholderTextColor="#94A3B8"
             value={manualTime}
             onChangeText={(value) => {
               setManualTime(value);
@@ -464,19 +464,19 @@ export default function DriverHome() {
             activeOpacity={0.75}
           >
             <Text style={styles.inlineLinkText}>View all</Text>
-            <Ionicons name="arrow-forward" size={13} color="#183f2e" />
+            <Ionicons name="arrow-forward" size={13} color="#3B82F6" />
           </TouchableOpacity>
         </View>
 
         {ridesLoading ? (
           <ActivityIndicator
             size="small"
-            color="#183f2e"
+            color="#3B82F6"
             style={styles.inlineLoader}
           />
         ) : previewGroups.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="car-outline" size={28} color="#869d90" />
+            <Ionicons name="car-outline" size={28} color="#94A3B8" />
             <Text style={styles.emptyStateTitle}>No accepted rides yet</Text>
             <Text style={styles.emptyStateText}>
               Accepted riders will show up here so you can review each trip or mark it complete.
@@ -512,7 +512,7 @@ export default function DriverHome() {
 
                 <View style={styles.routeTagRow}>
                   <View style={styles.routeTag}>
-                    <Ionicons name="navigate-outline" size={13} color="#4e675d" />
+                    <Ionicons name="navigate-outline" size={13} color="#64748B" />
                     <Text style={styles.routeTagText}>
                       {group.pickup_loc ?? "—"}
                     </Text>
@@ -522,10 +522,10 @@ export default function DriverHome() {
                       <Ionicons
                         name="arrow-forward"
                         size={14}
-                        color="#90a399"
+                        color="#94A3B8"
                       />
                       <View style={styles.routeTag}>
-                        <Ionicons name="flag-outline" size={13} color="#4e675d" />
+                        <Ionicons name="flag-outline" size={13} color="#64748B" />
                         <Text style={styles.routeTagText}>{group.dropoff_loc}</Text>
                       </View>
                     </>
@@ -567,13 +567,13 @@ export default function DriverHome() {
                   activeOpacity={0.88}
                 >
                   {completingKey === group.key ? (
-                    <ActivityIndicator color="#fff9ef" size="small" />
+                    <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
                       <Ionicons
                         name="checkmark-circle-outline"
                         size={18}
-                        color="#fff9ef"
+                        color="#FFFFFF"
                       />
                       <Text style={styles.completeButtonText}>Complete ride</Text>
                     </>
@@ -591,7 +591,7 @@ export default function DriverHome() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f2efe7",
+    backgroundColor: "#F8FAFC",
   },
   scroll: { flex: 1 },
   content: {
@@ -601,8 +601,8 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   heroCard: {
-    backgroundColor: "#1c4d38",
-    borderRadius: 28,
+    backgroundColor: "#3B82F6",
+    borderRadius: 8,
     padding: 22,
     overflow: "hidden",
     gap: 18,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#31644f",
+    backgroundColor: "#EFF6FF",
     top: -68,
     right: -24,
     opacity: 0.52,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: "#edd6ae",
+    backgroundColor: "#EFF6FF",
     bottom: -56,
     left: -24,
     opacity: 0.16,
@@ -635,15 +635,15 @@ const styles = StyleSheet.create({
   avatarWrap: {
     width: 52,
     height: 52,
-    borderRadius: 18,
-    backgroundColor: "#f2efe7",
+    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#1c4d38",
+    color: "#3B82F6",
   },
   heroIdentity: {
     flex: 1,
@@ -654,12 +654,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
-    color: "#d0e0d5",
+    color: "#DBEAFE",
   },
   heroTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
     letterSpacing: -0.7,
   },
   rolePill: {
@@ -668,19 +668,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderRadius: 999,
-    backgroundColor: "#f2efe7",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   rolePillText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#183f2e",
+    color: "#3B82F6",
   },
   heroSummary: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#d5e2d9",
+    color: "#DBEAFE",
     maxWidth: "94%",
   },
   metricRow: {
@@ -689,10 +689,10 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 249, 239, 0.12)",
+    borderRadius: 10,
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(255, 249, 239, 0.14)",
+    borderColor: "rgba(59, 130, 246, 0.14)",
     padding: 14,
     gap: 6,
   },
@@ -701,12 +701,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: "#d1ddd5",
+    color: "#DBEAFE",
   },
   metricValue: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   heroActionRow: {
     flexDirection: "row",
@@ -715,8 +715,8 @@ const styles = StyleSheet.create({
   heroPrimaryAction: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: "#ecd6a8",
+    borderRadius: 8,
+    backgroundColor: "#EFF6FF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -725,21 +725,21 @@ const styles = StyleSheet.create({
   heroPrimaryActionText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#183f2e",
+    color: "#3B82F6",
   },
   heroSecondaryAction: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(255, 249, 239, 0.24)",
+    borderColor: "rgba(255, 255, 255, 0.30)",
     alignItems: "center",
     justifyContent: "center",
   },
   heroSecondaryActionText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   sectionHeader: {
     gap: 4,
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.1,
     textTransform: "uppercase",
-    color: "#7d7057",
+    color: "#64748B",
   },
   sectionTitle: {
     fontSize: 26,
@@ -766,19 +766,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
   },
   scheduleCard: {
-    backgroundColor: "#fbf7ef",
-    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     gap: 14,
   },
   manualCard: {
-    backgroundColor: "#fffdf8",
-    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     gap: 12,
   },
   cardHeaderRow: {
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.1,
     textTransform: "uppercase",
-    color: "#7d7057",
+    color: "#64748B",
     marginBottom: 4,
   },
   cardTitle: {
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
   iconBadge: {
     width: 40,
     height: 40,
-    borderRadius: 14,
+    borderRadius: 8,
     backgroundColor: "#dce7e0",
     alignItems: "center",
     justifyContent: "center",
@@ -818,14 +818,14 @@ const styles = StyleSheet.create({
   iconBadgeWarm: {
     width: 40,
     height: 40,
-    borderRadius: 14,
+    borderRadius: 8,
     backgroundColor: "#efdfc8",
     alignItems: "center",
     justifyContent: "center",
   },
   routePanel: {
-    borderRadius: 20,
-    backgroundColor: "#f2efe7",
+    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 16,
     paddingVertical: 6,
   },
@@ -857,12 +857,12 @@ const styles = StyleSheet.create({
   inlineTimeInput: {
     minWidth: 84,
     borderBottomWidth: 1.5,
-    borderBottomColor: "#183f2e",
+    borderBottomColor: "#3B82F6",
     textAlign: "right",
     paddingBottom: 2,
     fontSize: 15,
     fontWeight: "700",
-    color: "#183f2e",
+    color: "#3B82F6",
   },
   helperText: {
     fontSize: 13,
@@ -879,10 +879,10 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 50,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#d7cfbf",
-    backgroundColor: "#f8f3eb",
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 15,
@@ -891,23 +891,23 @@ const styles = StyleSheet.create({
   fieldError: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#8d4e19",
+    color: "#B45309",
   },
   primaryButton: {
     minHeight: 52,
-    borderRadius: 16,
-    backgroundColor: "#183f2e",
+    borderRadius: 8,
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
   },
   primaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   secondaryButton: {
     minHeight: 52,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: "#e8d0a9",
     alignItems: "center",
     justifyContent: "center",
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#183f2e",
+    color: "#3B82F6",
   },
   inlineLink: {
     flexDirection: "row",
@@ -927,16 +927,16 @@ const styles = StyleSheet.create({
   inlineLinkText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#183f2e",
+    color: "#3B82F6",
   },
   inlineLoader: {
     marginVertical: 12,
   },
   emptyState: {
-    borderRadius: 24,
-    backgroundColor: "#fbf7ef",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 32,
@@ -957,10 +957,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   rideCard: {
-    backgroundColor: "#fffdf8",
-    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     padding: 18,
     gap: 14,
   },
@@ -972,7 +972,7 @@ const styles = StyleSheet.create({
   rideDay: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#1c4d38",
+    color: "#3B82F6",
   },
   rideTime: {
     fontSize: 13,
@@ -989,7 +989,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#f2efe7",
+    backgroundColor: "#F8FAFC",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -1002,7 +1002,7 @@ const styles = StyleSheet.create({
   riderStrip: {
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: "#ece3d6",
+    borderTopColor: "#E2E8F0",
     paddingTop: 14,
   },
   riderStripLabel: {
@@ -1026,7 +1026,7 @@ const styles = StyleSheet.create({
   riderChipText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#1c4d38",
+    color: "#3B82F6",
   },
   riderChipMuted: {
     borderRadius: 999,
@@ -1041,8 +1041,8 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: "#183f2e",
+    borderRadius: 8,
+    backgroundColor: "#3B82F6",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1054,6 +1054,6 @@ const styles = StyleSheet.create({
   completeButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
 });

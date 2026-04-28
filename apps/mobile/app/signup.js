@@ -242,7 +242,7 @@ export default function Signup() {
         activeOpacity={0.8}
       >
         {loading ? (
-          <ActivityIndicator color="#ffffff" />
+          <ActivityIndicator color="#FFFFFF" />
         ) : (
           <Text style={styles.buttonText}>Continue with Google</Text>
         )}
@@ -256,25 +256,25 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     padding: 24,
     gap: 12,
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: "#4b5563",
+    color: "#64748B",
     textAlign: "center",
     marginBottom: 14,
     lineHeight: 24,
   },
   button: {
-    backgroundColor: "#1a3a6b",
+    backgroundColor: "#3B82F6",
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: 10,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   buttonText: {
-    color: "#ffffff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },

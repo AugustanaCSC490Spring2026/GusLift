@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 160,
     backgroundColor: C.bg,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: C.border,
     alignItems: "center",

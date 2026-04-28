@@ -244,7 +244,7 @@ export default function AvailableRidersScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f2efe7",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 20,
     paddingTop: 60,
   },
@@ -257,32 +257,32 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 40,
     height: 40,
-    borderRadius: 16,
-    backgroundColor: "#e6e0d2",
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
   closeText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#44574e",
+    color: "#64748B",
   },
   upcomingButton: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#d8cebe",
+    borderColor: "#E2E8F0",
   },
   upcomingButtonText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#44574e",
+    color: "#64748B",
   },
   heroCard: {
-    backgroundColor: "#1c4d38",
-    borderRadius: 26,
+    backgroundColor: "#3B82F6",
+    borderRadius: 10,
     padding: 22,
     overflow: "hidden",
     gap: 10,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#35644f",
+    backgroundColor: "#EFF6FF",
     top: -58,
     right: -28,
     opacity: 0.46,
@@ -302,18 +302,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: "#d4e2da",
+    color: "#DBEAFE",
   },
   heroTitle: {
     fontSize: 29,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
     letterSpacing: -0.7,
   },
   heroBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#d5e2d9",
+    color: "#DBEAFE",
     maxWidth: "94%",
   },
   metricsRow: {
@@ -323,10 +323,10 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    borderRadius: 20,
-    backgroundColor: "#fffdf8",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     padding: 14,
     gap: 6,
   },
@@ -335,12 +335,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: "#6f8278",
+    color: "#64748B",
   },
   metricValue: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#20352d",
+    color: "#0F172A",
   },
   sectionHeader: {
     marginTop: 20,
@@ -350,11 +350,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#20352d",
+    color: "#0F172A",
   },
   sectionSub: {
     fontSize: 14,
-    color: "#647970",
+    color: "#64748B",
     lineHeight: 20,
   },
   list: {
@@ -367,10 +367,10 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fffdf8",
-    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     padding: 16,
     gap: 14,
   },
@@ -381,12 +381,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: 56,
     height: 56,
-    borderRadius: 20,
+    borderRadius: 10,
   },
   avatarPlaceholder: {
     width: 56,
     height: 56,
-    borderRadius: 20,
+    borderRadius: 10,
     backgroundColor: "#dfe8e2",
     alignItems: "center",
     justifyContent: "center",
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#1c4d38",
+    color: "#3B82F6",
   },
   info: {
     flex: 1,
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#20352d",
+    color: "#0F172A",
   },
   toLocation: {
     fontSize: 13,
@@ -421,8 +421,8 @@ const styles = StyleSheet.create({
   selectButton: {
     minWidth: 82,
     minHeight: 42,
-    borderRadius: 14,
-    backgroundColor: "#1c4d38",
+    borderRadius: 8,
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 12,
@@ -433,13 +433,13 @@ const styles = StyleSheet.create({
   selectButtonText: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   emptyState: {
-    borderRadius: 24,
-    backgroundColor: "#fbf7ef",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 32,
@@ -449,12 +449,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#20352d",
+    color: "#0F172A",
   },
   emptyText: {
     fontSize: 14,
     lineHeight: 20,
-    color: "#647970",
+    color: "#64748B",
     textAlign: "center",
   },
 });
