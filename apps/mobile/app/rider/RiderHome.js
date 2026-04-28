@@ -401,14 +401,24 @@ export default function RiderHome() {
             <Text style={styles.sectionEyebrow}>Ride management</Text>
             <Text style={styles.sectionTitle}>Upcoming rides</Text>
           </View>
-          <TouchableOpacity
-            style={styles.inlineLink}
-            onPress={() => router.push("/rider/ScheduledRidesRider")}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.inlineLinkText}>View all</Text>
-            <Ionicons name="arrow-forward" size={13} color="#163b67" />
-          </TouchableOpacity>
+          <View style={styles.headerLinksRow}>
+            <TouchableOpacity
+              style={styles.inlineLink}
+              onPress={() => router.push("/rider/RideHistoryRider")}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="time-outline" size={13} color="#8b7351" />
+              <Text style={[styles.inlineLinkText, { color: "#8b7351" }]}>History</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.inlineLink}
+              onPress={() => router.push("/rider/ScheduledRidesRider")}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.inlineLinkText}>View all</Text>
+              <Ionicons name="arrow-forward" size={13} color="#163b67" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {ridesLoading ? (
@@ -818,6 +828,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     color: "#17365e",
+  },
+  headerLinksRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
   },
   inlineLink: {
     flexDirection: "row",

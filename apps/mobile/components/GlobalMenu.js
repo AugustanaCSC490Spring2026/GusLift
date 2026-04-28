@@ -138,14 +138,14 @@ export default function GlobalMenu() {
             <TouchableOpacity style={styles.menuItem} onPress={() => { 
                 setIsOpen(false); 
                 if (currentRole === "driver") {
-                  router.push("/driver/ScheduledRidesDriver?tab=history");
+                  router.push("/driver/RideHistoryDriver");
                 } else if (currentRole === "rider") {
-                  router.push("/rider/ScheduledRidesRider?tab=history");
+                  router.push("/rider/RideHistoryRider");
                 }
               }}>
               <HistoryLineIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
-                History
+                Ride History
               </Text>
             </TouchableOpacity>
 

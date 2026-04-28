@@ -458,14 +458,24 @@ export default function DriverHome() {
             <Text style={styles.sectionEyebrow}>Ride management</Text>
             <Text style={styles.sectionTitle}>Upcoming rides</Text>
           </View>
-          <TouchableOpacity
-            style={styles.inlineLink}
-            onPress={() => router.push("/driver/ScheduledRidesDriver")}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.inlineLinkText}>View all</Text>
-            <Ionicons name="arrow-forward" size={13} color="#183f2e" />
-          </TouchableOpacity>
+          <View style={styles.headerLinksRow}>
+            <TouchableOpacity
+              style={styles.inlineLink}
+              onPress={() => router.push("/driver/RideHistoryDriver")}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="time-outline" size={13} color="#7d7057" />
+              <Text style={[styles.inlineLinkText, { color: "#7d7057" }]}>History</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.inlineLink}
+              onPress={() => router.push("/driver/ScheduledRidesDriver")}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.inlineLinkText}>View all</Text>
+              <Ionicons name="arrow-forward" size={13} color="#183f2e" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {ridesLoading ? (
@@ -917,6 +927,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     color: "#183f2e",
+  },
+  headerLinksRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
   },
   inlineLink: {
     flexDirection: "row",
