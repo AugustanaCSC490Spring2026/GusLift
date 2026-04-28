@@ -8,15 +8,22 @@
 | public       | Car        | license_plate     | text                        | YES         | null           | null                     | null              | null          |
 | public       | Car        | capacity          | smallint                    | YES         | null           | null                     | 16                | 0             |
 | public       | Car        | created_at        | timestamp without time zone | NO          | now()          | null                     | null              | null          |
+| public       | PushTokens | id                | bigint                      | NO          | null           | null                     | 64                | 0             |
+| public       | PushTokens | user_id           | text                        | NO          | null           | null                     | null              | null          |
+| public       | PushTokens | token             | text                        | NO          | null           | null                     | null              | null          |
+| public       | PushTokens | platform          | text                        | YES         | null           | null                     | null              | null          |
+| public       | PushTokens | is_active         | boolean                     | NO          | true           | null                     | null              | null          |
+| public       | PushTokens | created_at        | timestamp without time zone | NO          | now()          | null                     | null              | null          |
+| public       | PushTokens | updated_at        | timestamp without time zone | NO          | now()          | null                     | null              | null          |
 | public       | Rides      | id                | bigint                      | NO          | null           | null                     | 64                | 0             |
 | public       | Rides      | driver_id         | text                        | YES         | null           | null                     | null              | null          |
 | public       | Rides      | rider_id          | text                        | YES         | null           | null                     | null              | null          |
 | public       | Rides      | ride_date         | date                        | YES         | null           | null                     | null              | null          |
 | public       | Rides      | start_time        | time without time zone      | YES         | null           | null                     | null              | null          |
 | public       | Rides      | location          | text                        | YES         | null           | null                     | null              | null          |
-| public       | Rides      | rider_dropoff_loc | text                        | YES         | null           | null                     | null              | null          |
 | public       | Rides      | status            | text                        | YES         | null           | null                     | null              | null          |
 | public       | Rides      | created_at        | timestamp without time zone | NO          | now()          | null                     | null              | null          |
+| public       | Rides      | rider_dropoff_loc | text                        | YES         | null           | null                     | null              | null          |
 | public       | User       | id                | text                        | NO          | null           | null                     | null              | null          |
 | public       | User       | name              | text                        | YES         | null           | null                     | null              | null          |
 | public       | User       | residence         | text                        | YES         | null           | null                     | null              | null          |
