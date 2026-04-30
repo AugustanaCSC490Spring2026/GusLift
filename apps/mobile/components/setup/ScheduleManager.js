@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { s } from './SetupStyles';
 import { B, CheckIcon, TrashIcon } from './SetupIcons';
 import { CircleIcon, SquareIcon, ClockIcon } from '../LocationTimeline';
+import AutocompleteInput from './AutocompleteInput';
+import TimePickerField from './TimePickerField';
 
 const DAY_SHORT = ['m', 't', 'w', 't', 'f', 's', 's'];
 const DAY_LONG = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -14,9 +16,33 @@ export default function ScheduleManager({ blocks, setBlocks }) {
   const [startTime24, setStartTime24] = useState('');
   const [endTime, setEndTime] = useState('');
   const [isAllDay, setIsAllDay] = useState(false);
+  const [timeError, setTimeError] = useState('');
+
+  function toMinutes(t) {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  const handleStartChange = (val) => {
+    setStartTime24(val);
+    if (val && endTime && toMinutes(val) >= toMinutes(endTime)) {
+      setTimeError('Start time must be before end time.');
+    } else {
+      setTimeError('');
+    }
+  };
+
+  const handleEndChange = (val) => {
+    setEndTime(val);
+    if (startTime24 && val && toMinutes(startTime24) >= toMinutes(val)) {
+      setTimeError('End time must be after start time.');
+    } else {
+      setTimeError('');
+    }
+  };
 
   const addBlock = () => {
-    if (!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime24) || (!isAllDay && !endTime)) return;
+    if (!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime24) || (!isAllDay && !endTime) || timeError) return;
     const block = {
       id: Math.random().toString(36).substr(2, 9),
       from: tempFrom,
@@ -34,6 +60,7 @@ export default function ScheduleManager({ blocks, setBlocks }) {
     setTempDays([]);
     setStartTime24('');
     setEndTime('');
+    setTimeError('');
   };
 
   return (
@@ -46,8 +73,8 @@ export default function ScheduleManager({ blocks, setBlocks }) {
               <CircleIcon size={12} color="#0F172A" />
               <Text style={s.fieldLabel}>From</Text>
             </View>
-            <TextInput
-              style={s.fieldInput}
+            <AutocompleteInput
+              style={[s.fieldInput, s.fieldInputText]}
               value={tempFrom}
               onChangeText={setTempFrom}
               placeholder="Origin"
@@ -59,8 +86,8 @@ export default function ScheduleManager({ blocks, setBlocks }) {
               <SquareIcon size={12} color="#0F172A" />
               <Text style={s.fieldLabel}>To</Text>
             </View>
-            <TextInput
-              style={s.fieldInput}
+            <AutocompleteInput
+              style={[s.fieldInput, s.fieldInputText]}
               value={tempTo}
               onChangeText={setTempTo}
               placeholder="Destination"
@@ -102,43 +129,46 @@ export default function ScheduleManager({ blocks, setBlocks }) {
         {/* Duration / Time */}
         <View style={{ gap: 12 }}>
           <View style={s.row}>
-            <View style={[s.halfField, isAllDay && s.dimmed]}>
+            <View style={s.halfField}>
               <View style={s.inlineLabelRow}>
                 <ClockIcon size={12} color="#0F172A" />
                 <Text style={s.fieldLabel}>Start (24H)</Text>
               </View>
-              <TextInput
-                style={[s.fieldInput, { textAlign: 'center' }]}
+              <TimePickerField
                 value={startTime24}
-                onChangeText={setStartTime24}
+                onChange={handleStartChange}
                 placeholder="e.g. 14:00"
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-                editable={!isAllDay}
+                disabled={isAllDay}
               />
             </View>
-            <View style={[s.halfField, isAllDay && s.dimmed]}>
+            <View style={s.halfField}>
               <View style={s.inlineLabelRow}>
                 <ClockIcon size={12} color="#0F172A" />
                 <Text style={s.fieldLabel}>End (24H)</Text>
               </View>
-              <TextInput
-                style={[s.fieldInput, { textAlign: 'center' }]}
+              <TimePickerField
                 value={endTime}
-                onChangeText={setEndTime}
+                onChange={handleEndChange}
                 placeholder="e.g. 15:15"
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-                editable={!isAllDay}
+                disabled={isAllDay}
               />
             </View>
           </View>
         </View>
 
+        {timeError ? (
+          <Text style={{ fontSize: 13, fontWeight: '600', color: '#EF4444', marginTop: -8 }}>
+            {timeError}
+          </Text>
+        ) : null}
+
         {/* All day toggle */}
         <TouchableOpacity
           style={s.checkRow}
-          onPress={() => setIsAllDay(!isAllDay)}
+          onPress={() => {
+            setIsAllDay(!isAllDay);
+            setTimeError('');
+          }}
         >
           <View style={[s.checkbox, isAllDay && s.checkboxChecked]}>
             {isAllDay ? <CheckIcon size={12} color={B.white} strokeWidth={3} /> : null}
@@ -150,10 +180,10 @@ export default function ScheduleManager({ blocks, setBlocks }) {
         <TouchableOpacity
           style={[
             s.addBtn,
-            (!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime24) || (!isAllDay && !endTime)) && s.addBtnDisabled,
+            (!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime24) || (!isAllDay && !endTime) || !!timeError) && s.addBtnDisabled,
           ]}
           onPress={addBlock}
-          disabled={!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime24) || (!isAllDay && !endTime)}
+          disabled={!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime24) || (!isAllDay && !endTime) || !!timeError}
         >
           <Text style={s.addBtnText}>Add to Week</Text>
         </TouchableOpacity>

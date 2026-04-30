@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     const { data: userRows, error: userError } = await supabase
       .from("User")
-      .select("residence")
+      .select("residence, picture_url")
       .eq("id", userId)
       .limit(1);
 
@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
     }
 
     const residence = userRows?.[0]?.residence ?? null;
+    const picture_url = userRows?.[0]?.picture_url ?? null;
 
     const { data: rows, error: scheduleError } = await supabase
       .from("schedule")
@@ -122,6 +123,7 @@ export async function GET(request: NextRequest) {
             pickup_loc: null,
             dropoff_loc: null,
             residence,
+            picture_url,
           },
           { status: 200 },
         ),
@@ -138,6 +140,7 @@ export async function GET(request: NextRequest) {
         NextResponse.json(
           {
             day,
+            picture_url,
             schedule: dayEntry
               ? {
                   ...dayEntry,
@@ -161,6 +164,7 @@ export async function GET(request: NextRequest) {
           pickup_loc,
           dropoff_loc,
           residence,
+          picture_url,
         },
         { status: 200 },
       ),

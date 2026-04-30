@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, TextInput, Alert, Platform, TouchableOpacity, Text } from 'react-native';
+import { View, Alert, Platform, TouchableOpacity, Text } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import SetupLayout from '../../components/setup/SetupLayout';
 import ScheduleManager from '../../components/setup/ScheduleManager';
 import PhotoPicker from '../../components/setup/PhotoPicker';
+import AutocompleteInput from '../../components/setup/AutocompleteInput';
 import { s } from '../../components/setup/SetupStyles';
 import { B, CheckIcon } from '../../components/setup/SetupIcons';
 import { CircleIcon, SquareIcon } from '../../components/LocationTimeline';
@@ -142,7 +143,7 @@ export default function RiderSetup() {
           <View style={s.inputIcon}>
             <CircleIcon size={20} color="#0F172A" />
           </View>
-          <TextInput
+          <AutocompleteInput
             autoFocus
             style={s.textInput}
             value={pickup}
@@ -160,7 +161,7 @@ export default function RiderSetup() {
             <View style={s.inputIcon}>
               <SquareIcon size={20} color="#0F172A" />
             </View>
-            <TextInput
+            <AutocompleteInput
               autoFocus
               style={[s.textInput, isSameAsPickup && s.textInputDisabled]}
               value={isSameAsPickup ? pickup : dropoff}
