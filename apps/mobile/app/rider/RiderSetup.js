@@ -62,6 +62,7 @@ export default function RiderSetup() {
       const formData = new FormData();
       formData.append("userID", userId);
       formData.append("name", String(parsed?.name || "").trim());
+      formData.append("email", String(parsed?.email || "").trim());
       formData.append("residence", pickup.trim());
       formData.append("pickup_loc", pickup.trim());
       formData.append("dropoff_loc", isSameAsPickup ? pickup.trim() : dropoff.trim());

@@ -19,6 +19,23 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 const SCHOOL_DOMAIN = "augustana.edu";
+const OAUTH_FALLBACK_STORAGE_KEY = "GusLiftOAuthCallbackUrl";
+const OAUTH_FALLBACK_MESSAGE_TYPE = "GusLiftOAuthCallback";
+
+function getAccessTokenFromCallbackUrl(callbackUrl) {
+  if (!callbackUrl) return null;
+  try {
+    const url = new URL(callbackUrl);
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+    return (
+      hashParams.get("access_token") ||
+      url.searchParams.get("access_token") ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
 
 export default function Signup() {
   const router = useRouter();
@@ -80,7 +97,6 @@ export default function Signup() {
 
         // Log any previously saved Google user id so engineers can grab it.
         if (parsed?.id) {
-          // eslint-disable-next-line no-console
           console.log("[GusLift] Existing Google user id (from storage):", parsed.id);
         }
 
@@ -127,7 +143,6 @@ export default function Signup() {
       const email = (data?.email || "").toLowerCase();
       // Log the Google user id immediately on successful sign-in.
       if (data?.id) {
-        // eslint-disable-next-line no-console
         console.log("[GusLift] Sign-in user id:", data.id);
       }
 
@@ -171,11 +186,11 @@ export default function Signup() {
         { text: "OK" },
       ]);
     }
-  }, [router, enforceSchoolEmail, presetRole]);
+  }, [router, enforceSchoolEmail, presetRole, landingPickup, landingDestination]);
 
-  useEffect(() => {
-    if (response?.type === "success") {
-      const token = response.authentication?.accessToken;
+  const handleAuthResponse = useCallback((authResponse) => {
+    if (authResponse?.type === "success") {
+      const token = authResponse.authentication?.accessToken;
       if (token) {
         fetchUserInfo(token);
       } else {
@@ -185,12 +200,64 @@ export default function Signup() {
           "No access token returned. Please try again.",
         );
       }
+      return;
     }
-    if (response?.type === "error") {
+    if (authResponse?.type === "error") {
       setLoading(false);
       Alert.alert("Sign-in Error", "Google sign-in failed. Please try again.");
     }
-  }, [response, fetchUserInfo]);
+    if (authResponse?.type === "dismiss" || authResponse?.type === "cancel") {
+      setLoading(false);
+    }
+  }, [fetchUserInfo]);
+
+  useEffect(() => {
+    handleAuthResponse(response);
+  }, [response, handleAuthResponse]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return undefined;
+
+    async function handleFallbackCallbackUrl(callbackUrl) {
+      const token = getAccessTokenFromCallbackUrl(callbackUrl);
+      if (!token) return;
+      window.localStorage.removeItem(OAUTH_FALLBACK_STORAGE_KEY);
+      setLoading(true);
+      await fetchUserInfo(token);
+    }
+
+    function handleMessage(event) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== OAUTH_FALLBACK_MESSAGE_TYPE) return;
+      handleFallbackCallbackUrl(event.data.url);
+    }
+
+    function handleStorage(event) {
+      if (event.key !== OAUTH_FALLBACK_STORAGE_KEY || !event.newValue) return;
+      handleFallbackCallbackUrl(event.newValue);
+    }
+
+    window.addEventListener("message", handleMessage);
+    window.addEventListener("storage", handleStorage);
+    const channel = new BroadcastChannel(OAUTH_FALLBACK_MESSAGE_TYPE);
+    channel.onmessage = (event) => {
+      if (event.data?.type !== OAUTH_FALLBACK_MESSAGE_TYPE) return;
+      handleFallbackCallbackUrl(event.data.url);
+    };
+
+    const storedCallbackUrl = window.localStorage.getItem(
+      OAUTH_FALLBACK_STORAGE_KEY,
+    );
+    if (storedCallbackUrl) {
+      handleFallbackCallbackUrl(storedCallbackUrl);
+    }
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      window.removeEventListener("storage", handleStorage);
+      channel.close();
+    };
+  }, [fetchUserInfo]);
 
   // Sign up screen
   return (
@@ -232,7 +299,11 @@ export default function Signup() {
 
           try {
             setLoading(true);
-            await promptAsync();
+            if (Platform.OS === "web") {
+              window.localStorage.removeItem(OAUTH_FALLBACK_STORAGE_KEY);
+            }
+            const authResponse = await promptAsync();
+            handleAuthResponse(authResponse);
           } catch {
             setLoading(false);
             Alert.alert("Sign-in Error", "Could not start Google sign-in.");

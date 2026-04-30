@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
 
     const userID = formData.get("userID") as string | null;
     const name = formData.get("name") as string | null;
+    const email = formData.get("email") as string | null;
     const residence = formData.get("residence") as string | null;
     const picture = formData.get("picture") as File | null;
 
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
       {
         id: userID.trim(),
         name: name?.trim() ?? null,
+        email: email?.trim() || null,
         residence: residence?.trim() ?? null,
         picture_url,
         is_driver,

@@ -32,10 +32,16 @@ type RideRow = {
 type RiderProfile = {
   id: string;
   name: string | null;
+  email: string | null;
   residence: string | null;
   picture_url: string | null;
   /** schedule.dropoff_loc */
   to_location: string | null;
+};
+
+type UserContact = {
+  name: string | null;
+  email: string | null;
 };
 
 type CarRow = {
@@ -137,6 +143,28 @@ export class MatchingRoom implements DurableObject {
             joined_at,
           });
           const profile = await this.fetchRiderProfile(riderId);
+          void this.createNotification({
+            userId: riderId,
+            type: "match_expired",
+            title: "Match expired",
+            body: "The driver did not confirm in time, so you are back in the rider queue.",
+            data: {
+              driver_id: driverId,
+              slot_key: this.slotKey,
+            },
+            idempotencyKey: `match:${this.slotKey}:${driverId}:${riderId}:expired`,
+          });
+          void this.createNotification({
+            userId: driverId,
+            type: "match_expired",
+            title: "Match expired",
+            body: `${profile.name || "A rider"} is back in the queue after the match timed out.`,
+            data: {
+              rider_id: riderId,
+              slot_key: this.slotKey,
+            },
+            idempotencyKey: `match:${this.slotKey}:${driverId}:${riderId}:expired:driver`,
+          });
           this.broadcast({
             type: "rider_joined",
             rider: {
@@ -206,6 +234,154 @@ export class MatchingRoom implements DurableObject {
     return data as RideRow;
   }
 
+  private async createNotification({
+    userId,
+    type,
+    title,
+    body,
+    data = {},
+    idempotencyKey,
+    sendEmail = false,
+  }: {
+    userId: string;
+    type: string;
+    title: string;
+    body: string;
+    data?: Record<string, unknown>;
+    idempotencyKey?: string;
+    sendEmail?: boolean;
+  }): Promise<void> {
+    try {
+      const supabase = getSupabase(this.env);
+      let emailTo: string | null = null;
+      let emailStatus: string | null = null;
+      let emailSentAt: string | null = null;
+      let emailError: string | null = null;
+
+      if (sendEmail) {
+        emailTo = await this.fetchUserEmail(userId);
+        if (!emailTo) {
+          emailStatus = "skipped";
+          emailError = "User email is missing";
+        } else {
+          const result = await this.sendEmail({
+            to: emailTo,
+            subject: title,
+            text: body,
+          });
+          if (result.ok) {
+            emailStatus = "sent";
+            emailSentAt = new Date().toISOString();
+          } else {
+            emailStatus = "failed";
+            emailError = result.error;
+          }
+        }
+      }
+
+      const payload = {
+        user_id: userId,
+        type,
+        title,
+        body,
+        data,
+        idempotency_key: idempotencyKey ?? null,
+        email_to: emailTo,
+        email_status: emailStatus,
+        email_sent_at: emailSentAt,
+        email_error: emailError,
+      };
+      if (idempotencyKey) {
+        await supabase
+          .from("Notifications")
+          .upsert(payload, {
+            onConflict: "idempotency_key",
+            ignoreDuplicates: true,
+          });
+      } else {
+        await supabase.from("Notifications").insert(payload);
+      }
+    } catch (_) {
+      // Matching should not fail just because a notification could not be written.
+    }
+  }
+
+  private async fetchUserEmail(userId: string): Promise<string | null> {
+    const supabase = getSupabase(this.env);
+    const { data } = await supabase
+      .from("User")
+      .select("email")
+      .eq("id", userId)
+      .single();
+    const email = (data as { email?: string | null } | null)?.email;
+    return typeof email === "string" && email.trim() ? email.trim() : null;
+  }
+
+  private async fetchUserContact(userId: string): Promise<UserContact> {
+    const supabase = getSupabase(this.env);
+    const { data } = await supabase
+      .from("User")
+      .select("name,email")
+      .eq("id", userId)
+      .single();
+    const row = data as UserContact | null;
+    return {
+      name: row?.name ?? null,
+      email: row?.email ?? null,
+    };
+  }
+
+  private async sendEmail({
+    to,
+    subject,
+    text,
+  }: {
+    to: string;
+    subject: string;
+    text: string;
+  }): Promise<{ ok: true } | { ok: false; error: string }> {
+    const apiKey = this.env.RESEND_API_KEY;
+    const from = this.env.EMAIL_FROM || this.env.RESEND_FROM_EMAIL;
+    if (!apiKey || !from) {
+      return {
+        ok: false,
+        error: "Email is not configured. Set RESEND_API_KEY and EMAIL_FROM.",
+      };
+    }
+
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to,
+          subject,
+          text,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return {
+          ok: false,
+          error:
+            typeof payload?.message === "string"
+              ? payload.message
+              : `Email provider returned ${response.status}`,
+        };
+      }
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Email request failed",
+      };
+    }
+  }
+
   private async fetchRiderProfile(riderId: string): Promise<RiderProfile> {
     const supabase = getSupabase(this.env);
     const [userRes, schedRes] = await Promise.all([
@@ -230,6 +406,7 @@ export class MatchingRoom implements DurableObject {
         id: riderId,
         name: null,
         residence: null,
+        email: null,
         picture_url: null,
         to_location,
       };
@@ -237,6 +414,7 @@ export class MatchingRoom implements DurableObject {
     const u = userRes.data as {
       id: string;
       name: string | null;
+      email: string | null;
       residence: string | null;
       picture_url: string | null;
     };
@@ -342,6 +520,31 @@ export class MatchingRoom implements DurableObject {
     };
     this.riders_waiting.push(rider);
     const profile = await this.fetchRiderProfile(ev.rider_id);
+    void this.createNotification({
+      userId: ev.rider_id,
+      type: "ride_requested",
+      title: "Ride request received",
+      body: "You are in the rider queue. We will let you know when a driver matches with you.",
+      data: {
+        slot_key: this.slotKey,
+      },
+      idempotencyKey: `request:${this.slotKey}:${ev.rider_id}:${rider.joined_at}`,
+      sendEmail: true,
+    });
+    for (const driverId of this.drivers.keys()) {
+      void this.createNotification({
+        userId: driverId,
+        type: "rider_waiting",
+        title: "New rider request",
+        body: `${profile.name || "A rider"} is waiting for a ride in your current slot.`,
+        data: {
+          rider_id: ev.rider_id,
+          slot_key: this.slotKey,
+        },
+        idempotencyKey: `request:${this.slotKey}:${ev.rider_id}:${driverId}:${rider.joined_at}`,
+        sendEmail: true,
+      });
+    }
     this.broadcast({
       type: "rider_joined",
       rider: {
@@ -380,6 +583,18 @@ export class MatchingRoom implements DurableObject {
         car: ds.car,
       },
     });
+    void this.createNotification({
+      userId: ev.rider_id,
+      type: "match_selected",
+      title: "Driver found",
+      body: "A driver selected your ride request. Review and confirm to continue.",
+      data: {
+        driver_id: ev.driver_id,
+        slot_key: this.slotKey,
+      },
+      idempotencyKey: `match:${this.slotKey}:${ev.driver_id}:${ev.rider_id}:selected`,
+      sendEmail: true,
+    });
     this.scheduleMatchTimeout(ev.rider_id);
   }
 
@@ -409,6 +624,34 @@ export class MatchingRoom implements DurableObject {
 
     const rider = await this.fetchRiderProfile(ev.rider_id);
     const ride = await this.insertRide(ev.driver_id, ev.rider_id, ev.rider_to_location);
+    const driverContact = await this.fetchUserContact(ev.driver_id);
+
+    void this.createNotification({
+      userId: ev.driver_id,
+      type: "match_accepted",
+      title: "Ride accepted",
+      body: `${rider.name || "A rider"} accepted your match.`,
+      data: {
+        ride_id: ride.id,
+        rider_id: ev.rider_id,
+        slot_key: this.slotKey,
+      },
+      idempotencyKey: `match:${this.slotKey}:${ev.driver_id}:${ev.rider_id}:accepted`,
+      sendEmail: true,
+    });
+    void this.createNotification({
+      userId: ev.rider_id,
+      type: "ride_created",
+      title: "Ride created",
+      body: `Your ride with ${driverContact.name || "your driver"} has been added to your upcoming rides.`,
+      data: {
+        ride_id: ride.id,
+        driver_id: ev.driver_id,
+        slot_key: this.slotKey,
+      },
+      idempotencyKey: `ride:${ride.id}:created:rider`,
+      sendEmail: true,
+    });
 
     this.sendTo(ev.driver_id, {
       type: "match_confirmed",
@@ -446,6 +689,17 @@ export class MatchingRoom implements DurableObject {
       type: "match_rejected",
       rider_id: ev.rider_id,
       driver_id: ev.driver_id,
+    });
+    void this.createNotification({
+      userId: ev.driver_id,
+      type: "match_rejected",
+      title: "Match rejected",
+      body: `${profile.name || "A rider"} passed on your match. They are back in the queue.`,
+      data: {
+        rider_id: ev.rider_id,
+        slot_key: this.slotKey,
+      },
+      idempotencyKey: `match:${this.slotKey}:${ev.driver_id}:${ev.rider_id}:rejected`,
     });
     this.broadcast({
       type: "rider_joined",

@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import MenuAvatar from "./MenuAvatar";
-import { ClockIcon, HistoryLineIcon } from "./Icons";
+import { BellIcon, ClockIcon, HistoryLineIcon } from "./Icons";
+
+const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
 function CodeIcon({ size = 20, color = "#64748B" }) {
   return (
@@ -30,22 +32,59 @@ export default function GlobalMenu() {
   const insets = useSafeAreaInsets();
   const [currentRole, setCurrentRole] = useState(null);
   const [avatarUri, setAvatarUri] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Do not show the menu on login/signup/setup pages
   const hidePaths = ["/", "/index", "/signup", "/role", "/About"];
-  if (hidePaths.includes(pathname) || pathname?.toLowerCase().includes("setup")) {
+  const shouldHide =
+    hidePaths.includes(pathname) || pathname?.toLowerCase().includes("setup");
+
+  async function loadUserSnapshot() {
+    try {
+      const stored = await AsyncStorage.getItem("@user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setCurrentRole(parsed?.role);
+        setAvatarUri(parsed?.picture || parsed?.avatar_url || null);
+        return parsed;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  }
+
+  async function loadUnreadCount() {
+    if (!BACKEND_URL) return;
+    const user = await loadUserSnapshot();
+    if (!user?.id) return;
+    try {
+      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
+      const res = await fetch(`${normalizedBackendUrl}/api/notifications?limit=1`, {
+        headers: { "x-user-id": String(user.id) },
+      });
+      if (!res.ok) return;
+      const payload = await res.json();
+      setUnreadCount(Number(payload?.unread_count || 0));
+    } catch (e) {
+      // Keep the menu usable if notification count fails.
+    }
+  }
+
+  useEffect(() => {
+    if (!shouldHide) {
+      loadUnreadCount();
+    }
+  }, [pathname, shouldHide]);
+
+  if (shouldHide) {
     return null;
   }
 
   const toggleMenu = async () => {
     if (!isOpen) {
       try {
-        const stored = await AsyncStorage.getItem("@user");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setCurrentRole(parsed?.role);
-          setAvatarUri(parsed?.picture || parsed?.avatar_url || null);
-        }
+        await loadUnreadCount();
       } catch (e) {
         // ignore
       }
@@ -104,6 +143,13 @@ export default function GlobalMenu() {
         activeOpacity={0.8}
       >
         <MenuAvatar uri={avatarUri} />
+        {unreadCount > 0 ? (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadBadgeText}>
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
 
       <Modal
@@ -121,6 +167,21 @@ export default function GlobalMenu() {
             
             {/* Menu Items */}
             {/* Menu Items */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => {
+                setIsOpen(false);
+                router.push("/notifications");
+              }}>
+              <BellIcon size={20} color="#64748B" />
+              <Text style={styles.menuItemText}>
+                Notifications
+              </Text>
+              {unreadCount > 0 ? (
+                <View style={styles.menuBadge}>
+                  <Text style={styles.menuBadgeText}>{unreadCount}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={() => { 
                 setIsOpen(false); 
                 if (currentRole === "driver") {
@@ -175,6 +236,24 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 999,
   },
+  unreadBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#3B82F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  unreadBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
@@ -207,5 +286,20 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     color: "#0F172A",
     fontWeight: "500",
+  },
+  menuBadge: {
+    marginLeft: "auto",
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 7,
+  },
+  menuBadgeText: {
+    color: "#3B82F6",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

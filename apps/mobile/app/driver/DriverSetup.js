@@ -78,6 +78,7 @@ export default function DriverSetup() {
       const formData = new FormData();
       formData.append("userID", userId);
       formData.append("name", String(parsed?.name || "").trim());
+      formData.append("email", String(parsed?.email || "").trim());
       formData.append("residence", pickup.trim());
       formData.append("make", carMake.trim());
       formData.append("model", carModel.trim());

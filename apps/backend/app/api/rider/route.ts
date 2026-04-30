@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
 
     const userID = formData.get("userID") as string | null;
     const name = formData.get("name") as string | null;
+    const email = formData.get("email") as string | null;
     const residence = formData.get("residence") as string | null;
     const pickup_loc = formData.get("pickup_loc") as string | null;
     const dropoff_loc = formData.get("dropoff_loc") as string | null;
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
     const { error: userError } = await supabase.from("User").upsert({
       id: resolvedUserId,
       name,
+      email: email?.trim() || null,
       residence,
       ...(picture_url ? { picture_url } : {}),
       is_driver: false,
