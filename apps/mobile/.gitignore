@@ -8,6 +8,15 @@ expo-env.d.ts
 # Expo cache
 .expo/web/cache/
 
-# Android generated
+# Android local/build artifacts
 android/app/debug.keystore
-android/gradle/wrapper/gradle-wrapper.jar
+android/local.properties
+android/.gradle/
+android/.kotlin/
+android/build/
+android/**/build/
+android/**/.cxx/
+android/**/*.salive
+
+# Keep Gradle wrapper binary tracked for reproducible builds
+!android/gradle/wrapper/gradle-wrapper.jar
