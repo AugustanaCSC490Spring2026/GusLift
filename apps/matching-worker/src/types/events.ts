@@ -19,6 +19,8 @@ export type AcceptMatchEvent = {
   type: "accept_match";
   rider_id: string;
   driver_id: string;
+  /** Manual destination from the rider flow; stored on `Rides.rider_dropoff_loc` when set */
+  rider_to_location?: string | null;
 };
 
 /** Rider declines a pending match_request; returns rider to the waiting queue */

@@ -61,7 +61,7 @@ export default function Signup() {
     webClientId,
     androidClientId,
     iosClientId,
-    redirectUri,
+    ...(Platform.OS !== "android" && { redirectUri }),
     selectAccount: true,
     ...(enforceSchoolEmail ? { extraParams: { hd: SCHOOL_DOMAIN } } : {}),
   });
@@ -94,16 +94,24 @@ export default function Signup() {
 
           if (parsed.role === "driver") {
             if (parsed.driverSetupComplete) {
-              router.replace("/driver/OfferRide");
+              router.replace("/driver/DriverHome");
             } else {
               router.replace("/driver/DriverSetup");
             }
           } else {
+<<<<<<< HEAD
             // Riders go straight to RequestRide — forward landing page params if present
             const riderParams = {};
             if (landingPickup) riderParams.pickup = landingPickup;
             if (landingDestination) riderParams.destination = landingDestination;
             router.replace({ pathname: "/rider/RequestRide", params: riderParams });
+=======
+            if (parsed.riderSetupComplete) {
+              router.replace("/rider/RiderHome");
+            } else {
+              router.replace("/rider/RiderSetup");
+            }
+>>>>>>> origin/main
           }
         } else {
           await AsyncStorage.removeItem("@user");
@@ -148,6 +156,7 @@ export default function Signup() {
         await AsyncStorage.setItem(
           "@user",
           JSON.stringify({ ...data, savedAt: Date.now() }),
+<<<<<<< HEAD
         );
       }
 
@@ -157,6 +166,8 @@ export default function Signup() {
           "Google user id",
           `Copy this id for seeding:\n\n${data.id}`,
           [{ text: "OK" }],
+=======
+>>>>>>> origin/main
         );
       }
 

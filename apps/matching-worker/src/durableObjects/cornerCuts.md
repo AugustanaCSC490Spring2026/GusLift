@@ -67,3 +67,13 @@
 - No picture input for driver registration  
 - check for how long before we can stach matching people for the day.
 - when drivers quit the page, their connection cuts so matching cannot be done until the site is loaded. -- maybe not a big problem
+
+- Tradeoff: A one-off manual “to” from the request flow is not stored anywhere, so Upcoming Rides will only show the saved rider schedule dropoff. To show custom manual destinations later, you’d need either a DB field or updating schedule when they request manually.
+
+
+
+Pickup field on the upcoming rides tiles, uses class start time
+Fix the user flow for upcoming rides esp for rider. the shouldnt be able to go back and request a ride again(maybe have a checker for double scheduling)
+
+Ride details when you click on the upcoming rides for rider still has hardcoded "To"
+the handle select rider tile is not showing the users correct To location. 

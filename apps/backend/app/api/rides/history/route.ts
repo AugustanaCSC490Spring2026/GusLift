@@ -13,36 +13,6 @@ type RideRow = {
   created_at: string | null;
 };
 
-/** ISO date-only strings parse as UTC midnight; weekday in local time can be wrong. Use UTC calendar date. */
-const ISO_DOW_TO_DAY = [
-  "sun",
-  "mon",
-  "tue",
-  "wed",
-  "thu",
-  "fri",
-  "sat",
-] as const;
-
-function weekdayKeyFromIsoDate(
-  rideDate: string | null | undefined,
-): string | null {
-  if (!rideDate) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(rideDate).trim());
-  if (!m) return null;
-  const y = Number(m[1]);
-  const mo = Number(m[2]) - 1;
-  const d = Number(m[3]);
-  const w = new Date(Date.UTC(y, mo, d)).getUTCDay();
-  return ISO_DOW_TO_DAY[w] ?? null;
-}
-
-type DriverScheduleRow = {
-  user_id: string;
-  pickup_loc: string | null;
-  dropoff_loc: string | null;
-};
-
 type UserRow = {
   id: string;
   name: string | null;
@@ -58,6 +28,27 @@ type CarRow = {
   license_plate: string | null;
 };
 
+type DriverScheduleRow = {
+  user_id: string;
+  pickup_loc: string | null;
+  dropoff_loc: string | null;
+};
+
+const ISO_DOW_TO_DAY = [
+  "sun", "mon", "tue", "wed", "thu", "fri", "sat",
+] as const;
+
+function weekdayKeyFromIsoDate(rideDate: string | null | undefined): string | null {
+  if (!rideDate) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(rideDate).trim());
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  const w = new Date(Date.UTC(y, mo, d)).getUTCDay();
+  return ISO_DOW_TO_DAY[w] ?? null;
+}
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -71,7 +62,7 @@ function getSupabase() {
 
 function withCors(res: NextResponse) {
   res.headers.set("Access-Control-Allow-Origin", "*");
-  res.headers.set("Access-Control-Allow-Methods", "GET, PATCH, OPTIONS");
+  res.headers.set("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS");
   res.headers.set(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, x-user-id, X-User-Id",
@@ -79,39 +70,27 @@ function withCors(res: NextResponse) {
   return res;
 }
 
-function getLocalTodayDate(): string {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-async function queryRides(
+async function queryCompletedRides(
   supabase: ReturnType<typeof getSupabase>,
-  opts: { driverId?: string; riderId?: string; limit?: number; history?: boolean },
+  opts: { driverId?: string; riderId?: string },
 ): Promise<{ rows: RideRow[]; error: PostgrestError | null }> {
   const rideSelect =
     "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at";
-  const todayDate = getLocalTodayDate();
+
   for (const tableName of ["Rides", "rides"]) {
     let query = supabase
       .from(tableName)
       .select(rideSelect)
+      .eq("status", "completed")
+      .order("ride_date", { ascending: false })
       .order("created_at", { ascending: false });
 
-    if (opts.history) {
-      // History: only completed rides (any date)
-      query = query.eq("status", "completed");
-    } else {
-      // Upcoming: only accepted rides for today
-      query = query.eq("status", "accepted").eq("ride_date", todayDate);
+    if (opts.driverId) {
+      query = query.eq("driver_id", opts.driverId).eq("driver_hidden", false);
     }
-
-    if (opts.driverId) query = query.eq("driver_id", opts.driverId);
-    if (opts.riderId) query = query.eq("rider_id", opts.riderId);
-    if (typeof opts.limit === "number" && opts.limit > 0)
-      query = query.limit(opts.limit);
+    if (opts.riderId) {
+      query = query.eq("rider_id", opts.riderId).eq("rider_hidden", false);
+    }
 
     const { data, error } = await query;
     if (!error) {
@@ -130,97 +109,12 @@ async function queryRides(
   };
 }
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const driverId = request.headers.get("x-user-id")?.trim();
-    if (!driverId) {
-      return withCors(
-        NextResponse.json(
-          { error: "x-user-id header is required" },
-          { status: 400 },
-        ),
-      );
-    }
-
-    let body: { ride_ids?: unknown; ride_id?: unknown };
-    try {
-      body = await request.json();
-    } catch {
-      return withCors(
-        NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }),
-      );
-    }
-
-    const rawIds = Array.isArray(body.ride_ids)
-      ? body.ride_ids
-      : body.ride_id != null
-        ? [body.ride_id]
-        : [];
-    const rideIds = rawIds
-      .map((id) => String(id).trim())
-      .filter(Boolean);
-    if (rideIds.length === 0) {
-      return withCors(
-        NextResponse.json(
-          { error: "ride_ids (non-empty array) or ride_id is required" },
-          { status: 400 },
-        ),
-      );
-    }
-
-    const supabase = getSupabase();
-
-    for (const tableName of ["Rides", "rides"]) {
-      const { data, error } = await supabase
-        .from(tableName)
-        .update({ status: "completed" })
-        .eq("driver_id", driverId)
-        .eq("status", "accepted")
-        .in("id", rideIds)
-        .select("id");
-
-      if (error) {
-        continue;
-      }
-      if (data && data.length > 0) {
-        return withCors(
-          NextResponse.json({
-            success: true,
-            updated: data.length,
-            ids: data.map((r: { id: string }) => r.id),
-          }),
-        );
-      }
-    }
-
-    return withCors(
-      NextResponse.json(
-        {
-          error: "No matching accepted rides found for this driver",
-        },
-        { status: 404 },
-      ),
-    );
-  } catch (err) {
-    return withCors(
-      NextResponse.json(
-        { error: err instanceof Error ? err.message : "Internal server error" },
-        { status: 500 },
-      ),
-    );
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
     const driverId =
       request.nextUrl.searchParams.get("driver_id")?.trim() || undefined;
     const riderId =
       request.nextUrl.searchParams.get("rider_id")?.trim() || undefined;
-    const limitParam = Number(request.nextUrl.searchParams.get("limit"));
-    const limit =
-      Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined;
-    const history = request.nextUrl.searchParams.get("history") === "true";
 
     if (!driverId && !riderId) {
       return withCors(
@@ -232,97 +126,67 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = getSupabase();
-    const { rows: rideRows, error: ridesError } = await queryRides(supabase, {
-      driverId,
-      riderId,
-      limit,
-      history,
-    });
+    const { rows: rideRows, error: ridesError } = await queryCompletedRides(
+      supabase,
+      { driverId, riderId },
+    );
 
     if (ridesError) {
       return withCors(
         NextResponse.json(
-          { error: "Failed to fetch rides", details: ridesError.message },
+          { error: "Failed to fetch ride history", details: ridesError.message },
           { status: 500 },
         ),
       );
     }
 
     const queriedDriverIds = Array.from(
-      new Set(rideRows.map((ride) => ride.driver_id).filter(Boolean)),
+      new Set(rideRows.map((r) => r.driver_id).filter(Boolean)),
     );
     const riderIds = Array.from(
-      new Set(rideRows.map((ride) => ride.rider_id).filter(Boolean)),
+      new Set(rideRows.map((r) => r.rider_id).filter(Boolean)),
     );
 
     let scheduleByDriver = new Map<string, DriverScheduleRow>();
     if (queriedDriverIds.length > 0) {
-      const { data: schedules, error: schedulesError } = await supabase
+      const { data: schedules } = await supabase
         .from("schedule")
         .select("user_id,pickup_loc,dropoff_loc")
         .in("user_id", queriedDriverIds);
-      if (schedulesError) {
-        return withCors(
-          NextResponse.json(
-            {
-              error: "Failed to fetch driver schedules",
-              details: schedulesError.message,
-            },
-            { status: 500 },
-          ),
-        );
-      }
       scheduleByDriver = new Map(
-        ((schedules || []) as DriverScheduleRow[]).map((schedule) => [
-          schedule.user_id,
-          schedule,
-        ]),
+        ((schedules || []) as DriverScheduleRow[]).map((s) => [s.user_id, s]),
       );
     }
 
     let scheduleByRider = new Map<string, DriverScheduleRow>();
     if (riderIds.length > 0) {
-      const { data: rSchedules, error: rSchedulesError } = await supabase
+      const { data: rSchedules } = await supabase
         .from("schedule")
         .select("user_id,pickup_loc,dropoff_loc")
         .in("user_id", riderIds);
-      if (rSchedulesError) {
-        return withCors(
-          NextResponse.json(
-            {
-              error: "Failed to fetch rider schedules",
-              details: rSchedulesError.message,
-            },
-            { status: 500 },
-          ),
-        );
-      }
       scheduleByRider = new Map(
-        ((rSchedules || []) as DriverScheduleRow[]).map((schedule) => [
-          schedule.user_id,
-          schedule,
-        ]),
+        ((rSchedules || []) as DriverScheduleRow[]).map((s) => [s.user_id, s]),
       );
     }
 
     const [ridersRes, driversRes, carsRes] = await Promise.all([
       riderIds.length
         ? supabase
-          .from("User")
-          .select("id,name,residence,picture_url")
-          .in("id", riderIds)
+            .from("User")
+            .select("id,name,residence,picture_url")
+            .in("id", riderIds)
         : Promise.resolve({ data: [], error: null }),
       queriedDriverIds.length
         ? supabase
-          .from("User")
-          .select("id,name,residence,picture_url")
-          .in("id", queriedDriverIds)
+            .from("User")
+            .select("id,name,residence,picture_url")
+            .in("id", queriedDriverIds)
         : Promise.resolve({ data: [], error: null }),
       queriedDriverIds.length
         ? supabase
-          .from("Car")
-          .select("user_id,make,model,color,license_plate")
-          .in("user_id", queriedDriverIds)
+            .from("Car")
+            .select("user_id,make,model,color,license_plate")
+            .in("user_id", queriedDriverIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -368,7 +232,6 @@ export async function GET(request: NextRequest) {
           scheduleByDriver.get(ride.driver_id)?.pickup_loc ??
           ride.location ??
           null,
-        /** Rider destination: manual on accept, else saved schedule */
         dropoff_loc: riderTo,
         rider: ridersById.get(ride.rider_id) || {
           id: ride.rider_id,
@@ -394,6 +257,88 @@ export async function GET(request: NextRequest) {
         count: items.length,
         rides: items,
       }),
+    );
+  } catch (err) {
+    return withCors(
+      NextResponse.json(
+        { error: err instanceof Error ? err.message : "Internal server error" },
+        { status: 500 },
+      ),
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = request.headers.get("x-user-id")?.trim();
+    if (!userId) {
+      return withCors(
+        NextResponse.json(
+          { error: "x-user-id header is required" },
+          { status: 400 },
+        ),
+      );
+    }
+
+    let body: { ride_ids?: unknown; user_type?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return withCors(
+        NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }),
+      );
+    }
+
+    const userType = body.user_type;
+    if (userType !== "driver" && userType !== "rider") {
+      return withCors(
+        NextResponse.json(
+          { error: 'user_type must be "driver" or "rider"' },
+          { status: 400 },
+        ),
+      );
+    }
+
+    const rawIds = Array.isArray(body.ride_ids) ? body.ride_ids : [];
+    const rideIds = rawIds.map((id) => String(id).trim()).filter(Boolean);
+    if (rideIds.length === 0) {
+      return withCors(
+        NextResponse.json(
+          { error: "ride_ids (non-empty array) is required" },
+          { status: 400 },
+        ),
+      );
+    }
+
+    const hiddenColumn = userType === "driver" ? "driver_hidden" : "rider_hidden";
+    const userColumn = userType === "driver" ? "driver_id" : "rider_id";
+    const supabase = getSupabase();
+
+    for (const tableName of ["Rides", "rides"]) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .update({ [hiddenColumn]: true })
+        .eq(userColumn, userId)
+        .in("id", rideIds)
+        .select("id");
+
+      if (error) continue;
+      if (data && data.length > 0) {
+        return withCors(
+          NextResponse.json({
+            success: true,
+            hidden: data.length,
+            ids: data.map((r: { id: string }) => r.id),
+          }),
+        );
+      }
+    }
+
+    return withCors(
+      NextResponse.json(
+        { error: "No matching rides found for this user" },
+        { status: 404 },
+      ),
     );
   } catch (err) {
     return withCors(

@@ -80,13 +80,21 @@ export default function GlobalMenu() {
 
       if (newRole === "driver") {
         if (parsed.driverSetupComplete) {
-          router.replace("/driver/OfferRide");
+          router.replace("/driver/DriverHome");
         } else {
           router.replace("/driver/DriverSetup");
         }
       } else {
+<<<<<<< HEAD
         // Riders go straight to RequestRide — rider setup is optional
         router.replace("/rider/RequestRide");
+=======
+        if (parsed.riderSetupComplete) {
+          router.replace("/rider/RiderHome");
+        } else {
+          router.replace("/rider/RiderSetup");
+        }
+>>>>>>> origin/main
       }
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");
@@ -129,6 +137,7 @@ export default function GlobalMenu() {
               <ClockIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Upcoming Rides
+<<<<<<< HEAD
               </Text>
             </TouchableOpacity>
 
@@ -147,6 +156,26 @@ export default function GlobalMenu() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/Developer"); }}>
+=======
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => { 
+                setIsOpen(false); 
+                if (currentRole === "driver") {
+                  router.push("/driver/RideHistoryDriver");
+                } else if (currentRole === "rider") {
+                  router.push("/rider/RideHistoryRider");
+                }
+              }}>
+              <HistoryLineIcon size={20} color="#64748B" />
+              <Text style={styles.menuItemText}>
+                Ride History
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/developer"); }}>
+>>>>>>> origin/main
               <CodeIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Developer Options

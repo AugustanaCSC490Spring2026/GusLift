@@ -9,6 +9,7 @@ This document describes exactly what the frontend must implement to connect to t
 - Backend routing is done server-side by slot (`location:day:start_time`) in Durable Objects.
 
 The frontend should treat this as one persistent real-time channel:
+
 - open once for matching screen/session
 - send JSON messages for actions
 - handle JSON messages for updates
@@ -59,6 +60,7 @@ All messages must be JSON strings via `ws.send(JSON.stringify(payload))`.
 ## Driver messages
 
 ### `driver_online`
+
 ```json
 {
   "type": "driver_online",
@@ -69,6 +71,7 @@ All messages must be JSON strings via `ws.send(JSON.stringify(payload))`.
 Seat count is not sent by frontend. Backend loads seats from `Car.capacity` for that driver.
 
 ### `select_rider`
+
 ```json
 {
   "type": "select_rider",
@@ -80,6 +83,7 @@ Seat count is not sent by frontend. Backend loads seats from `Car.capacity` for 
 ## Rider messages
 
 ### `rider_request`
+
 ```json
 {
   "type": "rider_request",
@@ -88,6 +92,7 @@ Seat count is not sent by frontend. Backend loads seats from `Car.capacity` for 
 ```
 
 ### `accept_match`
+
 ```json
 {
   "type": "accept_match",
@@ -106,6 +111,7 @@ Messages that do not match authenticated identity are ignored.
 ## 5) Server -> client messages (frontend receives)
 
 ### `initial_state`
+
 Sent on connection to hydrate UI state.
 
 ```json
@@ -118,6 +124,7 @@ Sent on connection to hydrate UI state.
 ```
 
 ### `rider_joined`
+
 ```json
 {
   "type": "rider_joined",
@@ -126,6 +133,7 @@ Sent on connection to hydrate UI state.
 ```
 
 ### `rider_reserved`
+
 ```json
 {
   "type": "rider_reserved",
@@ -135,6 +143,7 @@ Sent on connection to hydrate UI state.
 ```
 
 ### `match_request` (to rider)
+
 ```json
 {
   "type": "match_request",
@@ -144,6 +153,7 @@ Sent on connection to hydrate UI state.
 ```
 
 ### `rider_removed`
+
 ```json
 {
   "type": "rider_removed",
@@ -152,6 +162,7 @@ Sent on connection to hydrate UI state.
 ```
 
 ### `seat_update`
+
 ```json
 {
   "type": "seat_update",
@@ -161,6 +172,7 @@ Sent on connection to hydrate UI state.
 ```
 
 ### `match_confirmed` (to selected driver)
+
 Sent after rider accepts and ride is inserted into DB.
 
 ```json

@@ -1,8 +1,12 @@
 import { useFonts } from "@expo-google-fonts/inter";
 import { Stack } from "expo-router";
+<<<<<<< HEAD
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
+=======
+import { Platform } from "react-native";
+>>>>>>> origin/main
 import { MatchingProvider } from "../context/MatchingContext";
 import GlobalMenu from "../components/GlobalMenu";
 
@@ -42,12 +46,20 @@ export default function Layout() {
 
   return (
     <MatchingProvider>
+<<<<<<< HEAD
       {/* Inject Inter as default web font */}
+=======
+      {/* Keep a consistent sans-serif stack on web without custom font package dependency. */}
+>>>>>>> origin/main
       {Platform.OS === "web" && (
         <style
           dangerouslySetInnerHTML={{
             __html: `
+<<<<<<< HEAD
               * { font-family: 'Inter_400Regular', 'Inter', system-ui, -apple-system, sans-serif !important; }
+=======
+              * { font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important; }
+>>>>>>> origin/main
             `,
           }}
         />

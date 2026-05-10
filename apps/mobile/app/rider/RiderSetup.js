@@ -106,7 +106,11 @@ export default function RiderSetup() {
 
       setIsSuccess(true);
       setTimeout(() => {
+<<<<<<< HEAD
         router.replace("/rider/RequestRide");
+=======
+        router.replace("/rider/RiderHome");
+>>>>>>> origin/main
       }, 800);
     } catch (err) {
       Alert.alert("Error saving profile", err.message);
@@ -132,7 +136,11 @@ export default function RiderSetup() {
       isSuccess={isSuccess}
       ctaLabel={CTA_LABELS[step]}
       onBack={() => setStep(step - 1)}
+<<<<<<< HEAD
       onSkipSetup={() => router.replace("/rider/RequestRide")}
+=======
+      onSkipSetup={() => router.replace("/rider/RiderHome")}
+>>>>>>> origin/main
       onSkipStep={step === 0 ? null : () => (step < 3 ? setStep(step + 1) : submitRiderProfile())}
       onNext={handleNext}
     >

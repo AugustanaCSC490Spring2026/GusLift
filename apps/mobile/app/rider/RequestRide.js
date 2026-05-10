@@ -16,10 +16,31 @@ import {
 import Svg, { Circle, Path } from "react-native-svg";
 import { CircleIcon, SquareIcon } from "../../components/LocationTimeline";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+<<<<<<< HEAD
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+=======
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function minusMinutes(timeStr, minutesToSubtract) {
+  if (!TIME_RE.test(String(timeStr || "").trim())) return null;
+  const [h, m] = String(timeStr).trim().split(":").map(Number);
+  const total = h * 60 + m - minutesToSubtract;
+  if (total < 0) return null;
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function formatTime12h(timeStr) {
+  if (!TIME_RE.test(String(timeStr || "").trim())) return "—";
+  const [h, m] = String(timeStr).trim().split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+}
+>>>>>>> origin/main
 
 /* ─── Color tokens ─── */
 const C = {
@@ -152,6 +173,7 @@ export default function RequestRide() {
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
+  const [schedulePickupTime, setSchedulePickupTime] = useState(null);
   const [firstName, setFirstName] = useState("");
 
   /* ── UI state ── */
@@ -206,6 +228,7 @@ export default function RequestRide() {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
+<<<<<<< HEAD
       const nameComponent = user.given_name || (user.name ? user.name.split(" ")[0] : "");
       setFirstName(nameComponent);
 
@@ -251,6 +274,25 @@ export default function RequestRide() {
       setSchedPickupLoc(fetchedPickup || fetchedResidence || "");
       setSchedDropoffLoc(fetchedDropoff || "");
       setSchedClassStart(startT || "");
+=======
+      setFirstName(user.given_name || (user.name ? user.name.split(" ")[0] : ""));
+      if (!BACKEND_URL || !user?.id) return;
+
+      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
+      const scheduleRes = await fetch(
+        `${normalizedBackendUrl}/api/rider/schedule?userID=${encodeURIComponent(String(user.id))}`,
+        { headers: { "x-user-id": String(user.id) } }
+      );
+      if (!scheduleRes.ok) return;
+
+      const scheduleData = await scheduleRes.json();
+      setPickupLoc(scheduleData?.pickup_loc ?? null);
+      setDropoffLoc(scheduleData?.dropoff_loc ?? null);
+      setResidence(scheduleData?.residence ?? null);
+      const todayKey = DAY_KEYS[new Date().getDay()];
+      const firstClassStart = scheduleData?.days?.[todayKey]?.start_time ?? null;
+      setSchedulePickupTime(minusMinutes(firstClassStart, 15));
+>>>>>>> origin/main
     } catch (_) {
       // leave blank
     } finally {
@@ -305,10 +347,17 @@ export default function RequestRide() {
     router.push({
       pathname: "/rider/RiderWaitingRoom",
       params: {
+<<<<<<< HEAD
         from: pickup,
         to: schedDropoffLoc.trim(),
         time: classTime,
         matchMode: "manual",
+=======
+        from: pickupLoc ?? "",
+        to: dropoffLoc ?? "",
+        matchMode: "schedule",
+        ...(schedulePickupTime ? { time: schedulePickupTime } : {}),
+>>>>>>> origin/main
       },
     });
   }
@@ -379,6 +428,7 @@ export default function RequestRide() {
           </Pressable>
         </View>
 
+<<<<<<< HEAD
         {/* ── Custom Mode ── */}
         {mode === "manual" ? (
           <View style={styles.modeContent}>
@@ -447,6 +497,26 @@ export default function RequestRide() {
               {manualFieldError ? (
                 <Text style={styles.fieldError}>{manualFieldError}</Text>
               ) : null}
+=======
+        <View style={styles.section}>
+          <Text style={styles.sectionTitleMuted}>Today’s saved route</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.label}>From</Text>
+              <Text style={styles.value}>{pickupLoc ?? "—"}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <Text style={styles.label}>To</Text>
+              <Text style={styles.value}>{dropoffLoc ?? "—"}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <Text style={styles.label}>Pick Up Time</Text>
+              <Text style={styles.value}>
+                {schedulePickupTime ? `${formatTime12h(schedulePickupTime)} (15 min before class)` : "—"}
+              </Text>
+>>>>>>> origin/main
             </View>
 
             {/* Request button */}

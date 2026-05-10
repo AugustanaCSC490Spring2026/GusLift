@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { ClockIcon, HistoryLineIcon, SearchLineIcon } from "../../components/Icons";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -237,10 +237,12 @@ export default function ScheduledRidesRider() {
   const [upcomingRides, setUpcomingRides] = useState([]);
   const [historyRides, setHistoryRides] = useState([]);
 
-  useEffect(() => {
-    loadRides('upcoming');
-    loadRides('history');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadRides('upcoming');
+      loadRides('history');
+    }, [])
+  );
 
   async function loadRides(type) {
     try {
@@ -260,7 +262,6 @@ export default function ScheduledRidesRider() {
       const ridesData = payload?.rides ?? [];
 
       const enriched = ridesData.map((ride) => {
-        // Calculate approx arrival +10 mins for display
         let classTime = "—";
         if (ride.start_time) {
           const [h, m] = ride.start_time.split(":").map(Number);
@@ -332,8 +333,8 @@ export default function ScheduledRidesRider() {
               activeOpacity={0.8}
             >
               <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                {tab === 'upcoming' 
-                  ? <ClockIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} /> 
+                {tab === 'upcoming'
+                  ? <ClockIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} />
                   : <HistoryLineIcon size={14} color={activeTab === tab ? COLORS.white : COLORS.gray400} />}
                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
