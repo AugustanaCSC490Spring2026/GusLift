@@ -5,9 +5,8 @@ import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from "react-native-svg";
 import MenuAvatar from "./MenuAvatar";
-import { BellIcon, ClockIcon, HistoryLineIcon } from "./Icons";
-
-const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { ClockIcon, HistoryLineIcon } from "./Icons";
+import { deactivateCurrentUserPushToken } from "../lib/pushNotifications";
 
 function CodeIcon({ size = 20, color = "#64748B" }) {
   return (
@@ -95,6 +94,7 @@ export default function GlobalMenu() {
   const handleSignout = async () => {
     setIsOpen(false);
     try {
+      await deactivateCurrentUserPushToken();
       await AsyncStorage.removeItem("@user");
       router.replace("/");
     } catch (e) {
@@ -199,14 +199,14 @@ export default function GlobalMenu() {
             <TouchableOpacity style={styles.menuItem} onPress={() => { 
                 setIsOpen(false); 
                 if (currentRole === "driver") {
-                  router.push("/driver/ScheduledRidesDriver?tab=history");
+                  router.push("/driver/RideHistoryDriver");
                 } else if (currentRole === "rider") {
-                  router.push("/rider/ScheduledRidesRider?tab=history");
+                  router.push("/rider/RideHistoryRider");
                 }
               }}>
               <HistoryLineIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
-                History
+                Ride History
               </Text>
             </TouchableOpacity>
 

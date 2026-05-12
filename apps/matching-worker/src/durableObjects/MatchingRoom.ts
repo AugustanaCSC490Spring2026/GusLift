@@ -1,5 +1,6 @@
 import type { Env } from "../db";
 import { getSupabase } from "../db";
+import { sendMatchPushNotification } from "../pushNotifications";
 import type {
   AcceptMatchEvent,
   ClientEvent,
@@ -14,6 +15,8 @@ import type { CarDetails, DriverState, RiderWaiting } from "../types/state";
 // How long a driver has to confirm a match before the rider is returned
 // to the waiting queue. Increased to 4 minutes for demo stability.
 const MATCH_TIMEOUT_MS = 4 * 60 * 1000; // 240_000 ms
+const PUSH_DEDUPE_BUCKET_MS = 30 * 1000;
+const PUSH_DEDUPE_RETENTION_MS = 2 * 60 * 1000;
 
 type RideRow = {
   id: string;
@@ -59,6 +62,7 @@ export class MatchingRoom implements DurableObject {
   private pending_matches: Map<string, string> = new Map();
   private connections: Map<string, WebSocket> = new Map();
   private matchTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private pushDedupes: Map<string, number> = new Map();
   private slotKey: string = "";
   private env: Env;
 
@@ -72,10 +76,12 @@ export class MatchingRoom implements DurableObject {
       try {
         ws.send(payload);
       } catch (_) {
-        // ignore closed sockets
+        // ignore closed9 sockets
       }
     }
   }
+
+
 
   private sendTo(userId: string, message: ServerMessage): void {
     const ws = this.connections.get(userId);
@@ -85,6 +91,7 @@ export class MatchingRoom implements DurableObject {
       } catch (_) {}
     }
   }
+
 
   private async sendInitialState(userId: string): Promise<void> {
     const riderProfiles = await Promise.all(
@@ -99,7 +106,10 @@ export class MatchingRoom implements DurableObject {
         picture_url: profile?.picture_url ?? null,
         to_location: profile?.to_location ?? null,
       };
+
     });
+  
+
     const drivers = Array.from(this.drivers.entries()).map(
       ([driver_id, s]) => ({
         driver_id,
@@ -194,6 +204,24 @@ export class MatchingRoom implements DurableObject {
     };
   }
 
+  private shouldSendPush(
+    eventType: "driver_selected_rider" | "rider_confirmed_match",
+    riderId: string,
+    driverId: string,
+  ): boolean {
+    const now = Date.now();
+    const bucket = Math.floor(now / PUSH_DEDUPE_BUCKET_MS);
+    const key = `${this.slotKey}:${riderId}:${driverId}:${eventType}:${bucket}`;
+    if (this.pushDedupes.has(key)) return false;
+    this.pushDedupes.set(key, now);
+
+    const cutoff = now - PUSH_DEDUPE_RETENTION_MS;
+    for (const [k, ts] of this.pushDedupes.entries()) {
+      if (ts < cutoff) this.pushDedupes.delete(k);
+    }
+    return true;
+  }
+
   private async insertRide(
     driver_id: string,
     rider_id: string,
@@ -205,8 +233,8 @@ export class MatchingRoom implements DurableObject {
     // expects at least "HH:MM", so default missing minutes to ":00".
     const dbStartTime =
       start_time && !start_time.includes(":") ? `${start_time}:00` : start_time;
-    // Map the slot into a concrete date for ride_date. For now, use "today" in UTC.
-    const ride_date = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const ride_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const riderDrop =
       typeof rider_to_location === "string" ? rider_to_location.trim() : "";
     const supabase = getSupabase(this.env);
@@ -218,7 +246,7 @@ export class MatchingRoom implements DurableObject {
       location,
       status: "accepted",
     };
-    if (riderDrop) {
+    if (riderDrop) { //because rider drop is optional
       insertRow.rider_dropoff_loc = riderDrop;
     }
     const { data, error } = await supabase
@@ -449,6 +477,7 @@ export class MatchingRoom implements DurableObject {
         .limit(1),
     ]);
 
+
     const carRows = carRes.data as CarRow[] | null;
     const row = carRows?.[0];
     const cap = row?.capacity;
@@ -514,6 +543,8 @@ export class MatchingRoom implements DurableObject {
     ev: RiderRequestEvent,
   ): Promise<void> {
     if (ev.rider_id !== userId) return;
+    if (this.pending_matches.has(ev.rider_id)) return;
+    if (this.riders_waiting.some((r) => r.rider_id === ev.rider_id)) return;
     const rider: RiderWaiting = {
       rider_id: ev.rider_id,
       joined_at: Date.now(),
@@ -564,6 +595,7 @@ export class MatchingRoom implements DurableObject {
     const idx = this.riders_waiting.findIndex(
       (r) => r.rider_id === ev.rider_id,
     );
+
     if (idx === -1) return;
     this.riders_waiting.splice(idx, 1);
     this.pending_matches.set(ev.rider_id, ev.driver_id);
@@ -583,18 +615,14 @@ export class MatchingRoom implements DurableObject {
         car: ds.car,
       },
     });
-    void this.createNotification({
-      userId: ev.rider_id,
-      type: "match_selected",
-      title: "Driver found",
-      body: "A driver selected your ride request. Review and confirm to continue.",
-      data: {
-        driver_id: ev.driver_id,
-        slot_key: this.slotKey,
-      },
-      idempotencyKey: `match:${this.slotKey}:${ev.driver_id}:${ev.rider_id}:selected`,
-      sendEmail: true,
-    });
+    if (this.shouldSendPush("driver_selected_rider", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.rider_id,
+        eventType: "driver_selected_rider",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id,
+      });
+    }
     this.scheduleMatchTimeout(ev.rider_id);
   }
 
@@ -664,6 +692,15 @@ export class MatchingRoom implements DurableObject {
         to_location: rider.to_location,
       },
     });
+    if (this.shouldSendPush("rider_confirmed_match", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.driver_id,
+        eventType: "rider_confirmed_match",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id,
+        rideId: ride.id,
+      });
+    }
   }
 
   private async handleRejectMatch(
