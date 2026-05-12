@@ -3,7 +3,7 @@ import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,7 @@ const SCHOOL_DOMAIN = "augustana.edu";
 export default function Signup() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const handledAuthAttemptRef = useRef(0);
   const enforceSchoolEmail =
     process.env.EXPO_PUBLIC_ENFORCE_SCHOOL_EMAIL !== "false";
 
@@ -46,11 +47,25 @@ export default function Signup() {
     ios: "EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS",
     default: "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB",
   });
-  const fallbackRedirectUri = makeRedirectUri({
-    scheme: "guslift",
-    path: "oauthredirect",
-    preferLocalhost: true,
-  });
+  // On Android, Google's OAuth server only accepts the reverse-client-ID scheme
+  // when "Enable custom URI scheme" is turned on in Cloud Console, i.e.:
+  //   com.googleusercontent.apps.{clientId}:/oauth2redirect/google
+  // That scheme is already registered in AndroidManifest.xml (added via app.json),
+  // so Android can route the callback correctly.
+  //
+  // expo-auth-session would otherwise auto-compute:
+  //   com.guslift.app:/oauthredirect  (Application.applicationId)
+  // which is NOT a registered scheme → Android can't open it → "dismiss".
+  const androidReverseClientId = androidClientId
+    ? androidClientId.split(".").reverse().join(".")
+    : null;
+  const fallbackRedirectUri =
+    Platform.OS === "android" && androidReverseClientId
+      ? `${androidReverseClientId}:/oauth2redirect/google`
+      : makeRedirectUri({
+          scheme: "guslift",
+          path: "oauthredirect",
+        });
   const redirectUri =
     Platform.OS === "web" && webRedirectUriOverride
       ? webRedirectUriOverride
@@ -61,7 +76,7 @@ export default function Signup() {
     webClientId,
     androidClientId,
     iosClientId,
-    redirectUri,
+    redirectUri, // always explicit – avoids the com.guslift.app scheme auto-inference
     selectAccount: true,
     ...(enforceSchoolEmail ? { extraParams: { hd: SCHOOL_DOMAIN } } : {}),
   });
@@ -166,7 +181,28 @@ export default function Signup() {
   }, [router, enforceSchoolEmail]);
 
   useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("[GusLift] Auth response type:", response?.type ?? "none");
+    if (response?.params) {
+      // eslint-disable-next-line no-console
+      console.log("[GusLift] Auth response params:", JSON.stringify(response.params));
+    }
+    if (response?.error) {
+      // eslint-disable-next-line no-console
+      console.log("[GusLift] Auth response error:", JSON.stringify(response.error));
+    }
+    if (response?.url) {
+      // eslint-disable-next-line no-console
+      console.log("[GusLift] Auth response url:", response.url);
+    }
     if (response?.type === "success") {
+      if (!loading) {
+        return;
+      }
+      if (handledAuthAttemptRef.current > 0) {
+        return;
+      }
+      handledAuthAttemptRef.current = 1;
       const token = response.authentication?.accessToken;
       if (token) {
         fetchUserInfo(token);
@@ -177,12 +213,20 @@ export default function Signup() {
           "No access token returned. Please try again.",
         );
       }
+      return;
     }
     if (response?.type === "error") {
+      handledAuthAttemptRef.current = 1;
       setLoading(false);
       Alert.alert("Sign-in Error", "Google sign-in failed. Please try again.");
+      return;
     }
-  }, [response, fetchUserInfo]);
+    if (response && response.type !== "success") {
+      handledAuthAttemptRef.current = 1;
+      // Android can return dismiss/cancel; always clear spinner in those cases.
+      setLoading(false);
+    }
+  }, [response, fetchUserInfo, loading]);
 
   // Sign up screen
   return (
@@ -223,9 +267,112 @@ export default function Signup() {
           }
 
           try {
+            handledAuthAttemptRef.current = 0;
             setLoading(true);
-            await promptAsync();
+            // eslint-disable-next-line no-console
+            console.log("[GusLift] redirectUri:", redirectUri);
+            // eslint-disable-next-line no-console
+            console.log("[GusLift] request.redirectUri:", request?.redirectUri);
+            const authResult = await promptAsync();
+            // eslint-disable-next-line no-console
+            console.log("[GusLift] promptAsync result type:", authResult?.type ?? "none");
+            if (authResult?.params) {
+              // eslint-disable-next-line no-console
+              console.log("[GusLift] promptAsync params:", JSON.stringify(authResult.params));
+            }
+            if (authResult?.error) {
+              // eslint-disable-next-line no-console
+              console.log("[GusLift] promptAsync error:", JSON.stringify(authResult.error));
+            }
+            if (authResult?.url) {
+              // eslint-disable-next-line no-console
+              console.log("[GusLift] promptAsync url:", authResult.url);
+            }
+
+            // Use prompt result directly as a fallback in case response state lags.
+            if (authResult?.type === "success") {
+              if (handledAuthAttemptRef.current > 0) {
+                return;
+              }
+              const token = authResult.authentication?.accessToken;
+              if (token) {
+                // Implicit / token flow: access token came back immediately.
+                handledAuthAttemptRef.current = 1;
+                fetchUserInfo(token);
+              } else if (authResult.params?.code) {
+                // PKCE authorization-code flow.
+                // expo-auth-session's auto-exchange has no error handler so it
+                // can fail silently (response state never updates).
+                // Exchange the code manually so we can log failures and
+                // handle the access token directly.
+                handledAuthAttemptRef.current = 1;
+                try {
+                  const body = Object.entries({
+                    code: authResult.params.code,
+                    client_id: androidClientId,
+                    redirect_uri: redirectUri,
+                    grant_type: "authorization_code",
+                    code_verifier: request?.codeVerifier ?? "",
+                  })
+                    .map(
+                      ([k, v]) =>
+                        `${encodeURIComponent(k)}=${encodeURIComponent(v)}`,
+                    )
+                    .join("&");
+
+                  const tokenRes = await fetch(
+                    "https://oauth2.googleapis.com/token",
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                      },
+                      body,
+                    },
+                  );
+                  const tokenData = await tokenRes.json();
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    "[GusLift] Token exchange status:",
+                    tokenRes.status,
+                    tokenData.error ?? "ok",
+                  );
+
+                  if (tokenData.access_token) {
+                    fetchUserInfo(tokenData.access_token);
+                  } else {
+                    setLoading(false);
+                    Alert.alert(
+                      "Sign-in Error",
+                      `Token exchange failed: ${tokenData.error_description ?? tokenData.error ?? "unknown"}`,
+                    );
+                  }
+                } catch (exchangeErr) {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    "[GusLift] Token exchange exception:",
+                    exchangeErr?.message,
+                  );
+                  setLoading(false);
+                  Alert.alert(
+                    "Sign-in Error",
+                    "Token exchange failed. Please try again.",
+                  );
+                }
+              } else {
+                handledAuthAttemptRef.current = 1;
+                setLoading(false);
+                Alert.alert(
+                  "Sign-in Error",
+                  "No access token returned. Please try again.",
+                );
+              }
+            } else if (authResult && authResult.type !== "opened") {
+              handledAuthAttemptRef.current = 1;
+              setLoading(false);
+            }
           } catch {
+            handledAuthAttemptRef.current = 1;
             setLoading(false);
             Alert.alert("Sign-in Error", "Could not start Google sign-in.");
           }

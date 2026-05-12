@@ -98,8 +98,9 @@ export async function sendMatchPushNotification(
     });
 
     if (!response.ok) {
+      const body = await response.text().catch(() => "");
       console.error(
-        `[push] expo send failed (${response.status}) for user ${params.recipientUserId}`,
+        `[push] expo send failed (${response.status}) for user ${params.recipientUserId} tokens=${JSON.stringify(tokens)} body=${body}`,
       );
       return;
     }

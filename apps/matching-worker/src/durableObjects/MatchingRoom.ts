@@ -70,10 +70,12 @@ export class MatchingRoom implements DurableObject {
       try {
         ws.send(payload);
       } catch (_) {
-        // ignore closed sockets
+        // ignore closed9 sockets
       }
     }
   }
+
+
 
   private sendTo(userId: string, message: ServerMessage): void {
     const ws = this.connections.get(userId);
@@ -83,6 +85,7 @@ export class MatchingRoom implements DurableObject {
       } catch (_) {}
     }
   }
+
 
   private async sendInitialState(userId: string): Promise<void> {
     const riderProfiles = await Promise.all(
@@ -97,7 +100,10 @@ export class MatchingRoom implements DurableObject {
         picture_url: profile?.picture_url ?? null,
         to_location: profile?.to_location ?? null,
       };
+
     });
+  
+
     const drivers = Array.from(this.drivers.entries()).map(
       ([driver_id, s]) => ({
         driver_id,
@@ -199,8 +205,8 @@ export class MatchingRoom implements DurableObject {
     // expects at least "HH:MM", so default missing minutes to ":00".
     const dbStartTime =
       start_time && !start_time.includes(":") ? `${start_time}:00` : start_time;
-    // Map the slot into a concrete date for ride_date. For now, use "today" in UTC.
-    const ride_date = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const ride_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const riderDrop =
       typeof rider_to_location === "string" ? rider_to_location.trim() : "";
     const supabase = getSupabase(this.env);
@@ -212,7 +218,7 @@ export class MatchingRoom implements DurableObject {
       location,
       status: "accepted",
     };
-    if (riderDrop) {
+    if (riderDrop) { //because rider drop is optional
       insertRow.rider_dropoff_loc = riderDrop;
     }
     const { data, error } = await supabase
@@ -293,6 +299,7 @@ export class MatchingRoom implements DurableObject {
         .limit(1),
     ]);
 
+
     const carRows = carRes.data as CarRow[] | null;
     const row = carRows?.[0];
     const cap = row?.capacity;
@@ -358,6 +365,8 @@ export class MatchingRoom implements DurableObject {
     ev: RiderRequestEvent,
   ): Promise<void> {
     if (ev.rider_id !== userId) return;
+    if (this.pending_matches.has(ev.rider_id)) return;
+    if (this.riders_waiting.some((r) => r.rider_id === ev.rider_id)) return;
     const rider: RiderWaiting = {
       rider_id: ev.rider_id,
       joined_at: Date.now(),
@@ -383,6 +392,7 @@ export class MatchingRoom implements DurableObject {
     const idx = this.riders_waiting.findIndex(
       (r) => r.rider_id === ev.rider_id,
     );
+
     if (idx === -1) return;
     this.riders_waiting.splice(idx, 1);
     this.pending_matches.set(ev.rider_id, ev.driver_id);

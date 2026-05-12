@@ -1,6 +1,7 @@
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, usePathname } from "expo-router";
 import * as Notifications from "expo-notifications";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { AppState } from "react-native";
 import { MatchingProvider } from "../context/MatchingContext";
 import GlobalMenu from "../components/GlobalMenu";
 import { registerCurrentUserPushToken } from "../lib/pushNotifications";
@@ -16,9 +17,21 @@ Notifications.setNotificationHandler({
 
 export default function Layout() {
   const router = useRouter();
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     void registerCurrentUserPushToken();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void registerCurrentUserPushToken();
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
@@ -27,10 +40,16 @@ export default function Layout() {
         const data = response?.notification?.request?.content?.data || {};
         const type = typeof data?.type === "string" ? data.type : "";
         if (type === "driver_selected_rider") {
-          router.push("/rider/ScheduledRidesRider");
+          if (pathnameRef.current === "/rider/AvailableDrivers") return;
+          const driverId = typeof data?.driver_id === "string" ? data.driver_id : "";
+          router.push({
+            pathname: "/rider/AvailableDrivers",
+            params: driverId ? { driverId } : undefined,
+          });
           return;
         }
         if (type === "rider_confirmed_match") {
+          if (pathnameRef.current === "/driver/ScheduledRidesDriver") return;
           router.push("/driver/ScheduledRidesDriver");
         }
       },
