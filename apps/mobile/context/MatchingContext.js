@@ -49,12 +49,11 @@ export function MatchingProvider({ children }) {
     return null;
   }
 
-  function applySlotQueryParams(url, userIdValue, options, timezone) {
+  function applySlotQueryParams(url, userIdValue, options) {
     url.searchParams.set("token", userIdValue);
     if (options?.location) url.searchParams.set("location", options.location);
     if (options?.time) url.searchParams.set("time", options.time);
     if (options?.day) url.searchParams.set("day", options.day);
-    if (timezone) url.searchParams.set("timezone", timezone);
   }
 
   async function connect(options = {}) {
@@ -71,16 +70,15 @@ export function MatchingProvider({ children }) {
     setUserId(user.id);
     userIdRef.current = user.id;
 
-    let timezone;
-    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) {}
-
-    const httpBase = normalizeHttpUrl(process.env.EXPO_PUBLIC_MATCHING_WORKER_URL);
+    const httpBase = normalizeHttpUrl(
+      process.env.EXPO_PUBLIC_MATCHING_WORKER_URL,
+    );
     if (!httpBase) {
       return { ok: false, error: "EXPO_PUBLIC_MATCHING_WORKER_URL is not set" };
     }
 
     const preflightUrl = new URL(httpBase);
-    applySlotQueryParams(preflightUrl, user.id, options, timezone);
+    applySlotQueryParams(preflightUrl, user.id, options);
 
     let data;
     try {
@@ -137,7 +135,7 @@ export function MatchingProvider({ children }) {
       }
 
       const wsUrl = new URL(wsBase);
-      applySlotQueryParams(wsUrl, user.id, options, timezone);
+      applySlotQueryParams(wsUrl, user.id, options);
 
       const ws = new WebSocket(wsUrl.toString());
       wsRef.current = ws;
