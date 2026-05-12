@@ -3,9 +3,10 @@ import { usePathname, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import MenuAvatar from "./MenuAvatar";
 import { ClockIcon, HistoryLineIcon } from "./Icons";
+import { deactivateCurrentUserPushToken } from "../lib/pushNotifications";
 
 function CodeIcon({ size = 20, color = "#64748B" }) {
   return (
@@ -56,6 +57,7 @@ export default function GlobalMenu() {
   const handleSignout = async () => {
     setIsOpen(false);
     try {
+      await deactivateCurrentUserPushToken();
       await AsyncStorage.removeItem("@user");
       router.replace("/");
     } catch (e) {
