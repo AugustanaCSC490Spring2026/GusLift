@@ -1,27 +1,14 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-<<<<<<< HEAD
-  Animated,
-  Easing,
-=======
   ActivityIndicator,
->>>>>>> origin/main
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-<<<<<<< HEAD
-  Platform,
-  StatusBar,
-  SafeAreaView,
-=======
->>>>>>> origin/main
 } from "react-native";
 import { useMatching } from "../../context/MatchingContext";
-import Svg, { Path, Circle } from "react-native-svg";
-import CarIllustration from "../../components/CarIllustration";
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -30,35 +17,6 @@ function getInitial(name) {
   const trimmed = String(name || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : "D";
 }
-
-const COLORS = {
-  blue: '#3B82F6',
-  dark: '#0F172A',
-  bg: '#F8FAFC',
-  white: '#FFFFFF',
-  gray100: '#F1F5F9',
-  gray200: '#E2E8F0',
-  gray300: '#CBD5E1',
-  gray400: '#94A3B8',
-  green: '#22C55E',
-  greenBg: '#F0FDF4',
-  amber: '#D97706',
-  amberBg: '#FFFBEB',
-};
-
-// ─── SVG Icons ──────────────────────────────────────────────────────────────
-const BackIcon = ({ size = 20, color = COLORS.dark }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <Path d="M19 12H5" />
-    <Path d="M12 19l-7-7 7-7" />
-  </Svg>
-);
-
-const CheckIcon = ({ size = 20, color = COLORS.green }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-    <Path d="M20 6L9 17l-5-5" />
-  </Svg>
-);
 
 export default function AvailableDrivers() {
   const router = useRouter();
@@ -75,33 +33,6 @@ export default function AvailableDrivers() {
   const [matchedDriver, setMatchedDriver] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const driverDirectoryRef = useRef(new Map());
-
-  // Animations
-  const fadeIn = useRef(new Animated.Value(0)).current;
-  const slideUp = useRef(new Animated.Value(30)).current;
-  const cardScale = useRef(new Animated.Value(0.95)).current;
-  const greenPulse = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeIn, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(slideUp, { toValue: 0, duration: 500, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  // Animate card when driver match appears
-  useEffect(() => {
-    if (matchedDriver) {
-      Animated.spring(cardScale, { toValue: 1, friction: 6, tension: 100, useNativeDriver: true }).start();
-
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(greenPulse, { toValue: 1.6, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(greenPulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [matchedDriver]);
 
   function upsertDriverDirectory(driverId, rawDriver) {
     if (!driverId || !rawDriver) return;
@@ -170,21 +101,6 @@ export default function AvailableDrivers() {
   }, [userId]);
 
   useEffect(() => {
-<<<<<<< HEAD
-    if (initialDriverId) {
-      const hydratedFromParams = {
-        name: initialDriverName ? String(initialDriverName) : null,
-        picture_url: initialDriverPic ? String(initialDriverPic) : null,
-        to_location: initialDriverTo ? String(initialDriverTo) : null,
-        car: initialDriverCar ? String(initialDriverCar) : null,
-      };
-      setMatchedDriver({
-        ...hydratedFromParams,
-        driver_id: initialDriverId,
-      });
-    }
-  }, [initialDriverId, initialDriverName, initialDriverPic, initialDriverTo, initialDriverCar]);
-=======
     if (!initialDriverId) return;
     setMatchedDriver({
       name: initialDriverName ? String(initialDriverName) : null,
@@ -200,7 +116,6 @@ export default function AvailableDrivers() {
     initialDriverTo,
     initialDriverCar,
   ]);
->>>>>>> origin/main
 
   async function waitForAcceptedRide(driverId) {
     if (!driverId || !userId) return null;
@@ -263,45 +178,6 @@ export default function AvailableDrivers() {
 
   function handleCancel() {
     disconnect();
-<<<<<<< HEAD
-    router.replace("/rider/RequestRide");
-  }
-
-  return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.backButton} activeOpacity={0.7}>
-          <BackIcon size={20} color={COLORS.dark} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {matchedDriver ? "DRIVER FOUND" : "FINDING DRIVER"}
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <Animated.View style={[styles.content, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
-        {!matchedDriver ? (
-          /* ── Waiting State ─────────────────────────────────────── */
-          <View style={styles.loaderSection}>
-            <View style={{ width: '100%', alignItems: 'center' }}>
-              <CarIllustration isHovered={true} />
-            </View>
-            <Text style={styles.loaderTitle}>Looking for a driver...</Text>
-            <Text style={styles.loaderSub}>You will be notified when a driver accepts your ride.</Text>
-          </View>
-        ) : (
-          /* ── Driver Found ──────────────────────────────────────── */
-          <View style={styles.matchSection}>
-            {/* Success Pill */}
-            <View style={styles.successPill}>
-              <Animated.View style={[styles.greenDotOuter, { transform: [{ scale: greenPulse }] }]}>
-                <View style={styles.greenDot} />
-              </Animated.View>
-              <Text style={styles.successPillText}>Driver matched successfully</Text>
-=======
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -390,7 +266,6 @@ export default function AvailableDrivers() {
                 {matchedDriver.name ?? "Unknown driver"}
               </Text>
               <Text style={styles.driverLabel}>Assigned driver</Text>
->>>>>>> origin/main
             </View>
           </View>
 
@@ -412,61 +287,6 @@ export default function AvailableDrivers() {
             </View>
           </View>
 
-<<<<<<< HEAD
-            {/* Driver Card */}
-            <Animated.View style={[styles.driverCard, { transform: [{ scale: cardScale }] }]}>
-              <View style={styles.driverTopRow}>
-                {matchedDriver.picture_url ? (
-                  <Image source={{ uri: matchedDriver.picture_url }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarInitial}>
-                      {matchedDriver.name ? matchedDriver.name[0].toUpperCase() : "?"}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.driverInfo}>
-                  <Text style={styles.driverName}>{matchedDriver.name ?? "Unknown Driver"}</Text>
-                  {matchedDriver.car && (
-                    <Text style={styles.driverCar}>{matchedDriver.car}</Text>
-                  )}
-                  {matchedDriver.to_location && (
-                    <Text style={styles.driverMeta}>Heading to: {matchedDriver.to_location}</Text>
-                  )}
-                </View>
-                <View style={styles.checkCircle}>
-                  <CheckIcon size={18} color={COLORS.white} />
-                </View>
-              </View>
-            </Animated.View>
-
-            {/* Action Buttons */}
-            <TouchableOpacity
-              style={[styles.confirmButton, confirming && { opacity: 0.6 }]}
-              onPress={handleConfirm}
-              activeOpacity={0.85}
-              disabled={confirming}
-            >
-              {confirming ? (
-                <Text style={styles.confirmButtonText}>Confirming...</Text>
-              ) : (
-                <Text style={styles.confirmButtonText}>Confirm Ride</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.rejectButton}
-              onPress={handleRejectAndKeepSearching}
-              activeOpacity={0.85}
-              disabled={confirming}
-            >
-              <Text style={styles.rejectButtonText}>Reject & Keep Searching</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Animated.View>
-    </SafeAreaView>
-=======
           <TouchableOpacity
             style={[styles.primaryButton, confirming && styles.primaryButtonDisabled]}
             onPress={handleConfirm}
@@ -491,47 +311,10 @@ export default function AvailableDrivers() {
         </>
       )}
     </View>
->>>>>>> origin/main
   );
 }
 
 const styles = StyleSheet.create({
-<<<<<<< HEAD
-  screen: { flex: 1, backgroundColor: COLORS.bg },
-  header: {
-    backgroundColor: COLORS.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray100,
-  },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 12, fontWeight: '800', color: COLORS.dark, letterSpacing: 2 },
-  content: { flex: 1, padding: 20 },
-
-  // Loader
-  loaderSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loaderTitle: { fontSize: 18, fontWeight: '800', color: COLORS.dark },
-  loaderSub: { fontSize: 14, color: COLORS.gray400, textAlign: 'center', lineHeight: 20 },
-
-  // Match
-  matchSection: { flex: 1, justifyContent: 'center', gap: 16 },
-
-  // Success Pill
-  successPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.greenBg,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-=======
   screen: {
     flex: 1,
     backgroundColor: "#f4efe5",
@@ -682,26 +465,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: "#67748d",
     textAlign: "center",
->>>>>>> origin/main
   },
-  greenDotOuter: { width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(34,197,94,0.2)', alignItems: 'center', justifyContent: 'center' },
-  greenDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.green },
-  successPillText: { fontSize: 13, fontWeight: '700', color: '#166534' },
-
-  // Driver Card
   driverCard: {
-<<<<<<< HEAD
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: COLORS.gray100,
-=======
     backgroundColor: "#fffdf8",
     borderRadius: 24,
     borderWidth: 1,
@@ -715,45 +480,8 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 22,
->>>>>>> origin/main
   },
-  driverTopRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatar: { width: 56, height: 56, borderRadius: 16 },
   avatarPlaceholder: {
-<<<<<<< HEAD
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: COLORS.gray100,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: { fontSize: 22, fontWeight: '800', color: COLORS.blue },
-  driverInfo: { flex: 1, gap: 2 },
-  driverName: { fontSize: 17, fontWeight: '800', color: COLORS.dark },
-  driverCar: { fontSize: 13, color: COLORS.gray400, fontWeight: '600' },
-  driverMeta: { fontSize: 12, color: COLORS.gray400 },
-  checkCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.green, alignItems: 'center', justifyContent: 'center' },
-
-  // Buttons
-  confirmButton: {
-    backgroundColor: COLORS.blue,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: COLORS.blue,
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  confirmButtonText: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-  rejectButton: {
-    backgroundColor: COLORS.gray100,
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: 'center',
-=======
     width: 62,
     height: 62,
     borderRadius: 22,
@@ -816,7 +544,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     color: "#5f4a32",
->>>>>>> origin/main
   },
-  rejectButtonText: { color: COLORS.dark, fontSize: 14, fontWeight: '600' },
 });

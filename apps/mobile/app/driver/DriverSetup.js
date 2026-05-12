@@ -126,11 +126,7 @@ export default function DriverSetup() {
 
       setIsSuccess(true);
       setTimeout(() => {
-<<<<<<< HEAD
-        router.replace("/driver/OfferRide");
-=======
         router.replace("/driver/DriverHome");
->>>>>>> origin/main
       }, 800);
     } catch (err) {
       Alert.alert("Error saving profile", err.message);

@@ -3,9 +3,10 @@ import { usePathname, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import MenuAvatar from "./MenuAvatar";
 import { ClockIcon, HistoryLineIcon } from "./Icons";
+import { deactivateCurrentUserPushToken } from "../lib/pushNotifications";
 
 function CodeIcon({ size = 20, color = "#64748B" }) {
   return (
@@ -56,6 +57,7 @@ export default function GlobalMenu() {
   const handleSignout = async () => {
     setIsOpen(false);
     try {
+      await deactivateCurrentUserPushToken();
       await AsyncStorage.removeItem("@user");
       router.replace("/");
     } catch (e) {
@@ -85,16 +87,11 @@ export default function GlobalMenu() {
           router.replace("/driver/DriverSetup");
         }
       } else {
-<<<<<<< HEAD
-        // Riders go straight to RequestRide — rider setup is optional
-        router.replace("/rider/RequestRide");
-=======
         if (parsed.riderSetupComplete) {
           router.replace("/rider/RiderHome");
         } else {
           router.replace("/rider/RiderSetup");
         }
->>>>>>> origin/main
       }
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");
@@ -137,26 +134,6 @@ export default function GlobalMenu() {
               <ClockIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Upcoming Rides
-<<<<<<< HEAD
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => { 
-                setIsOpen(false); 
-                if (currentRole === "driver") {
-                  router.push("/driver/ScheduledRidesDriver?tab=history");
-                } else if (currentRole === "rider") {
-                  router.push("/rider/ScheduledRidesRider?tab=history");
-                }
-              }}>
-              <HistoryLineIcon size={20} color="#64748B" />
-              <Text style={styles.menuItemText}>
-                History
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/Developer"); }}>
-=======
               </Text>
             </TouchableOpacity>
 
@@ -175,7 +152,6 @@ export default function GlobalMenu() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/developer"); }}>
->>>>>>> origin/main
               <CodeIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Developer Options

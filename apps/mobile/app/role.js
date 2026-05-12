@@ -157,21 +157,13 @@ export default function Role() {
 
         if (selectedRole === "driver") {
           if (parsed.driverSetupComplete) {
-<<<<<<< HEAD
-            router.push("/driver/OfferRide");
-=======
             router.push("/driver/DriverHome");
->>>>>>> origin/main
           } else {
             router.push("/driver/DriverSetup");
           }
         } else {
           if (parsed.riderSetupComplete) {
-<<<<<<< HEAD
-            router.push("/rider/RequestRide");
-=======
             router.push("/rider/RiderHome");
->>>>>>> origin/main
           } else {
             router.push("/rider/RiderSetup");
           }
