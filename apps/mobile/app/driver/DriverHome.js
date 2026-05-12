@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AutocompleteInput from "../../components/setup/AutocompleteInput";
+import TimePickerField from "../../components/setup/TimePickerField";
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -83,6 +86,7 @@ export default function DriverHome() {
   const router = useRouter();
 
   const [firstName, setFirstName] = useState("");
+  const [pictureUrl, setPictureUrl] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [from, setFrom] = useState(null);
   const [classStart, setClassStart] = useState(null);
@@ -129,6 +133,7 @@ export default function DriverHome() {
       const resolvedFrom = body.from ?? body.pickup_loc ?? body.residence ?? null;
       const todaySchedule = body.days?.[today];
 
+      if (body.picture_url) setPictureUrl(body.picture_url);
       setFrom(resolvedFrom);
       setClassStart(todaySchedule?.start_time ?? null);
       setClassEnd(todaySchedule?.end_time ?? null);
@@ -269,7 +274,11 @@ export default function DriverHome() {
 
           <View style={styles.heroTopRow}>
             <View style={styles.avatarWrap}>
-              <Text style={styles.avatarText}>{getInitial(firstName)}</Text>
+              {pictureUrl ? (
+                <Image source={{ uri: pictureUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>{getInitial(firstName)}</Text>
+              )}
             </View>
             <View style={styles.heroIdentity}>
               <Text style={styles.eyebrow}>Driver operations</Text>
@@ -363,14 +372,13 @@ export default function DriverHome() {
                 <View style={styles.routeDivider} />
                 <View style={styles.routeRow}>
                   <Text style={styles.routeLabel}>Pickup time</Text>
-                  <TextInput
-                    style={styles.inlineTimeInput}
-                    value={pickupTime}
-                    onChangeText={setPickupTime}
-                    placeholder="HH:MM"
-                    placeholderTextColor="#7d8a98"
-                    keyboardType="numbers-and-punctuation"
-                  />
+                  <View style={{ minWidth: 100 }}>
+                    <TimePickerField
+                      value={pickupTime}
+                      onChange={setPickupTime}
+                      placeholder="HH:MM"
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -407,7 +415,7 @@ export default function DriverHome() {
           </Text>
 
           <Text style={styles.inputLabel}>Pickup location</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="Off-campus house, Westerlin, library"
             placeholderTextColor="#8a93a5"
@@ -419,7 +427,7 @@ export default function DriverHome() {
           />
 
           <Text style={styles.inputLabel}>Going to</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="Optional destination for rider context"
             placeholderTextColor="#8a93a5"
@@ -428,16 +436,13 @@ export default function DriverHome() {
           />
 
           <Text style={styles.inputLabel}>Pickup time</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="24h format, for example 08:30"
-            placeholderTextColor="#8a93a5"
+          <TimePickerField
             value={manualTime}
-            onChangeText={(value) => {
+            onChange={(value) => {
               setManualTime(value);
               if (manualFieldError) setManualFieldError(null);
             }}
-            keyboardType="numbers-and-punctuation"
+            placeholder="e.g. 08:30"
           />
 
           {manualFieldError ? (
@@ -654,6 +659,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     color: "#1c4d38",
+  },
+  avatarImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
   },
   heroIdentity: {
     flex: 1,

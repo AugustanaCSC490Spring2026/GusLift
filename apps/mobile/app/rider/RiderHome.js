@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AutocompleteInput from "../../components/setup/AutocompleteInput";
+import TimePickerField from "../../components/setup/TimePickerField";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -47,6 +50,7 @@ export default function RiderHome() {
   const router = useRouter();
 
   const [firstName, setFirstName] = useState("");
+  const [pictureUrl, setPictureUrl] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
@@ -91,7 +95,7 @@ export default function RiderHome() {
             },
           },
         ),
-        fetch(`${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence`, {
+        fetch(`${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence,picture_url`, {
           headers: {
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
@@ -106,6 +110,7 @@ export default function RiderHome() {
       setPickupLoc(scheduleData?.[0]?.pickup_loc ?? null);
       setDropoffLoc(scheduleData?.[0]?.dropoff_loc ?? null);
       setResidence(userData?.[0]?.residence ?? null);
+      if (userData?.[0]?.picture_url) setPictureUrl(userData[0].picture_url);
     } catch (_) {
       // Keep the dashboard usable even if schedule fetch fails.
     } finally {
@@ -223,7 +228,11 @@ export default function RiderHome() {
 
           <View style={styles.heroTopRow}>
             <View style={styles.avatarWrap}>
-              <Text style={styles.avatarText}>{getInitial(firstName)}</Text>
+              {pictureUrl ? (
+                <Image source={{ uri: pictureUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>{getInitial(firstName)}</Text>
+              )}
             </View>
             <View style={styles.heroIdentity}>
               <Text style={styles.eyebrow}>Campus commute</Text>
@@ -350,7 +359,7 @@ export default function RiderHome() {
           </Text>
 
           <Text style={styles.inputLabel}>Pickup location</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="Augie Hall, Westerlin, library"
             placeholderTextColor="#8a93a5"
@@ -362,7 +371,7 @@ export default function RiderHome() {
           />
 
           <Text style={styles.inputLabel}>Going to</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="Optional destination"
             placeholderTextColor="#8a93a5"
@@ -371,16 +380,13 @@ export default function RiderHome() {
           />
 
           <Text style={styles.inputLabel}>Pickup time</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="24h format, for example 16:45"
-            placeholderTextColor="#8a93a5"
+          <TimePickerField
             value={manualTime}
-            onChangeText={(value) => {
+            onChange={(value) => {
               setManualTime(value);
               if (manualFieldError) setManualFieldError(null);
             }}
-            keyboardType="numbers-and-punctuation"
+            placeholder="e.g. 16:45"
           />
 
           {manualFieldError ? (
@@ -555,6 +561,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#f4efe5",
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
   },
   avatarText: {
     fontSize: 22,
