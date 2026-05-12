@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AutocompleteInput from "../../components/setup/AutocompleteInput";
+import TimePickerField from "../../components/setup/TimePickerField";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -172,7 +174,7 @@ export default function RequestRide() {
           </Text>
 
           <Text style={styles.fieldLabel}>Pickup location</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="e.g. Augie Hall, library, your dorm"
             placeholderTextColor="#9ca3af"
@@ -184,7 +186,7 @@ export default function RequestRide() {
           />
 
           <Text style={styles.fieldLabel}>Going to (optional)</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="Shown for your reference only"
             placeholderTextColor="#9ca3af"
@@ -193,16 +195,13 @@ export default function RequestRide() {
           />
 
           <Text style={styles.fieldLabel}>Pickup time (24h)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="HH:MM — e.g. 16:45 after class"
-            placeholderTextColor="#9ca3af"
+          <TimePickerField
             value={manualTime}
-            onChangeText={(t) => {
+            onChange={(t) => {
               setManualTime(t);
               if (manualFieldError) setManualFieldError(null);
             }}
-            keyboardType="numbers-and-punctuation"
+            placeholder="e.g. 16:45"
           />
 
           {manualFieldError ? <Text style={styles.fieldError}>{manualFieldError}</Text> : null}

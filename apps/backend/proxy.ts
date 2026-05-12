@@ -39,7 +39,7 @@ function withCors(request: NextRequest, response: NextResponse) {
   return response;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (request.method === "OPTIONS") {
     const res = new NextResponse(null, { status: 204 });
     return withCors(request, res);

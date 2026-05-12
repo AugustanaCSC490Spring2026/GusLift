@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AutocompleteInput from "../../components/setup/AutocompleteInput";
+import TimePickerField from "../../components/setup/TimePickerField";
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -193,7 +195,7 @@ export default function OfferRide() {
           </Text>
 
           <Text style={styles.fieldLabel}>Pickup location</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="e.g. Off-campus house, Augie Hall"
             placeholderTextColor="#9ca3af"
@@ -205,7 +207,7 @@ export default function OfferRide() {
           />
 
           <Text style={styles.fieldLabel}>Going to (optional)</Text>
-          <TextInput
+          <AutocompleteInput
             style={styles.input}
             placeholder="Shown for the rider's reference"
             placeholderTextColor="#9ca3af"
@@ -214,16 +216,13 @@ export default function OfferRide() {
           />
 
           <Text style={styles.fieldLabel}>Pickup time (24h)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="HH:MM — e.g. 08:30"
-            placeholderTextColor="#9ca3af"
+          <TimePickerField
             value={manualTime}
-            onChangeText={(t) => {
+            onChange={(t) => {
               setManualTime(t);
               if (manualFieldError) setManualFieldError(null);
             }}
-            keyboardType="numbers-and-punctuation"
+            placeholder="e.g. 08:30"
           />
 
           {manualFieldError ? <Text style={styles.fieldError}>{manualFieldError}</Text> : null}
@@ -266,14 +265,13 @@ export default function OfferRide() {
             {/* Pick Up Time — editable */}
             <View style={styles.row}>
               <Text style={styles.label}>Pick Up Time</Text>
-              <TextInput
-                style={styles.timeInput}
-                value={pickupTime}
-                onChangeText={setPickupTime}
-                placeholder="HH:MM"
-                placeholderTextColor="#9ca3af"
-                keyboardType="numbers-and-punctuation"
-              />
+              <View style={{ minWidth: 100 }}>
+                <TimePickerField
+                  value={pickupTime}
+                  onChange={setPickupTime}
+                  placeholder="HH:MM"
+                />
+              </View>
             </View>
           </View>
 

@@ -1,5 +1,38 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
 
+## Stripe starter
+
+The backend now includes a small Stripe integration scaffold:
+
+- `lib/stripe-config.ts` centralizes Stripe env lookup and readiness checks
+- `GET /api/payments/config` reports whether Stripe keys are configured
+- `POST /api/payments/checkout-session` creates a hosted Stripe test checkout
+- `GET /api/payments/checkout-session?session_id=...` retrieves session status
+- `/payments/success` and `/payments/cancel` provide demo landing pages after checkout
+
+Add these variables to your backend `.env.local` before wiring up checkout flows:
+
+```bash
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+```
+
+Example response from `GET /api/payments/config`:
+
+```json
+{
+  "provider": "stripe",
+  "ready": false,
+  "publishableKeyConfigured": false,
+  "secretKeyConfigured": false,
+  "mode": "unknown"
+}
+```
+
+The checkout session route currently creates a fixed demo-friendly card payment
+line item and is a good sprint-demo bridge before a full ride-fare model,
+webhook handling, and persistent payment records.
+
 ## Getting Started
 
 First, run the development server:
