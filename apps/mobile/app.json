@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "guslift",
+    "scheme": [
+      "guslift",
+      "com.googleusercontent.apps.102234752284-7kc0upk7mk2k4erflev6rns8qaf7ql9s"
+    ],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -25,6 +28,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.guslift.app",
+      "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -43,6 +47,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -64,8 +69,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ca5ca166-3888-44fe-a9a0-be1f13514e40"
+        "projectId": "8a078ae4-be71-4d32-bf20-e7f6351679c5"
       }
-    }
+    },
+    "owner": "timalma"
   }
 }

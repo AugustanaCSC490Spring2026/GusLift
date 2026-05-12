@@ -63,3 +63,7 @@ apps/backend/.next/
 
 # Local editor config
 .idea/
+
+# Matching worker — TS practice (see apps/matching-worker/practice/)
+apps/matching-worker/practice/matching-room-ts-practice.md
+apps/matching-worker/practice/matching-room-exercises.starter.ts

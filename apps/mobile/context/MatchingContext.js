@@ -30,16 +30,20 @@ export function MatchingProvider({ children }) {
 
   function normalizeWsUrl(rawUrl) {
     if (!rawUrl) return null;
-    if (rawUrl.startsWith("ws://") || rawUrl.startsWith("wss://")) return rawUrl;
-    if (rawUrl.startsWith("http://")) return `ws://${rawUrl.slice("http://".length)}`;
-    if (rawUrl.startsWith("https://")) return `wss://${rawUrl.slice("https://".length)}`;
+    if (rawUrl.startsWith("ws://") || rawUrl.startsWith("wss://"))
+      return rawUrl;
+    if (rawUrl.startsWith("http://"))
+      return `ws://${rawUrl.slice("http://".length)}`;
+    if (rawUrl.startsWith("https://"))
+      return `wss://${rawUrl.slice("https://".length)}`;
     return null;
   }
 
   /** Same host as the WebSocket URL, but `http(s)://` for the JSON preflight request. */
   function normalizeHttpUrl(rawUrl) {
     if (!rawUrl) return null;
-    if (rawUrl.startsWith("https://") || rawUrl.startsWith("http://")) return rawUrl;
+    if (rawUrl.startsWith("https://") || rawUrl.startsWith("http://"))
+      return rawUrl;
     if (rawUrl.startsWith("wss://")) return `https://${rawUrl.slice(6)}`;
     if (rawUrl.startsWith("ws://")) return `http://${rawUrl.slice(5)}`;
     return null;
@@ -121,9 +125,14 @@ export function MatchingProvider({ children }) {
     }
 
     return new Promise((resolve) => {
-      const wsBase = normalizeWsUrl(process.env.EXPO_PUBLIC_MATCHING_WORKER_URL);
+      const wsBase = normalizeWsUrl(
+        process.env.EXPO_PUBLIC_MATCHING_WORKER_URL,
+      );
       if (!wsBase) {
-        resolve({ ok: false, error: "EXPO_PUBLIC_MATCHING_WORKER_URL is not set" });
+        resolve({
+          ok: false,
+          error: "EXPO_PUBLIC_MATCHING_WORKER_URL is not set",
+        });
         return;
       }
 
@@ -168,7 +177,11 @@ export function MatchingProvider({ children }) {
   }
 
   function send(payload) {
-    wsRef.current?.send(JSON.stringify(payload));
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== 1) return;
+    try {
+      ws.send(JSON.stringify(payload));
+    } catch (_) {}
   }
 
   function disconnect() {
