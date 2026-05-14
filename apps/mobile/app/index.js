@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { CircleIcon, SquareIcon } from "../components/LocationTimeline";
+import Logo from "../components/Logo";
 
 /* ─── Color tokens (matching the HTML mockup) ─── */
 const C = {
@@ -152,8 +153,11 @@ export default function Welcome() {
         if (role === "driver") {
           router.push(parsed.driverSetupComplete ? "/driver/OfferRide" : "/driver/DriverSetup");
         } else {
-          // Riders go straight to RequestRide — pass any landing page params
-          router.push({ pathname: "/rider/RequestRide", params: extraParams || {} });
+          if (parsed.riderSetupComplete) {
+            router.push({ pathname: "/rider/RiderHome", params: extraParams || {} });
+          } else {
+            router.push({ pathname: "/rider/RiderSetup", params: extraParams || {} });
+          }
         }
       } else {
         // No session — go sign up with role hint + landing page params
@@ -194,8 +198,9 @@ export default function Welcome() {
                 : "/driver/DriverSetup"
             );
           } else {
-            // Riders go straight to RequestRide — rider setup is optional
-            router.replace("/rider/RequestRide");
+            router.replace(
+              parsed.riderSetupComplete ? "/rider/RiderHome" : "/rider/RiderSetup"
+            );
           }
           return;
         } else {
@@ -228,7 +233,7 @@ export default function Welcome() {
       {/* ── NAV ── */}
       <View style={styles.nav}>
         <Pressable style={styles.logoGroup} onPress={() => router.push({ pathname: "/", params: { preview: "true" } })}>
-          <Text style={styles.logoText}>GusLift</Text>
+          <Logo size="sm" />
         </Pressable>
 
         <View style={styles.navLinks}>
@@ -384,12 +389,6 @@ const styles = StyleSheet.create({
     }),
   },
 
-  logoText: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: C.text,
-    letterSpacing: -0.5,
-  },
   navLinks: {
     flexDirection: "row",
     gap: 24,
