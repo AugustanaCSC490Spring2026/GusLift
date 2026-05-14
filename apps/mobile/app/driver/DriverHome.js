@@ -32,7 +32,7 @@ const DAY_ORDER = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function getCurrentWeekday() {
-  return WEEKDAYS[new Date().getDay()];
+  return WEEKDAYS[new Date().getUTCDay()];
 }
 
 function subtractMinutes(timeStr, minutes) {

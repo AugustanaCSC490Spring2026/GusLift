@@ -1,6 +1,5 @@
 import type { Env } from "../db";
 import { getSupabase } from "../db";
-import { getTodayDateCentral } from "../slotResolver";
 import { sendMatchPushNotification } from "../pushNotifications";
 import type {
   AcceptMatchEvent,
@@ -206,7 +205,8 @@ export class MatchingRoom implements DurableObject {
     // expects at least "HH:MM", so default missing minutes to ":00".
     const dbStartTime =
       start_time && !start_time.includes(":") ? `${start_time}:00` : start_time;
-    const ride_date = getTodayDateCentral();
+    const now = new Date();
+    const ride_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const riderDrop =
       typeof rider_to_location === "string" ? rider_to_location.trim() : "";
     const supabase = getSupabase(this.env);

@@ -152,11 +152,10 @@ export default function RiderHome() {
           day:
             ride.day ??
             (ride.ride_date
-              ? (() => {
-                  const d = new Date(ride.ride_date);
-                  const local = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
-                  return local.toLocaleDateString("en-US", { weekday: "short" }).toLowerCase().slice(0, 3);
-                })()
+              ? new Date(ride.ride_date)
+                  .toLocaleDateString("en-US", { weekday: "short" })
+                  .toLowerCase()
+                  .slice(0, 3)
               : null),
         }))
         .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));

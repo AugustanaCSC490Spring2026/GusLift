@@ -80,19 +80,16 @@ function withCors(res: NextResponse) {
 }
 
 function getLocalTodayDate(): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 async function queryRides(
   supabase: ReturnType<typeof getSupabase>,
-  opts: { driverId?: string; riderId?: string; limit?: number; history?: boolean },
+  opts: { driverId?: string; riderId?: string; limit?: number },
 ): Promise<{ rows: RideRow[]; error: PostgrestError | null }> {
   const rideSelect =
     "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at";
@@ -101,15 +98,9 @@ async function queryRides(
     let query = supabase
       .from(tableName)
       .select(rideSelect)
+      .eq("status", "accepted")
+      .eq("ride_date", todayDate)
       .order("created_at", { ascending: false });
-
-    if (opts.history) {
-      // History: only completed rides (any date)
-      query = query.eq("status", "completed");
-    } else {
-      // Upcoming: only accepted rides for today
-      query = query.eq("status", "accepted").eq("ride_date", todayDate);
-    }
 
     if (opts.driverId) query = query.eq("driver_id", opts.driverId);
     if (opts.riderId) query = query.eq("rider_id", opts.riderId);
@@ -223,7 +214,6 @@ export async function GET(request: NextRequest) {
     const limitParam = Number(request.nextUrl.searchParams.get("limit"));
     const limit =
       Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined;
-    const history = request.nextUrl.searchParams.get("history") === "true";
 
     if (!driverId && !riderId) {
       return withCors(
@@ -239,7 +229,6 @@ export async function GET(request: NextRequest) {
       driverId,
       riderId,
       limit,
-      history,
     });
 
     if (ridesError) {
@@ -311,21 +300,21 @@ export async function GET(request: NextRequest) {
     const [ridersRes, driversRes, carsRes] = await Promise.all([
       riderIds.length
         ? supabase
-          .from("User")
-          .select("id,name,residence,picture_url")
-          .in("id", riderIds)
+            .from("User")
+            .select("id,name,residence,picture_url")
+            .in("id", riderIds)
         : Promise.resolve({ data: [], error: null }),
       queriedDriverIds.length
         ? supabase
-          .from("User")
-          .select("id,name,residence,picture_url")
-          .in("id", queriedDriverIds)
+            .from("User")
+            .select("id,name,residence,picture_url")
+            .in("id", queriedDriverIds)
         : Promise.resolve({ data: [], error: null }),
       queriedDriverIds.length
         ? supabase
-          .from("Car")
-          .select("user_id,make,model,color,license_plate")
-          .in("user_id", queriedDriverIds)
+            .from("Car")
+            .select("user_id,make,model,color,license_plate")
+            .in("user_id", queriedDriverIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
