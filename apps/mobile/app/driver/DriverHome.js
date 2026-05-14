@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -322,6 +323,29 @@ export default function DriverHome() {
             </View>
           </View>
 
+          <View style={styles.heroActionRow}>
+            <Pressable
+              style={({ hovered, pressed }) => [
+                styles.heroPrimaryAction,
+                hovered && styles.heroActionHovered,
+                pressed && { opacity: 0.9 },
+              ]}
+              onPress={() => router.push("/driver/ScheduledRidesDriver")}
+            >
+              <Text style={styles.heroPrimaryActionText}>View upcoming rides</Text>
+            </Pressable>
+            <Pressable
+              style={({ hovered, pressed }) => [
+                styles.heroSecondaryAction,
+                hovered && styles.heroActionHovered,
+                pressed && { opacity: 0.9 },
+              ]}
+              onPress={() => router.push("/driver/DriverSetup")}
+            >
+              <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
+            </Pressable>
+          </View>
+
         </View>
 
         <View style={styles.sectionHeader}>
@@ -466,9 +490,9 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: "#3B82F6",
     borderRadius: 28,
-    padding: 26,
+    padding: 20,
     overflow: "hidden",
-    gap: 22,
+    gap: 14,
   },
   heroGlowOne: {
     position: "absolute",
@@ -561,8 +585,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.14)",
-    padding: 14,
-    gap: 6,
+    padding: 12,
+    gap: 4,
   },
   metricLabel: {
     fontSize: 11,
@@ -584,23 +608,21 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     borderRadius: 16,
-    backgroundColor: "#3B82F6",
-    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
   },
   heroPrimaryActionText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#3B82F6",
   },
   heroSecondaryAction: {
     flex: 1,
     minHeight: 48,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.24)",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -608,6 +630,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  heroActionHovered: {
+    transform: [{ translateY: -2 }],
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
   sectionHeader: {
     gap: 4,

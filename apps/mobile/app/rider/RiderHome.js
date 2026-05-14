@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -257,21 +258,26 @@ export default function RiderHome() {
           </View>
 
           <View style={styles.heroActionRow}>
-            <TouchableOpacity
-              style={styles.heroPrimaryAction}
+            <Pressable
+              style={({ hovered, pressed }) => [
+                styles.heroPrimaryAction,
+                hovered && styles.heroActionHovered,
+                pressed && { opacity: 0.9 },
+              ]}
               onPress={() => router.push("/rider/ScheduledRidesRider")}
-              activeOpacity={0.88}
             >
-              <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
               <Text style={styles.heroPrimaryActionText}>View upcoming rides</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.heroSecondaryAction}
+            </Pressable>
+            <Pressable
+              style={({ hovered, pressed }) => [
+                styles.heroSecondaryAction,
+                hovered && styles.heroActionHovered,
+                pressed && { opacity: 0.9 },
+              ]}
               onPress={() => router.push("/rider/RiderSetup")}
-              activeOpacity={0.88}
             >
               <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
         </View>
@@ -533,10 +539,8 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
   },
   heroPrimaryActionText: {
     fontSize: 14,
@@ -556,6 +560,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  heroActionHovered: {
+    transform: [{ translateY: -2 }],
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
   sectionHeader: {
     gap: 4,
