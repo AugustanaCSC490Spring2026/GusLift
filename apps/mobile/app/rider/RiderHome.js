@@ -59,7 +59,6 @@ export default function RiderHome() {
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
   const [manualFieldError, setManualFieldError] = useState(null);
-  const [ridesLoading, setRidesLoading] = useState(true);
   const [rides, setRides] = useState([]);
 
   useEffect(() => {
@@ -163,8 +162,6 @@ export default function RiderHome() {
       setRides(enriched);
     } catch (_) {
       setRides([]);
-    } finally {
-      setRidesLoading(false);
     }
   }
 
@@ -210,7 +207,6 @@ export default function RiderHome() {
     });
   }
 
-  const previewRides = rides.slice(0, 3);
   const nextRide = rides[0] ?? null;
   const routeReady = Boolean(pickupLoc || dropoffLoc);
 
@@ -223,9 +219,6 @@ export default function RiderHome() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
-          <View style={styles.heroGlowOne} />
-          <View style={styles.heroGlowTwo} />
-
           <View style={styles.heroTopRow}>
             <View style={styles.avatarWrap}>
               {pictureUrl ? (
@@ -235,10 +228,8 @@ export default function RiderHome() {
               )}
             </View>
             <View style={styles.heroIdentity}>
-              <Text style={styles.eyebrow}>Campus commute</Text>
               <Text style={styles.heroTitle}>Hello, {firstName || "Rider"}</Text>
               <View style={styles.rolePill}>
-                <Ionicons name="walk-outline" size={13} color="#163b67" />
                 <Text style={styles.rolePillText}>Rider mode</Text>
               </View>
             </View>
@@ -249,12 +240,12 @@ export default function RiderHome() {
               ? `Next pickup ${DAY_LABELS[nextRide.day] ?? nextRide.day} at ${formatTime12h(
                   nextRide.start_time,
                 )}.`
-              : "Use your saved route for everyday matching, or request a one-off ride anytime."}
+              : "Request a ride using your schedule or set a custom pickup time."}
           </Text>
 
           <View style={styles.metricRow}>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Upcoming</Text>
+              <Text style={styles.metricLabel}>Upcoming rides</Text>
               <Text style={styles.metricValue}>{rides.length}</Text>
             </View>
             <View style={styles.metricCard}>
@@ -268,20 +259,21 @@ export default function RiderHome() {
           <View style={styles.heroActionRow}>
             <TouchableOpacity
               style={styles.heroPrimaryAction}
-              onPress={handleScheduleRequest}
+              onPress={() => router.push("/rider/ScheduledRidesRider")}
               activeOpacity={0.88}
             >
-              <Ionicons name="flash-outline" size={16} color="#163b67" />
-              <Text style={styles.heroPrimaryActionText}>Use saved route</Text>
+              <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
+              <Text style={styles.heroPrimaryActionText}>View upcoming rides</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.heroSecondaryAction}
               onPress={() => router.push("/rider/RiderSetup")}
               activeOpacity={0.88}
             >
-              <Text style={styles.heroSecondaryActionText}>Edit setup</Text>
+              <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
             </TouchableOpacity>
           </View>
+
         </View>
 
         <View style={styles.sectionHeader}>
@@ -295,15 +287,12 @@ export default function RiderHome() {
               <Text style={styles.cardEyebrow}>Saved commute</Text>
               <Text style={styles.cardTitle}>Fastest option for regular trips</Text>
             </View>
-            <View style={styles.iconBadge}>
-              <Ionicons name="map-outline" size={18} color="#163b67" />
-            </View>
           </View>
 
           {scheduleLoading ? (
             <ActivityIndicator
               size="small"
-              color="#163b67"
+              color="#3B82F6"
               style={styles.inlineLoader}
             />
           ) : (
@@ -311,18 +300,20 @@ export default function RiderHome() {
               <View style={styles.routePanel}>
                 <View style={styles.routeRow}>
                   <Text style={styles.routeLabel}>From</Text>
-                  <Text style={styles.routeValue}>{pickupLoc ?? "—"}</Text>
+                  <Text style={styles.routeValue}>{pickupLoc ?? residence ?? "—"}</Text>
                 </View>
                 <View style={styles.routeDivider} />
                 <View style={styles.routeRow}>
                   <Text style={styles.routeLabel}>To</Text>
-                  <Text style={styles.routeValue}>{dropoffLoc ?? "—"}</Text>
+                  <Text style={styles.routeValue}>{dropoffLoc ?? "Augustana College"}</Text>
                 </View>
                 <View style={styles.routeDivider} />
                 <View style={styles.routeRow}>
                   <Text style={styles.routeLabel}>Pickup timing</Text>
                   <Text style={styles.routeValue}>
-                    {routeReady ? "From first class today" : "Finish setup first"}
+                    {nextRide
+                      ? formatTime12h(nextRide.start_time)
+                      : "—"}
                   </Text>
                 </View>
               </View>
@@ -347,9 +338,6 @@ export default function RiderHome() {
             <View>
               <Text style={styles.cardEyebrow}>One-off request</Text>
               <Text style={styles.cardTitle}>Choose a custom pickup time</Text>
-            </View>
-            <View style={styles.iconBadgeWarm}>
-              <Ionicons name="time-outline" size={18} color="#7a4c12" />
             </View>
           </View>
 
@@ -386,7 +374,7 @@ export default function RiderHome() {
               setManualTime(value);
               if (manualFieldError) setManualFieldError(null);
             }}
-            placeholder="e.g. 16:45"
+            placeholder="Select a pick up time"
           />
 
           {manualFieldError ? (
@@ -401,110 +389,6 @@ export default function RiderHome() {
             <Text style={styles.secondaryButtonText}>Request with custom time</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.sectionHeaderCompact}>
-          <View>
-            <Text style={styles.sectionEyebrow}>Ride management</Text>
-            <Text style={styles.sectionTitle}>Upcoming rides</Text>
-          </View>
-          <View style={styles.headerLinksRow}>
-            <TouchableOpacity
-              style={styles.inlineLink}
-              onPress={() => router.push("/rider/RideHistoryRider")}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="time-outline" size={13} color="#8b7351" />
-              <Text style={[styles.inlineLinkText, { color: "#8b7351" }]}>History</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.inlineLink}
-              onPress={() => router.push("/rider/ScheduledRidesRider")}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.inlineLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={13} color="#163b67" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {ridesLoading ? (
-          <ActivityIndicator
-            size="small"
-            color="#163b67"
-            style={styles.inlineLoader}
-          />
-        ) : previewRides.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-clear-outline" size={28} color="#8b96ac" />
-            <Text style={styles.emptyStateTitle}>No rides booked yet</Text>
-            <Text style={styles.emptyStateText}>
-              Your accepted rides will appear here as soon as a driver match is confirmed.
-            </Text>
-          </View>
-        ) : (
-          previewRides.map((ride) => (
-            <TouchableOpacity
-              key={ride.id}
-              style={styles.rideCard}
-              activeOpacity={0.86}
-              onPress={() =>
-                router.push({
-                  pathname: "/rider/RideDetailRider",
-                  params: {
-                    day: ride.day,
-                    start_time: ride.start_time,
-                    location: ride.location ?? "",
-                    driverName: ride.driver?.name ?? "",
-                    driverPic: ride.driver?.picture_url ?? "",
-                    carMake: ride.car?.make ?? "",
-                    carModel: ride.car?.model ?? "",
-                    carColor: ride.car?.color ?? "",
-                  },
-                })
-              }
-            >
-              <View style={styles.rideCardTop}>
-                <Text style={styles.rideDay}>
-                  {DAY_LABELS[ride.day] ?? ride.day}
-                </Text>
-                <Text style={styles.rideTime}>{formatTime12h(ride.start_time)}</Text>
-              </View>
-
-              <View style={styles.routeTagRow}>
-                <View style={styles.routeTag}>
-                  <Ionicons name="navigate-outline" size={13} color="#4f5d78" />
-                  <Text style={styles.routeTagText}>{ride.location ?? "—"}</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={14} color="#9aa4b8" />
-                <View style={styles.routeTag}>
-                  <Ionicons name="school-outline" size={13} color="#4f5d78" />
-                  <Text style={styles.routeTagText}>Augustana College</Text>
-                </View>
-              </View>
-
-              <View style={styles.driverStrip}>
-                <View style={styles.driverAvatarSmall}>
-                  <Text style={styles.driverAvatarSmallText}>
-                    {getInitial(ride.driver?.name || "D")}
-                  </Text>
-                </View>
-                <View style={styles.driverMeta}>
-                  <Text style={styles.driverNameText}>
-                    {ride.driver?.name ?? "Driver assigned"}
-                  </Text>
-                  <Text style={styles.driverSubText}>
-                    {ride.car
-                      ? `${ride.car.color || ""} ${ride.car.make || ""} ${
-                          ride.car.model || ""
-                        }`.trim()
-                      : "Vehicle details will appear here"}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#7a869d" />
-              </View>
-            </TouchableOpacity>
-          ))
-        )}
       </ScrollView>
     </View>
   );
@@ -513,7 +397,7 @@ export default function RiderHome() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f4efe5",
+    backgroundColor: "#F8FAFC",
   },
   scroll: { flex: 1 },
   content: {
@@ -523,31 +407,31 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   heroCard: {
-    backgroundColor: "#17365e",
+    backgroundColor: "#3B82F6",
     borderRadius: 28,
-    padding: 22,
+    padding: 20,
     overflow: "hidden",
-    gap: 18,
+    gap: 14,
   },
   heroGlowOne: {
     position: "absolute",
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#315b90",
+    backgroundColor: "#FFFFFF",
     top: -72,
     right: -28,
-    opacity: 0.48,
+    opacity: 0.2,
   },
   heroGlowTwo: {
     position: "absolute",
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: "#ecd8a9",
+    backgroundColor: "#FFFFFF",
     bottom: -62,
     left: -34,
-    opacity: 0.18,
+    opacity: 0.1,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -558,7 +442,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 18,
-    backgroundColor: "#f4efe5",
+    backgroundColor: "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -570,7 +454,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#17365e",
+    color: "#0F172A",
   },
   heroIdentity: {
     flex: 1,
@@ -586,7 +470,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#fff8ea",
+    color: "#FFFFFF",
     letterSpacing: -0.7,
   },
   rolePill: {
@@ -595,14 +479,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderRadius: 999,
-    backgroundColor: "#f4efe5",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   rolePillText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#163b67",
+    color: "#3B82F6",
   },
   heroSummary: {
     fontSize: 14,
@@ -617,11 +501,11 @@ const styles = StyleSheet.create({
   metricCard: {
     flex: 1,
     borderRadius: 18,
-    backgroundColor: "rgba(255, 248, 234, 0.12)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(255, 248, 234, 0.14)",
-    padding: 14,
-    gap: 6,
+    borderColor: "rgba(255, 255, 255, 0.14)",
+    padding: 12,
+    gap: 4,
   },
   metricLabel: {
     fontSize: 11,
@@ -633,12 +517,12 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#fff8ea",
+    color: "#FFFFFF",
   },
   metricValueSmall: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#fff8ea",
+    color: "#FFFFFF",
   },
   heroActionRow: {
     flexDirection: "row",
@@ -648,7 +532,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     borderRadius: 16,
-    backgroundColor: "#f3dfad",
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -657,21 +541,21 @@ const styles = StyleSheet.create({
   heroPrimaryActionText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#163b67",
+    color: "#3B82F6",
   },
   heroSecondaryAction: {
     flex: 1,
     minHeight: 48,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(244, 239, 229, 0.24)",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   heroSecondaryActionText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#f7f0e2",
+    color: "#FFFFFF",
   },
   sectionHeader: {
     gap: 4,
@@ -689,28 +573,28 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.1,
     textTransform: "uppercase",
-    color: "#8b7351",
+    color: "#64748B",
   },
   sectionTitle: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#172b49",
+    color: "#0F172A",
     letterSpacing: -0.6,
   },
   scheduleCard: {
-    backgroundColor: "#fbf7ef",
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#eadfce",
+    borderColor: "#E2E8F0",
     gap: 14,
   },
   manualCard: {
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#eadfce",
+    borderColor: "#E2E8F0",
     gap: 12,
   },
   cardHeaderRow: {
@@ -724,26 +608,26 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.1,
     textTransform: "uppercase",
-    color: "#8b7351",
+    color: "#64748B",
     marginBottom: 4,
   },
   cardTitle: {
     fontSize: 21,
     fontWeight: "800",
-    color: "#172b49",
+    color: "#0F172A",
     lineHeight: 26,
     maxWidth: 240,
   },
   cardDescription: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#52607a",
+    color: "#64748B",
   },
   iconBadge: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "#e4ebf7",
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -751,13 +635,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "#f2e1c5",
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   routePanel: {
     borderRadius: 20,
-    backgroundColor: "#f4efe5",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 16,
     paddingVertical: 6,
   },
@@ -770,12 +654,12 @@ const styles = StyleSheet.create({
   },
   routeDivider: {
     height: 1,
-    backgroundColor: "#e3d7c5",
+    backgroundColor: "#E2E8F0",
   },
   routeLabel: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#6c7687",
+    color: "#64748B",
     textTransform: "uppercase",
     letterSpacing: 0.7,
   },
@@ -784,53 +668,53 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontSize: 15,
     fontWeight: "700",
-    color: "#172b49",
+    color: "#0F172A",
   },
   helperText: {
     fontSize: 13,
     lineHeight: 19,
-    color: "#67748d",
+    color: "#64748B",
   },
   inputLabel: {
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: "#6a7383",
+    color: "#64748B",
     marginTop: 4,
   },
   input: {
     minHeight: 50,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#d7cfbf",
-    backgroundColor: "#f8f3eb",
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 15,
-    color: "#172b49",
+    color: "#0F172A",
   },
   fieldError: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#8d4e19",
+    color: "#ef4444",
   },
   primaryButton: {
     minHeight: 52,
-    borderRadius: 16,
-    backgroundColor: "#163b67",
+    borderRadius: 8,
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
   },
   primaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#fff8ea",
+    color: "#FFFFFF",
   },
   secondaryButton: {
     minHeight: 52,
-    borderRadius: 16,
-    backgroundColor: "#ead2aa",
+    borderRadius: 8,
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -838,7 +722,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#17365e",
+    color: "#FFFFFF",
   },
   headerLinksRow: {
     flexDirection: "row",
@@ -854,16 +738,16 @@ const styles = StyleSheet.create({
   inlineLinkText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#163b67",
+    color: "#3B82F6",
   },
   inlineLoader: {
     marginVertical: 12,
   },
   emptyState: {
     borderRadius: 24,
-    backgroundColor: "#fbf7ef",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#eadfce",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 32,
@@ -872,19 +756,19 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#172b49",
+    color: "#0F172A",
   },
   emptyStateText: {
     fontSize: 14,
     lineHeight: 20,
-    color: "#67748d",
+    color: "#64748B",
     textAlign: "center",
   },
   rideCard: {
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#FFFFFF",
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#eadfce",
+    borderColor: "#E2E8F0",
     padding: 18,
     gap: 14,
   },
@@ -896,12 +780,12 @@ const styles = StyleSheet.create({
   rideDay: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#17365e",
+    color: "#0F172A",
   },
   rideTime: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#7a869d",
+    color: "#64748B",
   },
   routeTagRow: {
     flexDirection: "row",
@@ -913,7 +797,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#f4efe5",
+    backgroundColor: "#F8FAFC",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -921,28 +805,28 @@ const styles = StyleSheet.create({
   routeTagText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#33415a",
+    color: "#0F172A",
   },
   driverStrip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: "#ece3d4",
+    borderTopColor: "#E2E8F0",
     paddingTop: 14,
   },
   driverAvatarSmall: {
     width: 38,
     height: 38,
     borderRadius: 14,
-    backgroundColor: "#dfe7f2",
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   driverAvatarSmallText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#17365e",
+    color: "#3B82F6",
   },
   driverMeta: {
     flex: 1,
@@ -951,10 +835,10 @@ const styles = StyleSheet.create({
   driverNameText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#172b49",
+    color: "#0F172A",
   },
   driverSubText: {
     fontSize: 12,
-    color: "#69748b",
+    color: "#64748B",
   },
 });

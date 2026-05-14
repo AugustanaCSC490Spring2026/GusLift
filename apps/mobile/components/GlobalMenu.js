@@ -33,7 +33,11 @@ export default function GlobalMenu() {
   const [avatarUri, setAvatarUri] = useState(null);
 
   // Do not show the menu on login/signup/setup pages
-  const hidePaths = ["/", "/index", "/signup", "/role", "/About"];
+  const hidePaths = [
+    "/", "/index", "/signup", "/role", "/About",
+    "/rider/AvailableDrivers", "/rider/RiderWaitingRoom",
+    "/driver/AvailableRiders", "/driver/DriverWaitingRoom",
+  ];
   if (hidePaths.includes(pathname) || pathname?.toLowerCase().includes("setup")) {
     return null;
   }
@@ -202,12 +206,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: "#E2E8F0",
   },
   menuItemText: {
     fontSize: 16,
     marginLeft: 12,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "500",
   },
 });

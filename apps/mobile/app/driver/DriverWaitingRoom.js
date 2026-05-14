@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -108,6 +109,11 @@ export default function DriverWaitingRoom() {
 
   return (
     <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={handleGoOffline}
@@ -126,7 +132,6 @@ export default function DriverWaitingRoom() {
       </View>
 
       <View style={styles.heroCard}>
-        <View style={styles.heroGlow} />
         <Text style={styles.heroEyebrow}>Driver queue</Text>
         <Text style={styles.heroTitle}>Ride offer is live</Text>
         <Text style={styles.heroBody}>
@@ -181,7 +186,7 @@ export default function DriverWaitingRoom() {
       <View style={styles.signalCard}>
         {connected ? (
           <>
-            <ActivityIndicator size="small" color="#1a4a37" />
+            <ActivityIndicator size="small" color="#3B82F6" />
             <Text style={styles.signalTitle}>Listening for riders now</Text>
             <Text style={styles.signalBody}>
               The screen will automatically move you to the rider queue as soon as someone
@@ -207,6 +212,7 @@ export default function DriverWaitingRoom() {
           {connected ? "Stop offering this ride" : "Leave this screen"}
         </Text>
       </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
@@ -214,9 +220,12 @@ export default function DriverWaitingRoom() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f2efe7",
+    backgroundColor: "#F8FAFC",
+  },
+  content: {
     paddingHorizontal: 20,
     paddingTop: 60,
+    paddingBottom: 40,
     gap: 16,
   },
   headerRow: {
@@ -228,62 +237,52 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 16,
-    backgroundColor: "#e6e0d2",
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
   },
   closeText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#44574e",
+    color: "#64748B",
   },
   offlineChip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#d8cebe",
+    borderColor: "#E2E8F0",
   },
   offlineChipText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#44574e",
+    color: "#0F172A",
   },
   heroCard: {
-    backgroundColor: "#1c4d38",
+    backgroundColor: "#3B82F6",
     borderRadius: 26,
     padding: 22,
     overflow: "hidden",
     gap: 10,
-  },
-  heroGlow: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "#35644f",
-    top: -58,
-    right: -28,
-    opacity: 0.46,
   },
   heroEyebrow: {
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: "#d4e2da",
+    color: "rgba(255,255,255,0.8)",
   },
   heroTitle: {
     fontSize: 29,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
     letterSpacing: -0.7,
   },
   heroBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#d5e2d9",
+    color: "rgba(255,255,255,0.85)",
     maxWidth: "93%",
   },
   statusPill: {
@@ -294,7 +293,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(255, 249, 239, 0.14)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     marginTop: 4,
   },
   liveDot: {
@@ -306,20 +305,20 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   summaryCard: {
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1c4d38",
+    color: "#0F172A",
     marginBottom: 10,
   },
   summaryRow: {
@@ -334,24 +333,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: "#6f8278",
+    color: "#64748B",
   },
   summaryValue: {
     flex: 1,
     textAlign: "right",
     fontSize: 15,
     fontWeight: "700",
-    color: "#20352d",
+    color: "#0F172A",
   },
   divider: {
     height: 1,
-    backgroundColor: "#ece3d6",
+    backgroundColor: "#E2E8F0",
   },
   signalCard: {
-    backgroundColor: "#fbf7ef",
+    backgroundColor: "#F8FAFC",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#e4dacb",
+    borderColor: "#E2E8F0",
     padding: 22,
     alignItems: "center",
     gap: 10,
@@ -359,27 +358,26 @@ const styles = StyleSheet.create({
   signalTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1c4d38",
+    color: "#0F172A",
     textAlign: "center",
   },
   signalBody: {
     fontSize: 14,
     lineHeight: 20,
-    color: "#647970",
+    color: "#64748B",
     textAlign: "center",
   },
   primaryButton: {
     minHeight: 52,
     borderRadius: 18,
-    backgroundColor: "#1c4d38",
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: "auto",
     marginBottom: 20,
   },
   primaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
 });

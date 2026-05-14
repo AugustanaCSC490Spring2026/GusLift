@@ -31,7 +31,7 @@ export default function OAuthRedirectGoogle() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#1a3a6b" />
+      <ActivityIndicator size="large" color="#3B82F6" />
     </View>
   );
 }
@@ -41,6 +41,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
   },
 });

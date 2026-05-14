@@ -14,6 +14,7 @@ import {
 import Svg, { Path } from "react-native-svg";
 import CarIllustration from "../components/CarIllustration";
 import RiderIllustration from "../components/RiderIllustration";
+import Logo from "../components/Logo";
 
 /* ─── Color tokens ─── */
 const C = {
@@ -205,6 +206,9 @@ export default function Role() {
     <Animated.View style={[styles.screen, { opacity: fadeIn }]}>
       {/* Heading */}
       <View style={styles.heading}>
+        <View style={{ marginBottom: 16 }}>
+          <Logo size="sm" />
+        </View>
         <Text style={styles.headingTitle}>Choose your role</Text>
         <Text style={styles.headingSubtitle}>
           Select your mode to start your journey.
