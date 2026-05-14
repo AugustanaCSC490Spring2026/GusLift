@@ -2,13 +2,31 @@ import type { DayKey } from "./types/state";
 
 const WEEKDAYS: DayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
+const CAMPUS_TZ = "America/Chicago";
+
 /**
  * Returns current weekday in doc format: mon, tue, ... sun
+ * Uses America/Chicago so the day is correct for all Augustana users.
  */
 export function getCurrentWeekday(): DayKey {
-  const d = new Date();
-  const idx = d.getUTCDay();
-  return WEEKDAYS[idx];
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CAMPUS_TZ,
+    weekday: "short",
+  }).formatToParts(new Date());
+  const short = parts.find((p) => p.type === "weekday")?.value?.toLowerCase().slice(0, 3);
+  return (WEEKDAYS.includes(short as DayKey) ? short : WEEKDAYS[new Date().getUTCDay()]) as DayKey;
+}
+
+/** Returns today's date as YYYY-MM-DD in America/Chicago. */
+export function getTodayDateCentral(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CAMPUS_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 /**
