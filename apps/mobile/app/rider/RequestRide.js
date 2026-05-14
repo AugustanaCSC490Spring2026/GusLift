@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -10,30 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import AutocompleteInput from "../../components/setup/AutocompleteInput";
-import TimePickerField from "../../components/setup/TimePickerField";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-function minusMinutes(timeStr, minutesToSubtract) {
-  if (!TIME_RE.test(String(timeStr || "").trim())) return null;
-  const [h, m] = String(timeStr).trim().split(":").map(Number);
-  const total = h * 60 + m - minutesToSubtract;
-  if (total < 0) return null;
-  const hh = Math.floor(total / 60);
-  const mm = total % 60;
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-}
-
-function formatTime12h(timeStr) {
-  if (!TIME_RE.test(String(timeStr || "").trim())) return "—";
-  const [h, m] = String(timeStr).trim().split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
-}
 
 export default function RequestRide() {
   const router = useRouter();
@@ -41,17 +22,13 @@ export default function RequestRide() {
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
-  const [schedulePickupTime, setSchedulePickupTime] = useState(null);
-  const [firstName, setFirstName] = useState("");
 
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
   const [manualFieldError, setManualFieldError] = useState(null);
 
-  useEffect(() => {
-    loadSchedule();
-  }, []);
+  useEffect(() => { loadSchedule(); }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -67,25 +44,25 @@ export default function RequestRide() {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
-      setFirstName(user.given_name || (user.name ? user.name.split(" ")[0] : ""));
-      if (!BACKEND_URL || !user?.id) return;
 
-      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
-      const scheduleRes = await fetch(
-        `${normalizedBackendUrl}/api/rider/schedule?userID=${encodeURIComponent(String(user.id))}`,
-        { headers: { "x-user-id": String(user.id) } }
-      );
-      if (!scheduleRes.ok) return;
+      const [scheduleRes, userRes] = await Promise.all([
+        fetch(
+          `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=pickup_loc,dropoff_loc`,
+          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        ),
+        fetch(
+          `${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence`,
+          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        ),
+      ]);
 
-      const scheduleData = await scheduleRes.json();
-      setPickupLoc(scheduleData?.pickup_loc ?? null);
-      setDropoffLoc(scheduleData?.dropoff_loc ?? null);
-      setResidence(scheduleData?.residence ?? null);
-      const todayKey = DAY_KEYS[new Date().getDay()];
-      const firstClassStart = scheduleData?.days?.[todayKey]?.start_time ?? null;
-      setSchedulePickupTime(minusMinutes(firstClassStart, 15));
+      const [scheduleData, userData] = await Promise.all([scheduleRes.json(), userRes.json()]);
+
+      setPickupLoc(scheduleData?.[0]?.pickup_loc ?? null);
+      setDropoffLoc(scheduleData?.[0]?.dropoff_loc ?? null);
+      setResidence(userData?.[0]?.residence ?? null);
     } catch (_) {
-      // leave blank
+      /* leave blank */
     } finally {
       setLoading(false);
     }
@@ -127,7 +104,6 @@ export default function RequestRide() {
         from: pickupLoc ?? "",
         to: dropoffLoc ?? "",
         matchMode: "schedule",
-        ...(schedulePickupTime ? { time: schedulePickupTime } : {}),
       },
     });
   }
@@ -140,6 +116,8 @@ export default function RequestRide() {
     );
   }
 
+  const isSetupComplete = pickupLoc && dropoffLoc;
+
   return (
     <View style={styles.outer}>
       <TouchableOpacity
@@ -147,7 +125,7 @@ export default function RequestRide() {
           if (router.canGoBack()) {
             router.back();
           } else {
-            router.replace("/");
+            router.replace("/home");
           }
         }}
         style={styles.closeButton}
@@ -161,9 +139,6 @@ export default function RequestRide() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {firstName ? (
-          <Text style={styles.greeting}>Hello {firstName}, where would you like to go today?</Text>
-        ) : null}
         <Text style={styles.header}>Request a Ride</Text>
 
         <View style={styles.section}>
@@ -174,7 +149,7 @@ export default function RequestRide() {
           </Text>
 
           <Text style={styles.fieldLabel}>Pickup location</Text>
-          <AutocompleteInput
+          <TextInput
             style={styles.input}
             placeholder="e.g. Augie Hall, library, your dorm"
             placeholderTextColor="#9ca3af"
@@ -186,7 +161,7 @@ export default function RequestRide() {
           />
 
           <Text style={styles.fieldLabel}>Going to (optional)</Text>
-          <AutocompleteInput
+          <TextInput
             style={styles.input}
             placeholder="Shown for your reference only"
             placeholderTextColor="#9ca3af"
@@ -195,13 +170,16 @@ export default function RequestRide() {
           />
 
           <Text style={styles.fieldLabel}>Pickup time (24h)</Text>
-          <TimePickerField
+          <TextInput
+            style={styles.input}
+            placeholder="HH:MM — e.g. 16:45 after class"
+            placeholderTextColor="#9ca3af"
             value={manualTime}
-            onChange={(t) => {
+            onChangeText={(t) => {
               setManualTime(t);
               if (manualFieldError) setManualFieldError(null);
             }}
-            placeholder="e.g. 16:45"
+            keyboardType="numbers-and-punctuation"
           />
 
           {manualFieldError ? <Text style={styles.fieldError}>{manualFieldError}</Text> : null}
@@ -219,27 +197,35 @@ export default function RequestRide() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitleMuted}>Today’s saved route</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.label}>From</Text>
-              <Text style={styles.value}>{pickupLoc ?? "—"}</Text>
+          <View style={styles.tripCard}>
+            <View style={styles.tripRow}>
+              <View style={styles.tripDotWrap}>
+                <View style={styles.tripDotFilled} />
+                <View style={styles.tripLine} />
+              </View>
+              <Text style={styles.infoText}>{pickupLoc ?? "No pickup set"}</Text>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>To</Text>
-              <Text style={styles.value}>{dropoffLoc ?? "—"}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Pick Up Time</Text>
-              <Text style={styles.value}>
-                {schedulePickupTime ? `${formatTime12h(schedulePickupTime)} (15 min before class)` : "—"}
-              </Text>
+            <View style={styles.tripRow}>
+              <View style={styles.tripDotWrap}>
+                <View style={styles.tripDotOutline} />
+              </View>
+              <Text style={styles.infoText}>{dropoffLoc ?? "No dropoff set"}</Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.scheduleButton} onPress={handleScheduleRequest} activeOpacity={0.8}>
-            <Text style={styles.scheduleButtonText}>Request using schedule</Text>
+          <TouchableOpacity style={styles.editLink} onPress={() => router.push("/rider/RiderSetup")}>
+            <Ionicons name="pencil-outline" size={14} color="#1a3a6b" />
+            <Text style={styles.editLinkText}>Edit route</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.requestBtn, !isSetupComplete && styles.requestBtnDisabled]}
+            onPress={handleScheduleRequest}
+            activeOpacity={0.8}
+            disabled={!isSetupComplete}
+          >
+            <Ionicons name="calendar-outline" size={20} color="#fff" />
+            <Text style={styles.requestBtnText}>Request using schedule</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -282,12 +268,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
     marginBottom: 20,
-  },
-  greeting: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#4b5563",
-    marginBottom: 8,
   },
   section: {
     marginBottom: 8,
@@ -374,20 +354,28 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 16,
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 4 },
+
+  body: { flex: 1, padding: 20, gap: 14 },
+
+  // Trip card
+  tripCard: {
+    backgroundColor: "#fff", borderRadius: 18, padding: 20,
+    borderWidth: 1, borderColor: "#f0f0f0",
+    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
+  tripRow: { flexDirection: "row", gap: 14, paddingVertical: 10 },
+  tripDotWrap: { width: 20, alignItems: "center", paddingTop: 3 },
+  tripDotFilled: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#1a3a6b" },
+  tripLine: {
+    width: 2, flex: 1, backgroundColor: "#e2e8f0",
+    marginTop: 4, marginBottom: -10, minHeight: 28,
   },
-  label: {
-    fontSize: 15,
-    color: "#6b7280",
-    fontWeight: "500",
+  tripDotOutline: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 2, borderColor: "#1a3a6b",
   },
   value: {
     fontSize: 15,
@@ -396,17 +384,23 @@ const styles = StyleSheet.create({
     maxWidth: "58%",
     textAlign: "right",
   },
-  scheduleButton: {
-    backgroundColor: "#ffffff",
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#1a3a6b",
+  infoText: { flex: 1, fontSize: 13, color: "#3b4e7a", lineHeight: 19 },
+
+  // Edit link
+  editLink: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    alignSelf: "flex-start", paddingVertical: 4,
   },
-  scheduleButtonText: {
-    color: "#1a3a6b",
-    fontSize: 17,
-    fontWeight: "700",
+  editLinkText: { fontSize: 13, color: "#1a3a6b", fontWeight: "600" },
+
+  // Footer
+  footer: { padding: 20, paddingBottom: 36 },
+  requestBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: "#1a3a6b", borderRadius: 16, paddingVertical: 17, gap: 10,
+    shadowColor: "#1a3a6b", shadowOpacity: 0.35, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 }, elevation: 7,
   },
+  requestBtnDisabled: { opacity: 0.45 },
+  requestBtnText: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },
 });
