@@ -319,7 +319,7 @@ export default function ScheduledRidesRider() {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>Rides</Text>
-          <TouchableOpacity onPress={() => router.replace("/rider/RequestRide")} style={styles.getRideButton} activeOpacity={0.85}>
+          <TouchableOpacity onPress={() => router.replace("/rider/RiderHome")} style={styles.getRideButton} activeOpacity={0.85}>
             <Text style={styles.getRideButtonText}>Get a Ride  +</Text>
           </TouchableOpacity>
         </View>
