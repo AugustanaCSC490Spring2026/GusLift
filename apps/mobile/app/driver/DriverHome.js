@@ -96,6 +96,7 @@ export default function DriverHome() {
   const [classStart, setClassStart] = useState(null);
   const [classEnd, setClassEnd] = useState(null);
   const [pickupTime, setPickupTime] = useState("");
+  const [schedulePickup, setSchedulePickup] = useState("");
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
@@ -115,6 +116,7 @@ export default function DriverHome() {
       (from && String(from).trim()) ||
       (residence && String(residence).trim()) ||
       "";
+    setSchedulePickup((prev) => (prev.trim() ? prev : seed));
     setManualPickup((prev) => (prev.trim() ? prev : seed));
   }, [scheduleLoading, from, residence]);
 
@@ -262,7 +264,7 @@ export default function DriverHome() {
     router.push({
       pathname: "/driver/DriverWaitingRoom",
       params: {
-        from: from ?? "",
+        from: schedulePickup.trim() || (from ?? ""),
         pickupTime,
         classStart: classStart ?? "",
         classEnd: classEnd ?? "",
@@ -361,6 +363,15 @@ export default function DriverHome() {
             </View>
           </View>
 
+          <Text style={styles.inputLabel}>Pickup location</Text>
+          <AutocompleteInput
+            style={styles.input}
+            placeholder="Off-campus house, Westerlin, library"
+            placeholderTextColor="#8a93a5"
+            value={schedulePickup}
+            onChangeText={setSchedulePickup}
+          />
+
           {scheduleLoading ? (
             <ActivityIndicator
               size="small"
@@ -369,33 +380,22 @@ export default function DriverHome() {
             />
           ) : (
             <>
-              <View style={styles.routePanel}>
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>From</Text>
-                  <Text style={styles.routeValue}>{from ?? residence ?? "—"}</Text>
-                </View>
-                <View style={styles.routeDivider} />
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>Class starts</Text>
-                  <Text style={styles.routeValue}>{formatTime12h(classStart)}</Text>
-                </View>
-                <View style={styles.routeDivider} />
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>Class ends</Text>
-                  <Text style={styles.routeValue}>{formatTime12h(classEnd)}</Text>
-                </View>
-                <View style={styles.routeDivider} />
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>Pickup time</Text>
-                  <View style={{ minWidth: 140 }}>
-                    <TimePickerField
-                      value={pickupTime}
-                      onChange={setPickupTime}
-                      placeholder="Select pickup time"
-                    />
-                  </View>
-                </View>
+              <Text style={styles.inputLabel}>Class starts</Text>
+              <View style={styles.inputDisplay}>
+                <Text style={styles.inputDisplayText}>{formatTime12h(classStart)}</Text>
               </View>
+
+              <Text style={styles.inputLabel}>Class ends</Text>
+              <View style={styles.inputDisplay}>
+                <Text style={styles.inputDisplayText}>{formatTime12h(classEnd)}</Text>
+              </View>
+
+              <Text style={styles.inputLabel}>Pickup time</Text>
+              <TimePickerField
+                value={pickupTime}
+                onChange={setPickupTime}
+                placeholder="Select a pick up time"
+              />
 
               <Text style={styles.helperText}>
                 This opens a driver waiting room using your default pickup point and today&apos;s
@@ -454,7 +454,7 @@ export default function DriverHome() {
               setManualTime(value);
               if (manualFieldError) setManualFieldError(null);
             }}
-            placeholder="e.g. 08:30"
+            placeholder="Select a pick up time"
           />
 
           {manualFieldError ? (
@@ -489,10 +489,10 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     backgroundColor: "#3B82F6",
-    borderRadius: 28,
-    padding: 20,
+    borderRadius: 24,
+    padding: 16,
     overflow: "hidden",
-    gap: 14,
+    gap: 10,
   },
   heroGlowOne: {
     position: "absolute",
@@ -520,22 +520,22 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   avatarWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "800",
     color: "#0F172A",
   },
   avatarImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
   },
   heroIdentity: {
     flex: 1,
@@ -549,10 +549,10 @@ const styles = StyleSheet.create({
     color: "#d4e2f5",
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.7,
+    letterSpacing: -0.5,
   },
   rolePill: {
     alignSelf: "flex-start",
@@ -581,22 +581,22 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.14)",
-    padding: 12,
-    gap: 4,
+    padding: 10,
+    gap: 2,
   },
   metricLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
     color: "#d2def0",
   },
   metricValue: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: "#FFFFFF",
   },
@@ -606,28 +606,28 @@ const styles = StyleSheet.create({
   },
   heroPrimaryAction: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
+    minHeight: 42,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   heroPrimaryActionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#3B82F6",
   },
   heroSecondaryAction: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
+    minHeight: 42,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   heroSecondaryActionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -785,6 +785,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: "#0F172A",
+  },
+  inputDisplay: {
+    minHeight: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    justifyContent: "center",
+  },
+  inputDisplayText: {
+    fontSize: 15,
+    color: "#0F172A",
+    fontWeight: "600",
   },
   fieldError: {
     fontSize: 13,

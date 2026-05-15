@@ -56,6 +56,7 @@ export default function RiderHome() {
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
+  const [schedulePickup, setSchedulePickup] = useState("");
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
@@ -73,6 +74,7 @@ export default function RiderHome() {
       (pickupLoc && String(pickupLoc).trim()) ||
       (residence && String(residence).trim()) ||
       "";
+    setSchedulePickup((prev) => (prev.trim() ? prev : seed));
     setManualPickup((prev) => (prev.trim() ? prev : seed));
   }, [scheduleLoading, pickupLoc, residence]);
 
@@ -201,7 +203,7 @@ export default function RiderHome() {
     router.push({
       pathname: "/rider/RiderWaitingRoom",
       params: {
-        from: pickupLoc ?? "",
+        from: schedulePickup.trim() || (pickupLoc ?? ""),
         to: dropoffLoc ?? "",
         matchMode: "schedule",
       },
@@ -295,6 +297,15 @@ export default function RiderHome() {
             </View>
           </View>
 
+          <Text style={styles.inputLabel}>Pickup location</Text>
+          <AutocompleteInput
+            style={styles.input}
+            placeholder="Augie Hall, Westerlin, library"
+            placeholderTextColor="#8a93a5"
+            value={schedulePickup}
+            onChangeText={setSchedulePickup}
+          />
+
           {scheduleLoading ? (
             <ActivityIndicator
               size="small"
@@ -303,25 +314,16 @@ export default function RiderHome() {
             />
           ) : (
             <>
-              <View style={styles.routePanel}>
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>From</Text>
-                  <Text style={styles.routeValue}>{pickupLoc ?? residence ?? "—"}</Text>
-                </View>
-                <View style={styles.routeDivider} />
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>To</Text>
-                  <Text style={styles.routeValue}>{dropoffLoc ?? "Augustana College"}</Text>
-                </View>
-                <View style={styles.routeDivider} />
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>Pickup timing</Text>
-                  <Text style={styles.routeValue}>
-                    {nextRide
-                      ? formatTime12h(nextRide.start_time)
-                      : "—"}
-                  </Text>
-                </View>
+              <Text style={styles.inputLabel}>Going to</Text>
+              <View style={styles.inputDisplay}>
+                <Text style={styles.inputDisplayText}>{dropoffLoc ?? "Augustana College"}</Text>
+              </View>
+
+              <Text style={styles.inputLabel}>Pickup timing</Text>
+              <View style={styles.inputDisplay}>
+                <Text style={styles.inputDisplayText}>
+                  {nextRide ? formatTime12h(nextRide.start_time) : "—"}
+                </Text>
               </View>
 
               <Text style={styles.helperText}>
@@ -414,10 +416,10 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     backgroundColor: "#3B82F6",
-    borderRadius: 28,
-    padding: 20,
+    borderRadius: 24,
+    padding: 16,
     overflow: "hidden",
-    gap: 14,
+    gap: 10,
   },
   heroGlowOne: {
     position: "absolute",
@@ -445,20 +447,20 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   avatarWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
   },
   avatarText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "800",
     color: "#0F172A",
   },
@@ -474,10 +476,10 @@ const styles = StyleSheet.create({
     color: "#d4e2f5",
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.7,
+    letterSpacing: -0.5,
   },
   rolePill: {
     alignSelf: "flex-start",
@@ -506,22 +508,22 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.14)",
-    padding: 12,
-    gap: 4,
+    padding: 10,
+    gap: 2,
   },
   metricLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
     color: "#d2def0",
   },
   metricValue: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: "#FFFFFF",
   },
@@ -536,28 +538,28 @@ const styles = StyleSheet.create({
   },
   heroPrimaryAction: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
+    minHeight: 42,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   heroPrimaryActionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#3B82F6",
   },
   heroSecondaryAction: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
+    minHeight: 42,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   heroSecondaryActionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -705,6 +707,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: "#0F172A",
+  },
+  inputDisplay: {
+    minHeight: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    justifyContent: "center",
+  },
+  inputDisplayText: {
+    fontSize: 15,
+    color: "#0F172A",
+    fontWeight: "600",
   },
   fieldError: {
     fontSize: 13,
