@@ -231,7 +231,7 @@ export default function RideHistoryRider() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     padding: 24,
     paddingTop: 56,
   },
@@ -239,20 +239,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#64748B",
     fontWeight: "600",
   },
   headerRow: {
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
   },
   clearAllText: {
     fontSize: 14,
@@ -294,20 +294,20 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1,
   },
   hideButtonText: {
     fontSize: 14,
-    color: "#9ca3af",
+    color: "#64748B",
     fontWeight: "600",
   },
   dateLabel: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
     marginBottom: 4,
     paddingRight: 36,
   },
@@ -318,34 +318,34 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 13,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   metaValue: {
     fontSize: 13,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "600",
   },
   driverBox: {
     marginTop: 8,
-    backgroundColor: "#f0f4ff",
+    backgroundColor: "#EFF6FF",
     borderRadius: 10,
     padding: 12,
     gap: 2,
   },
   driverLabel: {
     fontSize: 12,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   driverName: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
   },
   driverCar: {
     fontSize: 13,
-    color: "#374151",
+    color: "#64748B",
   },
   statusBadge: {
     alignSelf: "flex-start",
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: "#9ca3af",
+    color: "#64748B",
     textAlign: "center",
     marginTop: 40,
   },

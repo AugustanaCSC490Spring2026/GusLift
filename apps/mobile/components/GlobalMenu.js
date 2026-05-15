@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
+import { resolveRoute } from "../lib/routeUser";
 import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import MenuAvatar from "./MenuAvatar";
 import { ClockIcon, HistoryLineIcon } from "./Icons";
+import { deactivateCurrentUserPushToken } from "../lib/pushNotifications";
 
 function CodeIcon({ size = 20, color = "#64748B" }) {
   return (
@@ -32,7 +34,11 @@ export default function GlobalMenu() {
   const [avatarUri, setAvatarUri] = useState(null);
 
   // Do not show the menu on login/signup/setup pages
-  const hidePaths = ["/", "/index", "/signup", "/role", "/About"];
+  const hidePaths = [
+    "/", "/index", "/signup", "/role", "/About",
+    "/rider/AvailableDrivers", "/rider/RiderWaitingRoom",
+    "/driver/AvailableRiders", "/driver/DriverWaitingRoom",
+  ];
   if (hidePaths.includes(pathname) || pathname?.toLowerCase().includes("setup")) {
     return null;
   }
@@ -56,6 +62,7 @@ export default function GlobalMenu() {
   const handleSignout = async () => {
     setIsOpen(false);
     try {
+      await deactivateCurrentUserPushToken();
       await AsyncStorage.removeItem("@user");
       router.replace("/");
     } catch (e) {
@@ -78,19 +85,8 @@ export default function GlobalMenu() {
       const updated = { ...parsed, role: newRole };
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
 
-      if (newRole === "driver") {
-        if (parsed.driverSetupComplete) {
-          router.replace("/driver/DriverHome");
-        } else {
-          router.replace("/driver/DriverSetup");
-        }
-      } else {
-        if (parsed.riderSetupComplete) {
-          router.replace("/rider/RiderHome");
-        } else {
-          router.replace("/rider/RiderSetup");
-        }
-      }
+      const dest = await resolveRoute(updated, { verifyDriver: false });
+      router.replace(dest);
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");
     }
@@ -200,12 +196,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: "#E2E8F0",
   },
   menuItemText: {
     fontSize: 16,
     marginLeft: 12,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "500",
   },
 });

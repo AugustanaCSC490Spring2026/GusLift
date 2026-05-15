@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const DAY_LABELS = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday",
@@ -20,6 +20,10 @@ export default function RideDetailRider() {
 
   return (
     <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
@@ -71,6 +75,7 @@ export default function RideDetailRider() {
           )}
         </View>
       </View>
+      </ScrollView>
     </View>
   );
 }
@@ -78,28 +83,31 @@ export default function RideDetailRider() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
+  },
+  content: {
     padding: 24,
     paddingTop: 56,
+    paddingBottom: 40,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#64748B",
     fontWeight: "600",
   },
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 20,
   },
   card: {
@@ -122,16 +130,16 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#E2E8F0",
   },
   label: {
     fontSize: 15,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   value: {
     fontSize: 15,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "600",
     maxWidth: "60%",
     textAlign: "right",
@@ -139,7 +147,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 12,
   },
   driverCard: {
@@ -164,14 +172,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#dbeafe",
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarInitial: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#1a3a6b",
+    color: "#3B82F6",
   },
   driverInfo: {
     flex: 1,
@@ -180,10 +188,10 @@ const styles = StyleSheet.create({
   driverName: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
   },
   carText: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#64748B",
   },
 });

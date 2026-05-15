@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -172,6 +173,11 @@ export default function RiderWaitingRoom() {
 
   return (
     <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={handleCancel}
@@ -190,7 +196,6 @@ export default function RiderWaitingRoom() {
       </View>
 
       <View style={styles.heroCard}>
-        <View style={styles.heroGlow} />
         <Text style={styles.heroEyebrow}>Rider queue</Text>
         <Text style={styles.heroTitle}>Ride request in progress</Text>
         <Text style={styles.heroBody}>
@@ -226,9 +231,7 @@ export default function RiderWaitingRoom() {
               ? formatTime12h(effectiveSlotTime)
               : needsManualTime
                 ? "Enter below"
-                : matchMode !== "manual" && !isManualEntry
-                  ? "First class today"
-                  : "—"}
+                : "—"}
           </Text>
         </View>
       </View>
@@ -287,7 +290,7 @@ export default function RiderWaitingRoom() {
         </View>
       ) : !connectError ? (
         <View style={styles.liveCard}>
-          <ActivityIndicator size="small" color="#183b68" />
+          <ActivityIndicator size="small" color="#3B82F6" />
           <Text style={styles.liveTitle}>
             {connected ? "Looking for the best available driver" : "Connecting to matching"}
           </Text>
@@ -297,6 +300,7 @@ export default function RiderWaitingRoom() {
           </Text>
         </View>
       ) : null}
+      </ScrollView>
     </View>
   );
 }
@@ -312,9 +316,12 @@ function IoniconsProxy({ name }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f4efe5",
+    backgroundColor: "#F8FAFC",
+  },
+  content: {
     paddingHorizontal: 20,
     paddingTop: 60,
+    paddingBottom: 40,
     gap: 16,
   },
   headerRow: {
@@ -326,62 +333,52 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 16,
-    backgroundColor: "#ebe4d7",
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
   },
   closeText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#45556d",
+    color: "#64748B",
   },
   cancelChip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#ded2be",
+    borderColor: "#E2E8F0",
   },
   cancelChipText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#45556d",
+    color: "#0F172A",
   },
   heroCard: {
-    backgroundColor: "#17365e",
+    backgroundColor: "#3B82F6",
     borderRadius: 26,
     padding: 22,
     overflow: "hidden",
     gap: 10,
-  },
-  heroGlow: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "#315b90",
-    top: -60,
-    right: -28,
-    opacity: 0.45,
   },
   heroEyebrow: {
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: "#d2e0f4",
+    color: "rgba(255,255,255,0.8)",
   },
   heroTitle: {
     fontSize: 29,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
     letterSpacing: -0.7,
   },
   heroBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#d3e0f0",
+    color: "rgba(255,255,255,0.85)",
     maxWidth: "92%",
   },
   statusPill: {
@@ -392,7 +389,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(255, 249, 239, 0.14)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     marginTop: 4,
   },
   liveDot: {
@@ -404,26 +401,26 @@ const styles = StyleSheet.create({
   statusIcon: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
     lineHeight: 14,
   },
   statusPillText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   summaryCard: {
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#e7dcc9",
+    borderColor: "#E2E8F0",
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#17365e",
+    color: "#0F172A",
     marginBottom: 10,
   },
   summaryRow: {
@@ -438,18 +435,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: "#6e7d92",
+    color: "#64748B",
   },
   summaryValue: {
     flex: 1,
     textAlign: "right",
     fontSize: 15,
     fontWeight: "700",
-    color: "#1d304a",
+    color: "#0F172A",
   },
   divider: {
     height: 1,
-    backgroundColor: "#ece3d4",
+    backgroundColor: "#E2E8F0",
   },
   errorCard: {
     backgroundColor: "#fff8f4",
@@ -472,7 +469,7 @@ const styles = StyleSheet.create({
   retryButton: {
     minHeight: 48,
     borderRadius: 16,
-    backgroundColor: "#17365e",
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -480,42 +477,42 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   manualCard: {
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#e7dcc9",
+    borderColor: "#E2E8F0",
     padding: 18,
     gap: 12,
   },
   manualTitle: {
     fontSize: 21,
     fontWeight: "800",
-    color: "#17365e",
+    color: "#0F172A",
     lineHeight: 26,
   },
   manualHint: {
     fontSize: 14,
     lineHeight: 20,
-    color: "#67748d",
+    color: "#64748B",
   },
   input: {
     minHeight: 50,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#d8cfbf",
-    backgroundColor: "#f7f1e7",
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 15,
-    color: "#1d304a",
+    color: "#0F172A",
   },
   primaryButton: {
     minHeight: 50,
     borderRadius: 16,
-    backgroundColor: "#17365e",
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 2,
@@ -526,13 +523,13 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#fff9ef",
+    color: "#FFFFFF",
   },
   liveCard: {
-    backgroundColor: "#fbf7ef",
+    backgroundColor: "#F8FAFC",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#e7dcc9",
+    borderColor: "#E2E8F0",
     padding: 22,
     alignItems: "center",
     gap: 10,
@@ -540,13 +537,13 @@ const styles = StyleSheet.create({
   liveTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#17365e",
+    color: "#0F172A",
     textAlign: "center",
   },
   liveBody: {
     fontSize: 14,
     lineHeight: 20,
-    color: "#67748d",
+    color: "#64748B",
     textAlign: "center",
   },
 });

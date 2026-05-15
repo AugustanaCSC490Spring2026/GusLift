@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo *)",
+      "Bash(./gradlew.bat --stop)",
+      "Bash(adb *)",
+      "Bash(node -e ' *)",
+      "Bash(./gradlew clean *)"
+    ]
+  }
+}

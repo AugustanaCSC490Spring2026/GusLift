@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Logo from "../components/Logo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -122,10 +122,7 @@ export default function About() {
         {/* ── NAV ── */}
         <View style={styles.nav}>
           <Pressable style={styles.logoGroup} onPress={() => router.push("/")}>
-            <View style={styles.logoBox}>
-              <Ionicons name="shield-checkmark" size={20} color="#fff" />
-            </View>
-            <Text style={styles.logoText}>GusLift</Text>
+            <Logo size="sm" />
           </Pressable>
 
           <View style={styles.navLinks}>
@@ -231,30 +228,6 @@ const styles = StyleSheet.create({
       web: { cursor: "pointer" },
       default: {},
     }),
-  },
-  logoBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: C.brand,
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      web: { boxShadow: `0 4px 10px ${C.brandLight}` },
-      default: {
-        shadowColor: C.brand,
-        shadowOpacity: 0.25,
-        shadowRadius: 5,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
-      },
-    }),
-  },
-  logoText: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: C.text,
-    letterSpacing: -0.5,
   },
   navLinks: {
     flexDirection: "row",

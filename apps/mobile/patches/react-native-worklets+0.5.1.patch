@@ -1,0 +1,11 @@
+diff --git a/node_modules/react-native-worklets/android/CMakeLists.txt b/node_modules/react-native-worklets/android/CMakeLists.txt
+index 1d949d6..1d5eef8 100644
+--- a/node_modules/react-native-worklets/android/CMakeLists.txt
++++ b/node_modules/react-native-worklets/android/CMakeLists.txt
+@@ -122,3 +122,6 @@ elseif(${JS_RUNTIME} STREQUAL "jsc")
+     target_link_libraries(worklets ReactAndroid::jscexecutor)
+   endif()
+ endif()
++
++# libc++ (Windows NDK + lld: avoid undefined cxxabi/STL symbols on shared lib link)
++target_link_libraries(worklets c++_shared)

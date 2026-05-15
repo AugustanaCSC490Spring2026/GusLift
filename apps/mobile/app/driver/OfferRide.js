@@ -198,7 +198,7 @@ export default function OfferRide() {
           <AutocompleteInput
             style={styles.input}
             placeholder="e.g. Off-campus house, Augie Hall"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#94A3B8"
             value={manualPickup}
             onChangeText={(t) => {
               setManualPickup(t);
@@ -210,7 +210,7 @@ export default function OfferRide() {
           <AutocompleteInput
             style={styles.input}
             placeholder="Shown for the rider's reference"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#94A3B8"
             value={manualDropoff}
             onChangeText={setManualDropoff}
           />
@@ -291,7 +291,7 @@ export default function OfferRide() {
 const styles = StyleSheet.create({
   outer: {
     flex: 1,
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
     paddingTop: 56,
     paddingHorizontal: 24,
   },
@@ -301,33 +301,33 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f6f1",
+    backgroundColor: "#F8FAFC",
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: 12, // changed from marginBottom 12 to center more cleanly but sticking to original mostly
+    marginVertical: 12,
     alignSelf: "flex-start",
   },
   closeText: {
     fontSize: 16,
-    color: "#374151",
+    color: "#64748B",
     fontWeight: "600",
   },
   header: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 20,
   },
   greeting: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#64748B",
     marginBottom: 8,
   },
   section: {
@@ -336,25 +336,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 8,
   },
   sectionTitleMuted: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#64748B",
     marginBottom: 12,
   },
   sectionSub: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#64748B",
     lineHeight: 20,
     marginBottom: 16,
   },
   fieldLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#64748B",
     marginBottom: 6,
     marginTop: 4,
   },
@@ -368,15 +368,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#E2E8F0",
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#1f2937",
+    color: "#0F172A",
     marginBottom: 4,
   },
   manualButton: {
-    backgroundColor: "#1a3a6b",
+    backgroundColor: "#3B82F6",
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: "center",
@@ -396,12 +396,12 @@ const styles = StyleSheet.create({
   orLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#d1d5db",
+    backgroundColor: "#E2E8F0",
   },
   orText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#6b7280",
+    color: "#64748B",
   },
   card: {
     backgroundColor: "#ffffff",
@@ -423,28 +423,28 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#E2E8F0",
   },
   label: {
     fontSize: 15,
-    color: "#6b7280",
+    color: "#64748B",
     fontWeight: "500",
   },
   value: {
     fontSize: 15,
-    color: "#1f2937",
+    color: "#0F172A",
     fontWeight: "600",
     maxWidth: "58%",
     textAlign: "right",
   },
   timeInput: {
     fontSize: 15,
-    color: "#1a3a6b",
+    color: "#3B82F6",
     fontWeight: "600",
     textAlign: "right",
     minWidth: 70,
     borderBottomWidth: 1,
-    borderBottomColor: "#1a3a6b",
+    borderBottomColor: "#3B82F6",
     paddingBottom: 2,
   },
   scheduleButton: {
@@ -453,10 +453,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#1a3a6b",
+    borderColor: "#3B82F6",
   },
   scheduleButtonText: {
-    color: "#1a3a6b",
+    color: "#3B82F6",
     fontSize: 17,
     fontWeight: "700",
   },

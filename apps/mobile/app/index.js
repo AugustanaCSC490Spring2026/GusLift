@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { resolveRoute } from "../lib/routeUser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -12,6 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { CircleIcon, SquareIcon } from "../components/LocationTimeline";
+import Logo from "../components/Logo";
 
 /* ─── Color tokens (matching the HTML mockup) ─── */
 const C = {
@@ -135,11 +137,13 @@ export default function Welcome() {
           return;
         }
 
-        // User has a valid session
-        const role = desiredRole || parsed.role;
+        // User has a valid session.
+        // In preview mode (dev viewing the landing page) we ignore the desiredRole
+        // so pressing "Ride" / "Drive" doesn't overwrite the stored role.
+        const role = preview ? (parsed.role || desiredRole) : (desiredRole || parsed.role);
 
-        // Update role if switching
-        if (role && role !== parsed.role) {
+        // Persist a role change only when not in preview mode
+        if (!preview && role && role !== parsed.role) {
           const updated = { ...parsed, role };
           await AsyncStorage.setItem("@user", JSON.stringify(updated));
         }
@@ -149,11 +153,11 @@ export default function Welcome() {
           return;
         }
 
-        if (role === "driver") {
-          router.push(parsed.driverSetupComplete ? "/driver/OfferRide" : "/driver/DriverSetup");
+        const dest = await resolveRoute({ ...parsed, role }, { verifyDriver: false });
+        if (dest === "/rider/RiderHome" && extraParams && !preview) {
+          router.push({ pathname: dest, params: extraParams });
         } else {
-          // Riders go straight to RequestRide — pass any landing page params
-          router.push({ pathname: "/rider/RequestRide", params: extraParams || {} });
+          router.push(dest);
         }
       } else {
         // No session — go sign up with role hint + landing page params
@@ -183,20 +187,10 @@ export default function Welcome() {
         }
         const sevenDays = 7 * 24 * 60 * 60 * 1000;
         if (Date.now() - parsed.savedAt <= sevenDays) {
-          if (!parsed.role) {
-            router.replace("/role");
-            return;
-          }
-          if (parsed.role === "driver") {
-            router.replace(
-              parsed.driverSetupComplete
-                ? "/driver/OfferRide"
-                : "/driver/DriverSetup"
-            );
-          } else {
-            // Riders go straight to RequestRide — rider setup is optional
-            router.replace("/rider/RequestRide");
-          }
+          // verifyDriver=true: if the local flag is missing, confirm with the
+          // backend so a driver who reinstalled still lands on DriverHome.
+          const dest = await resolveRoute(parsed, { verifyDriver: true });
+          router.replace(dest);
           return;
         } else {
           await AsyncStorage.removeItem("@user");
@@ -228,7 +222,7 @@ export default function Welcome() {
       {/* ── NAV ── */}
       <View style={styles.nav}>
         <Pressable style={styles.logoGroup} onPress={() => router.push({ pathname: "/", params: { preview: "true" } })}>
-          <Text style={styles.logoText}>GusLift</Text>
+          <Logo size="sm" />
         </Pressable>
 
         <View style={styles.navLinks}>
@@ -384,12 +378,6 @@ const styles = StyleSheet.create({
     }),
   },
 
-  logoText: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: C.text,
-    letterSpacing: -0.5,
-  },
   navLinks: {
     flexDirection: "row",
     gap: 24,
