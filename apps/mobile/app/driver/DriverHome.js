@@ -342,7 +342,7 @@ export default function DriverHome() {
                 hovered && styles.heroActionHovered,
                 pressed && { opacity: 0.9 },
               ]}
-              onPress={() => router.push("/driver/DriverSetup")}
+              onPress={() => router.push("/driver/ManageSchedule")}
             >
               <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
             </Pressable>

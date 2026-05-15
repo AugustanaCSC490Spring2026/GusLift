@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
+import { resolveRoute } from "../lib/routeUser";
 import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -84,19 +85,8 @@ export default function GlobalMenu() {
       const updated = { ...parsed, role: newRole };
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
 
-      if (newRole === "driver") {
-        if (parsed.driverSetupComplete) {
-          router.replace("/driver/DriverHome");
-        } else {
-          router.replace("/driver/DriverSetup");
-        }
-      } else {
-        if (parsed.riderSetupComplete) {
-          router.replace("/rider/RiderHome");
-        } else {
-          router.replace("/rider/RiderSetup");
-        }
-      }
+      const dest = await resolveRoute(updated, { verifyDriver: false });
+      router.replace(dest);
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");
     }

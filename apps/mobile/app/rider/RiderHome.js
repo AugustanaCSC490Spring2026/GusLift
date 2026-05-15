@@ -276,7 +276,7 @@ export default function RiderHome() {
                 hovered && styles.heroActionHovered,
                 pressed && { opacity: 0.9 },
               ]}
-              onPress={() => router.push("/rider/RiderSetup")}
+              onPress={() => router.push("/rider/ManageSchedule")}
             >
               <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
             </Pressable>

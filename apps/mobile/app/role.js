@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { resolveRoute } from "../lib/routeUser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -156,19 +157,8 @@ export default function Role() {
         const updated = { ...parsed, role: selectedRole };
         await AsyncStorage.setItem("@user", JSON.stringify(updated));
 
-        if (selectedRole === "driver") {
-          if (parsed.driverSetupComplete) {
-            router.push("/driver/DriverHome");
-          } else {
-            router.push("/driver/DriverSetup");
-          }
-        } else {
-          if (parsed.riderSetupComplete) {
-            router.push("/rider/RiderHome");
-          } else {
-            router.push("/rider/RiderSetup");
-          }
-        }
+        const dest = await resolveRoute(updated, { verifyDriver: false });
+        router.push(dest);
       } catch {
         Alert.alert("Error", "Could not save your role. Try again.");
       } finally {
