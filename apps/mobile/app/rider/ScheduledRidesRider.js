@@ -14,6 +14,7 @@ import {
   View
 } from 'react-native';
 import { ClockIcon, HistoryLineIcon } from "../../components/Icons";
+import { useMatching } from "../../context/MatchingContext";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -219,6 +220,7 @@ const RideDetail = ({ ride, onBack }) => {
 export default function ScheduledRidesRider() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { pendingMatch } = useMatching();
   const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
   const [selectedRide, setSelectedRide] = useState(null);
   
@@ -333,6 +335,39 @@ export default function ScheduledRidesRider() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {pendingMatch && (
+          <TouchableOpacity
+            style={styles.pendingBanner}
+            activeOpacity={0.88}
+            onPress={() => {
+              const carParts = pendingMatch.driver?.car
+                ? [
+                    [pendingMatch.driver.car.color, pendingMatch.driver.car.make, pendingMatch.driver.car.model]
+                      .filter(Boolean).join(" ").trim(),
+                    pendingMatch.driver.car.license_plate,
+                  ].filter(Boolean)
+                : [];
+              router.push({
+                pathname: "/rider/AvailableDrivers",
+                params: {
+                  driverId: pendingMatch.driver_id,
+                  driverName: pendingMatch.driver?.name ?? "",
+                  driverPic: pendingMatch.driver?.picture_url ?? "",
+                  driverTo: pendingMatch.driver?.to_location ?? "",
+                  driverCar: carParts.join(" · "),
+                },
+              });
+            }}
+          >
+            <Text style={styles.pendingBannerIcon}>⚠</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingBannerTitle}>A driver is waiting</Text>
+              <Text style={styles.pendingBannerSub}>Tap to confirm your ride</Text>
+            </View>
+            <Text style={styles.pendingBannerChevron}>›</Text>
+          </TouchableOpacity>
+        )}
+
         {activeTab === 'upcoming' && currentRides.length > 0 ? (
           <View>
             <View style={styles.nextRideBanner}>
@@ -431,6 +466,11 @@ const styles = StyleSheet.create({
   driverName: { fontSize: 12, fontWeight: '700', color: COLORS.dark },
   assigningText: { fontSize: 12, fontWeight: '700', color: COLORS.gray300 },
   chevron: { fontSize: 24, color: COLORS.gray200, lineHeight: 26 },
+  pendingBanner: { backgroundColor: COLORS.amberBg, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A' },
+  pendingBannerIcon: { fontSize: 20, color: COLORS.amber },
+  pendingBannerTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
+  pendingBannerSub: { fontSize: 12, fontWeight: '600', color: COLORS.amber, marginTop: 2 },
+  pendingBannerChevron: { fontSize: 24, color: COLORS.amber, lineHeight: 26 },
   emptyState: { paddingVertical: 64, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 14, fontWeight: '700', color: COLORS.gray300 },
   detailHeader: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: COLORS.gray100 },
