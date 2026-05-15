@@ -1,20 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
+  ActivityIndicator,
   Image,
+  Platform,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
-  Platform,
-  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { ClockIcon, HistoryLineIcon, SearchLineIcon } from "../../components/Icons";
+import { ClockIcon, HistoryLineIcon } from "../../components/Icons";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -68,20 +67,10 @@ const formatRideDate = (dateInput) => {
 };
 
 const StatusBadge = ({ status }) => {
-  const isPending = status === 'Finding Driver';
   const isCompleted = status === 'Completed';
 
-  const bgColor = isPending
-    ? COLORS.amberBg
-    : isCompleted
-    ? COLORS.gray100
-    : '#EFF6FF';
-
-  const textColor = isPending
-    ? COLORS.amber
-    : isCompleted
-    ? COLORS.gray400
-    : COLORS.blue;
+  const bgColor = isCompleted ? COLORS.gray100 : '#EFF6FF';
+  const textColor = isCompleted ? COLORS.gray400 : COLORS.blue;
 
   return (
     <View style={[styles.statusBadge, { backgroundColor: bgColor }]}>
@@ -262,28 +251,25 @@ export default function ScheduledRidesRider() {
       const ridesData = payload?.rides ?? [];
 
       const enriched = ridesData.map((ride) => {
-        let classTime = "—";
-        if (ride.start_time) {
-          const [h, m] = ride.start_time.split(":").map(Number);
-          const endM = (m + 10) % 60;
-          const endH = h + Math.floor((m + 10) / 60);
-          classTime = formatTime12h(`${endH}:${endM}`);
-        }
+        const [h, m] = ride.start_time.split(":").map(Number);
+        const endM = (m + 10) % 60;
+        const endH = h + Math.floor((m + 10) / 60);
+        const classTime = formatTime12h(`${endH}:${endM}`);
 
         return {
           id: ride.id,
-          timestamp: ride.ride_date || new Date().toISOString(),
+          timestamp: ride.ride_date,
           pickupTime: formatTime12h(ride.start_time),
-          classTime: classTime,
-          pickup: ride.pickup_loc || ride.location || "Unknown",
-          destination: ride.dropoff_loc || "Augustana College",
+          classTime,
+          pickup: ride.pickup_loc,
+          destination: ride.dropoff_loc,
           driver: ride.driver ? {
-            name: ride.driver.name || "Unknown",
+            name: ride.driver.name,
             image: ride.driver.picture_url || null,
-            car: ride.car ? `${ride.car.color || ''} ${ride.car.make || ''} ${ride.car.model || ''}`.trim() : "Unknown Car",
-            plate: ride.car?.license_plate || "N/A",
+            car: `${ride.car.color} ${ride.car.make} ${ride.car.model}`,
+            plate: ride.car.license_plate,
           } : null,
-          status: ride.status === 'completed' ? 'Completed' : 'Confirmed',
+          status: ride.status === 'completed' ? 'Completed' : 'Accepted',
         };
       });
 
@@ -293,6 +279,7 @@ export default function ScheduledRidesRider() {
         setUpcomingRides(enriched);
       }
     } catch (_) {
+      //setError("Failed to load rides. Please try again.");
     } finally {
       if (type === 'upcoming') setLoading(false);
     }

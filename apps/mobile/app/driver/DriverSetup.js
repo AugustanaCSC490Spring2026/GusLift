@@ -22,11 +22,18 @@ const STEPS = [
 ];
 const CTA_LABELS = ['Next Step', 'Next Step', 'Next Step', 'Next Step', 'Finish Setup'];
 
+// Edit mode: schedule only — jump straight to step 3, preserve all other data
+const EDIT_STEPS = [
+  { eyebrow: 'Schedule', question: 'When do you usually drive?', hint: 'Update your typical commute times.' },
+];
+const EDIT_CTA_LABELS = ['Save Changes'];
+
 export default function DriverSetup() {
   const router = useRouter();
-  const { pickup: landingPickup, destination: landingDestination } = useLocalSearchParams();
+  const { pickup: landingPickup, destination: landingDestination, editSchedule } = useLocalSearchParams();
+  const isEditing = editSchedule === 'true';
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(isEditing ? 3 : 0);
 
   // Car State
   const [carMake, setCarMake] = useState('');
@@ -78,14 +85,19 @@ export default function DriverSetup() {
       const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
       const formData = new FormData();
       formData.append("userID", userId);
-      formData.append("name", String(parsed?.name || "").trim());
-      formData.append("residence", pickup.trim());
-      formData.append("make", carMake.trim());
-      formData.append("model", carModel.trim());
-      formData.append("color", carColor.trim());
-      formData.append("license_plate", licensePlate.trim());
-      formData.append("capacity", seats.trim());
       formData.append("is_driver", "true");
+
+      if (!isEditing) {
+        formData.append("name", String(parsed?.name || "").trim());
+        formData.append("residence", pickup.trim());
+        formData.append("pickup_loc", pickup.trim());
+        formData.append("dropoff_loc", isSameAsPickup ? pickup.trim() : dropoff.trim());
+        formData.append("make", carMake.trim());
+        formData.append("model", carModel.trim());
+        formData.append("color", carColor.trim());
+        formData.append("license_plate", licensePlate.trim());
+        formData.append("capacity", seats.trim());
+      }
 
       const daysPayload = {};
       classBlocks.forEach(block => {
@@ -99,7 +111,7 @@ export default function DriverSetup() {
       });
       formData.append("days", JSON.stringify(daysPayload));
 
-      if (selectedImageData) {
+      if (!isEditing && selectedImageData) {
         if (Platform.OS === 'web') {
           formData.append("picture", selectedImageData.file);
         } else {
@@ -135,7 +147,9 @@ export default function DriverSetup() {
   };
 
   const handleNext = () => {
-    if (step < STEPS.length - 1) {
+    if (isEditing && step === 3) {
+      submitDriverProfile();
+    } else if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {
       submitDriverProfile();
@@ -144,16 +158,17 @@ export default function DriverSetup() {
 
   return (
     <SetupLayout
-      step={step}
-      totalSteps={STEPS.length}
-      currentStepData={STEPS[step]}
+      step={isEditing ? 0 : step}
+      totalSteps={isEditing ? EDIT_STEPS.length : STEPS.length}
+      currentStepData={isEditing ? EDIT_STEPS[0] : STEPS[step]}
       canAdvance={canAdvance}
       isSubmitting={isSubmitting}
       isSuccess={isSuccess}
-      ctaLabel={CTA_LABELS[step]}
-      onBack={() => setStep(step - 1)}
-      onSkipSetup={step > 1 ? submitDriverProfile : null}
-      onSkipStep={step > 1 ? () => (step < 4 ? setStep(step + 1) : submitDriverProfile()) : null}
+      ctaLabel={isEditing ? EDIT_CTA_LABELS[0] : CTA_LABELS[step]}
+      onBack={isEditing ? undefined : () => setStep(step - 1)}
+      onSkipSetup={isEditing ? () => router.replace("/driver/DriverHome") : (step > 1 ? submitDriverProfile : null)}
+      skipSetupLabel={isEditing ? 'Cancel' : undefined}
+      onSkipStep={isEditing ? null : (step > 1 ? () => (step < 4 ? setStep(step + 1) : submitDriverProfile()) : null)}
       onNext={handleNext}
     >
       {/* ── Step 0: Vehicle Info ── */}

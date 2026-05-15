@@ -278,7 +278,7 @@ export default function RiderHome() {
               ]}
               onPress={() => router.push("/rider/ManageSchedule")}
             >
-              <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
+              <Text style={styles.heroSecondaryActionText}>View schedule</Text>
             </Pressable>
           </View>
 
