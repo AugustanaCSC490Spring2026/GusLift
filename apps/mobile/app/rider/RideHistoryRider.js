@@ -146,7 +146,7 @@ export default function RideHistoryRider() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1a3a6b" />
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }
@@ -263,8 +263,9 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 26,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#0F172A",
+    letterSpacing: -0.6,
   },
   clearAllText: {
     fontSize: 14,
@@ -277,13 +278,10 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     padding: 18,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
     gap: 8,
     position: "relative",
   },

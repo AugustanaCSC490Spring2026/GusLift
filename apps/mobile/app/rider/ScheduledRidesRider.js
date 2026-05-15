@@ -359,9 +359,9 @@ export default function ScheduledRidesRider() {
               });
             }}
           >
-            <Text style={styles.pendingBannerIcon}>⚠</Text>
+            <Text style={styles.pendingBannerIcon}>⚡</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.pendingBannerTitle}>A driver is waiting</Text>
+              <Text style={styles.pendingBannerTitle}>Driver found!</Text>
               <Text style={styles.pendingBannerSub}>Tap to confirm your ride</Text>
             </View>
             <Text style={styles.pendingBannerChevron}>›</Text>
@@ -466,11 +466,11 @@ const styles = StyleSheet.create({
   driverName: { fontSize: 12, fontWeight: '700', color: COLORS.dark },
   assigningText: { fontSize: 12, fontWeight: '700', color: COLORS.gray300 },
   chevron: { fontSize: 24, color: COLORS.gray200, lineHeight: 26 },
-  pendingBanner: { backgroundColor: COLORS.amberBg, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A' },
-  pendingBannerIcon: { fontSize: 20, color: COLORS.amber },
-  pendingBannerTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
-  pendingBannerSub: { fontSize: 12, fontWeight: '600', color: COLORS.amber, marginTop: 2 },
-  pendingBannerChevron: { fontSize: 24, color: COLORS.amber, lineHeight: 26 },
+  pendingBanner: { backgroundColor: COLORS.dark, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  pendingBannerIcon: { fontSize: 20 },
+  pendingBannerTitle: { fontSize: 15, fontWeight: '800', color: COLORS.white, letterSpacing: -0.3 },
+  pendingBannerSub: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  pendingBannerChevron: { fontSize: 26, color: 'rgba(255,255,255,0.4)', lineHeight: 28 },
   emptyState: { paddingVertical: 64, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 14, fontWeight: '700', color: COLORS.gray300 },
   detailHeader: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: COLORS.gray100 },
