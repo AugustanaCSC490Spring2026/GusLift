@@ -25,6 +25,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="guslift"/>
+        <data android:scheme="com.googleusercontent.apps.102234752284-7kc0upk7mk2k4erflev6rns8qaf7ql9s"/>
         <data android:scheme="exp+guslift"/>
       </intent-filter>
     </activity>

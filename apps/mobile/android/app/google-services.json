@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "19955805468",
+    "project_id": "guslift-13689",
+    "storage_bucket": "guslift-13689.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:19955805468:android:005c2f512ac22ccf431ed9",
+        "android_client_info": {
+          "package_name": "com.guslift.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARCywB2o-X2Eyb83WvdyJOOUhZ-vuzKG8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

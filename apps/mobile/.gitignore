@@ -12,4 +12,3 @@ expo-env.d.ts
 
 # Android generated
 android/app/debug.keystore
-android/gradle/wrapper/gradle-wrapper.jar

@@ -1,7 +1,50 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Platform, Modal, StyleSheet } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { B } from './SetupIcons';
+
+/** Lazy-load native module so route files can load before the picker is opened (avoids TurboModule errors during expo-router discovery). */
+function IosTimePickerModal({ visible, dateValue, handleChange, onDismiss }) {
+  if (!visible) return null;
+  const DateTimePicker = require('@react-native-community/datetimepicker').default;
+  return (
+    <Modal transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={onDismiss}>
+              <Text style={styles.cancelBtn}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onDismiss}>
+              <Text style={styles.doneBtn}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <DateTimePicker
+            value={dateValue}
+            mode="time"
+            is24Hour
+            display="spinner"
+            onChange={handleChange}
+            style={{ height: 200 }}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function AndroidTimePicker({ visible, dateValue, handleChange }) {
+  if (!visible) return null;
+  const DateTimePicker = require('@react-native-community/datetimepicker').default;
+  return (
+    <DateTimePicker
+      value={dateValue}
+      mode="time"
+      is24Hour
+      display="default"
+      onChange={handleChange}
+    />
+  );
+}
 
 function parseTimeToDate(timeStr) {
   const d = new Date();
@@ -68,39 +111,17 @@ export default function TimePickerField({ value, onChange, placeholder, disabled
         </Text>
       </TouchableOpacity>
 
-      {Platform.OS === 'ios' && show && (
-        <Modal transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={() => setShow(false)}>
-                  <Text style={styles.cancelBtn}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShow(false)}>
-                  <Text style={styles.doneBtn}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={dateValue}
-                mode="time"
-                is24Hour={true}
-                display="spinner"
-                onChange={handleChange}
-                style={{ height: 200 }}
-              />
-            </View>
-          </View>
-        </Modal>
+      {Platform.OS === 'ios' && (
+        <IosTimePickerModal
+          visible={show}
+          dateValue={dateValue}
+          handleChange={handleChange}
+          onDismiss={() => setShow(false)}
+        />
       )}
 
-      {Platform.OS === 'android' && show && (
-        <DateTimePicker
-          value={dateValue}
-          mode="time"
-          is24Hour={true}
-          display="default"
-          onChange={handleChange}
-        />
+      {Platform.OS === 'android' && (
+        <AndroidTimePicker visible={show} dateValue={dateValue} handleChange={handleChange} />
       )}
     </View>
   );
