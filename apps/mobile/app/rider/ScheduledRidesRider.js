@@ -1,20 +1,20 @@
-import React, { useState, useCallback } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
+  ActivityIndicator,
   Image,
+  Platform,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
-  Platform,
-  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { ClockIcon, HistoryLineIcon, SearchLineIcon } from "../../components/Icons";
+import { ClockIcon, HistoryLineIcon } from "../../components/Icons";
+import { useMatching } from "../../context/MatchingContext";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -68,20 +68,10 @@ const formatRideDate = (dateInput) => {
 };
 
 const StatusBadge = ({ status }) => {
-  const isPending = status === 'Finding Driver';
   const isCompleted = status === 'Completed';
 
-  const bgColor = isPending
-    ? COLORS.amberBg
-    : isCompleted
-    ? COLORS.gray100
-    : '#EFF6FF';
-
-  const textColor = isPending
-    ? COLORS.amber
-    : isCompleted
-    ? COLORS.gray400
-    : COLORS.blue;
+  const bgColor = isCompleted ? COLORS.gray100 : '#EFF6FF';
+  const textColor = isCompleted ? COLORS.gray400 : COLORS.blue;
 
   return (
     <View style={[styles.statusBadge, { backgroundColor: bgColor }]}>
@@ -230,6 +220,7 @@ const RideDetail = ({ ride, onBack }) => {
 export default function ScheduledRidesRider() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { pendingMatch } = useMatching();
   const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
   const [selectedRide, setSelectedRide] = useState(null);
   
@@ -262,28 +253,25 @@ export default function ScheduledRidesRider() {
       const ridesData = payload?.rides ?? [];
 
       const enriched = ridesData.map((ride) => {
-        let classTime = "—";
-        if (ride.start_time) {
-          const [h, m] = ride.start_time.split(":").map(Number);
-          const endM = (m + 10) % 60;
-          const endH = h + Math.floor((m + 10) / 60);
-          classTime = formatTime12h(`${endH}:${endM}`);
-        }
+        const [h, m] = ride.start_time.split(":").map(Number);
+        const endM = (m + 10) % 60;
+        const endH = h + Math.floor((m + 10) / 60);
+        const classTime = formatTime12h(`${endH}:${endM}`);
 
         return {
           id: ride.id,
-          timestamp: ride.ride_date || new Date().toISOString(),
+          timestamp: ride.ride_date,
           pickupTime: formatTime12h(ride.start_time),
-          classTime: classTime,
-          pickup: ride.pickup_loc || ride.location || "Unknown",
-          destination: ride.dropoff_loc || "Augustana College",
+          classTime,
+          pickup: ride.pickup_loc,
+          destination: ride.dropoff_loc,
           driver: ride.driver ? {
-            name: ride.driver.name || "Unknown",
+            name: ride.driver.name,
             image: ride.driver.picture_url || null,
-            car: ride.car ? `${ride.car.color || ''} ${ride.car.make || ''} ${ride.car.model || ''}`.trim() : "Unknown Car",
-            plate: ride.car?.license_plate || "N/A",
+            car: `${ride.car.color} ${ride.car.make} ${ride.car.model}`,
+            plate: ride.car.license_plate,
           } : null,
-          status: ride.status === 'completed' ? 'Completed' : 'Confirmed',
+          status: ride.status === 'completed' ? 'Completed' : 'Accepted',
         };
       });
 
@@ -293,6 +281,7 @@ export default function ScheduledRidesRider() {
         setUpcomingRides(enriched);
       }
     } catch (_) {
+      //setError("Failed to load rides. Please try again.");
     } finally {
       if (type === 'upcoming') setLoading(false);
     }
@@ -346,6 +335,39 @@ export default function ScheduledRidesRider() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {pendingMatch && (
+          <TouchableOpacity
+            style={styles.pendingBanner}
+            activeOpacity={0.88}
+            onPress={() => {
+              const carParts = pendingMatch.driver?.car
+                ? [
+                    [pendingMatch.driver.car.color, pendingMatch.driver.car.make, pendingMatch.driver.car.model]
+                      .filter(Boolean).join(" ").trim(),
+                    pendingMatch.driver.car.license_plate,
+                  ].filter(Boolean)
+                : [];
+              router.push({
+                pathname: "/rider/AvailableDrivers",
+                params: {
+                  driverId: pendingMatch.driver_id,
+                  driverName: pendingMatch.driver?.name ?? "",
+                  driverPic: pendingMatch.driver?.picture_url ?? "",
+                  driverTo: pendingMatch.driver?.to_location ?? "",
+                  driverCar: carParts.join(" · "),
+                },
+              });
+            }}
+          >
+            <Text style={styles.pendingBannerIcon}>⚡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingBannerTitle}>Driver found!</Text>
+              <Text style={styles.pendingBannerSub}>Tap to confirm your ride</Text>
+            </View>
+            <Text style={styles.pendingBannerChevron}>›</Text>
+          </TouchableOpacity>
+        )}
+
         {activeTab === 'upcoming' && currentRides.length > 0 ? (
           <View>
             <View style={styles.nextRideBanner}>
@@ -444,6 +466,11 @@ const styles = StyleSheet.create({
   driverName: { fontSize: 12, fontWeight: '700', color: COLORS.dark },
   assigningText: { fontSize: 12, fontWeight: '700', color: COLORS.gray300 },
   chevron: { fontSize: 24, color: COLORS.gray200, lineHeight: 26 },
+  pendingBanner: { backgroundColor: COLORS.dark, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  pendingBannerIcon: { fontSize: 20 },
+  pendingBannerTitle: { fontSize: 15, fontWeight: '800', color: COLORS.white, letterSpacing: -0.3 },
+  pendingBannerSub: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  pendingBannerChevron: { fontSize: 26, color: 'rgba(255,255,255,0.4)', lineHeight: 28 },
   emptyState: { paddingVertical: 64, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 14, fontWeight: '700', color: COLORS.gray300 },
   detailHeader: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: COLORS.gray100 },

@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import AutocompleteInput from "../../components/setup/AutocompleteInput";
 import TimePickerField from "../../components/setup/TimePickerField";
+import { useMatching } from "../../context/MatchingContext";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,6 +50,7 @@ function getInitial(name) {
 
 export default function RiderHome() {
   const router = useRouter();
+  const { pendingMatch } = useMatching();
 
   const [firstName, setFirstName] = useState("");
   const [pictureUrl, setPictureUrl] = useState(null);
@@ -221,6 +223,45 @@ export default function RiderHome() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {pendingMatch && (
+          <Pressable
+            style={styles.pendingMatchCard}
+            onPress={() => {
+              const carParts = pendingMatch.driver?.car
+                ? [
+                    [pendingMatch.driver.car.color, pendingMatch.driver.car.make, pendingMatch.driver.car.model]
+                      .filter(Boolean).join(" ").trim(),
+                    pendingMatch.driver.car.license_plate,
+                  ].filter(Boolean)
+                : [];
+              router.push({
+                pathname: "/rider/AvailableDrivers",
+                params: {
+                  driverId: pendingMatch.driver_id,
+                  driverName: pendingMatch.driver?.name ?? "",
+                  driverPic: pendingMatch.driver?.picture_url ?? "",
+                  driverTo: pendingMatch.driver?.to_location ?? "",
+                  driverCar: carParts.join(" · "),
+                },
+              });
+            }}
+            activeOpacity={0.88}
+          >
+            <View style={styles.pendingMatchLeft}>
+              <Text style={styles.pendingMatchIcon}>⚡</Text>
+              <View>
+                <Text style={styles.pendingMatchTitle}>Driver found!</Text>
+                <Text style={styles.pendingMatchSub}>
+                  {pendingMatch.driver?.name
+                    ? `${pendingMatch.driver.name} is waiting for you`
+                    : "A driver is waiting for your confirmation"}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.pendingMatchChevron}>›</Text>
+          </Pressable>
+        )}
+
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View style={styles.avatarWrap}>
@@ -278,7 +319,7 @@ export default function RiderHome() {
               ]}
               onPress={() => router.push("/rider/ManageSchedule")}
             >
-              <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
+              <Text style={styles.heroSecondaryActionText}>View schedule</Text>
             </Pressable>
           </View>
 
@@ -413,6 +454,41 @@ const styles = StyleSheet.create({
     paddingTop: 72,
     paddingBottom: 40,
     gap: 18,
+  },
+  pendingMatchCard: {
+    backgroundColor: "#0F172A",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  pendingMatchLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  pendingMatchIcon: {
+    fontSize: 22,
+  },
+  pendingMatchTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
+  },
+  pendingMatchSub: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.65)",
+    marginTop: 2,
+  },
+  pendingMatchChevron: {
+    fontSize: 26,
+    color: "rgba(255,255,255,0.4)",
+    lineHeight: 28,
   },
   heroCard: {
     backgroundColor: "#3B82F6",

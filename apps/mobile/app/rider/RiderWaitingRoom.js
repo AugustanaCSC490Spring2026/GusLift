@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 50,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     backgroundColor: "#F8FAFC",
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minHeight: 50,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",

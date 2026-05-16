@@ -23,6 +23,7 @@ export default function SetupLayout({
   ctaLabel,
   onBack,
   onSkipSetup,
+  skipSetupLabel,
   onSkipStep,
   onNext,
   children
@@ -62,7 +63,7 @@ export default function SetupLayout({
           )}
           {onSkipSetup && (
             <TouchableOpacity onPress={onSkipSetup}>
-              <Text style={s.skipSetup}>Skip setup</Text>
+              <Text style={s.skipSetup}>{skipSetupLabel || 'Skip setup'}</Text>
             </TouchableOpacity>
           )}
         </View>

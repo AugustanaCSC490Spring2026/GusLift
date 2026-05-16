@@ -21,11 +21,18 @@ const STEPS = [
 ];
 const CTA_LABELS = ['Next Step', 'Next Step', 'Next Step', 'Finish Setup'];
 
+// Edit mode: schedule only — existing origin/destination are carried silently
+const EDIT_STEPS = [
+  { eyebrow: 'Schedule', question: 'When do you usually ride?', hint: 'Update your typical commute times.' },
+];
+const EDIT_CTA_LABELS = ['Save Changes'];
+
 export default function RiderSetup() {
   const router = useRouter();
-  const { pickup: landingPickup, destination: landingDestination } = useLocalSearchParams();
+  const { pickup: landingPickup, destination: landingDestination, editSchedule } = useLocalSearchParams();
+  const isEditing = editSchedule === 'true';
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(isEditing ? 2 : 0);
 
   const [pickup, setPickup] = useState(landingPickup || '');
   const [dropoff, setDropoff] = useState(landingDestination || '');
@@ -116,7 +123,9 @@ export default function RiderSetup() {
   };
 
   const handleNext = () => {
-    if (step < STEPS.length - 1) {
+    if (isEditing && step === 2) {
+      submitRiderProfile();
+    } else if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {
       submitRiderProfile();
@@ -125,16 +134,17 @@ export default function RiderSetup() {
 
   return (
     <SetupLayout
-      step={step}
-      totalSteps={STEPS.length}
-      currentStepData={STEPS[step]}
+      step={isEditing ? 0 : step}
+      totalSteps={isEditing ? EDIT_STEPS.length : STEPS.length}
+      currentStepData={isEditing ? EDIT_STEPS[0] : STEPS[step]}
       canAdvance={canAdvance}
       isSubmitting={isSubmitting}
       isSuccess={isSuccess}
-      ctaLabel={CTA_LABELS[step]}
-      onBack={() => setStep(step - 1)}
-      onSkipSetup={() => router.replace("/rider/RiderHome")}
-      onSkipStep={step === 0 ? null : () => (step < 3 ? setStep(step + 1) : submitRiderProfile())}
+      ctaLabel={isEditing ? EDIT_CTA_LABELS[0] : CTA_LABELS[step]}
+      onBack={isEditing ? undefined : () => setStep(step - 1)}
+      onSkipSetup={isEditing ? () => router.replace("/rider/RiderHome") : () => router.replace("/rider/RiderHome")}
+      skipSetupLabel={isEditing ? 'Cancel' : undefined}
+      onSkipStep={isEditing ? null : (step === 0 ? null : () => (step < 3 ? setStep(step + 1) : submitRiderProfile()))}
       onNext={handleNext}
     >
       {/* ── Step 0: Pickup ── */}

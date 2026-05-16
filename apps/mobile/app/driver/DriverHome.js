@@ -344,7 +344,7 @@ export default function DriverHome() {
               ]}
               onPress={() => router.push("/driver/ManageSchedule")}
             >
-              <Text style={styles.heroSecondaryActionText}>Change schedule</Text>
+              <Text style={styles.heroSecondaryActionText}>View schedule</Text>
             </Pressable>
           </View>
 

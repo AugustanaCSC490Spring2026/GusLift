@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
     const color = formData.get("color") as string | null;
     const license_plate = formData.get("license_plate") as string | null;
     const capacityStr = formData.get("capacity") as string | null;
+    const pickup_loc = formData.get("pickup_loc") as string | null;
+    const dropoff_loc = formData.get("dropoff_loc") as string | null;
 
     const isDriverStr = formData.get("is_driver") as string | null;
     const daysStr = formData.get("days") as string | null;
@@ -77,14 +79,16 @@ export async function POST(request: NextRequest) {
 
     const is_driver = isDriverStr === "true" || isDriverStr === "1";
 
+    const userUpdate: Record<string, unknown> = {
+      id: userID.trim(),
+      is_driver,
+    };
+    if (name?.trim()) userUpdate.name = name.trim();
+    if (residence?.trim()) userUpdate.residence = residence.trim();
+    if (picture_url) userUpdate.picture_url = picture_url;
+
     const { error: userError } = await supabase.from("User").upsert(
-      {
-        id: userID.trim(),
-        name: name?.trim() ?? null,
-        residence: residence?.trim() ?? null,
-        picture_url,
-        is_driver,
-      },
+      userUpdate,
       { onConflict: "id" },
     );
 
@@ -151,12 +155,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (daysJson) {
+      const scheduleRow: Record<string, unknown> = {
+        user_id: userID.trim(),
+        is_driver,
+        days: daysJson,
+      };
+      if (pickup_loc?.trim()) scheduleRow.pickup_loc = pickup_loc.trim();
+      if (dropoff_loc?.trim()) scheduleRow.dropoff_loc = dropoff_loc.trim();
+
       const { error: scheduleError } = await supabase.from("schedule").upsert(
-        {
-          user_id: userID.trim(),
-          is_driver,
-          days: daysJson,
-        },
+        scheduleRow,
         { onConflict: "user_id" },
       );
 

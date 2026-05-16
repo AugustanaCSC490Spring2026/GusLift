@@ -22,6 +22,7 @@ export function MatchingProvider({ children }) {
   const userIdRef = useRef(null);
   const ridersSnapshotRef = useRef([]);
   const [userId, setUserId] = useState(null);
+  const [pendingMatch, setPendingMatch] = useState(null);
 
   function onMessage(handler) {
     listenersRef.current.add(handler);
@@ -160,6 +161,9 @@ export function MatchingProvider({ children }) {
             (r) => r.rider_id !== msg.rider_id
           );
         }
+        if (msg.type === "match_request") {
+          setPendingMatch(msg);
+        }
         listenersRef.current.forEach((handler) => handler(msg));
       };
 
@@ -179,13 +183,21 @@ export function MatchingProvider({ children }) {
     if (!ws || ws.readyState !== 1) return;
     try {
       ws.send(JSON.stringify(payload));
+      if (payload.type === "accept_match" || payload.type === "reject_match") {
+        setPendingMatch(null);
+      }
     } catch (_) {}
+  }
+
+  function clearPendingMatch() {
+    setPendingMatch(null);
   }
 
   function disconnect() {
     wsRef.current?.close();
     wsRef.current = null;
     ridersSnapshotRef.current = [];
+    setPendingMatch(null);
   }
 
   function getRidersSnapshot() {
@@ -194,7 +206,7 @@ export function MatchingProvider({ children }) {
 
   return (
     <MatchingContext.Provider
-      value={{ connect, send, disconnect, onMessage, userId, getRidersSnapshot }}
+      value={{ connect, send, disconnect, onMessage, userId, getRidersSnapshot, pendingMatch, clearPendingMatch }}
     >
       {children}
     </MatchingContext.Provider>
