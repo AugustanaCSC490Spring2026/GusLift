@@ -145,7 +145,9 @@ const RideCard = ({ group, onPress, isFirstOfUpcoming }) => {
             <Text style={styles.driverLabel}>RIDERS</Text>
             <Text style={styles.driverName}>
               {group.riders.length} {group.riders.length === 1 ? 'rider' : 'riders'}
-              {group.riders.length > 0 ? ` • ${group.riders.map(r => r.name.split(' ')[0]).join(', ')}` : ''}
+              {group.riders.length > 0
+                ? ` • ${group.riders.map(r => (r.name || 'Unknown').split(' ')[0]).join(', ')}`
+                : ''}
             </Text>
           </View>
         </View>
