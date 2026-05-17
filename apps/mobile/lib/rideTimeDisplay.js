@@ -63,7 +63,16 @@ export function getScheduleClassStart(scheduleDays, rideDate) {
 
 /**
  * Pickup is always 15 minutes before class start.
- * Uses saved schedule class start when available; otherwise infers from ride slot time.
+ *
+ * The DB stores `Rides.start_time` differently depending on how the ride was
+ * matched, because the matching slot key carries different semantics:
+ *  - Scheduled ride: slot time = `schedule.days[day].start_time` (class start),
+ *    so `Rides.start_time === scheduleClassStart`. Pickup = start − 15.
+ *  - Manual ride: slot time = the time the rider/driver typed in, treated as
+ *    the desired pickup window. Pickup = start, class = start + 15.
+ *
+ * We disambiguate by comparing the saved ride time to the user's saved class
+ * start for that weekday. If they match → scheduled. Otherwise → manual.
  */
 export function deriveRideDisplayTimes(rideStartTime, scheduleClassStart) {
   const slot = normalizeTime24(rideStartTime);
@@ -72,16 +81,22 @@ export function deriveRideDisplayTimes(rideStartTime, scheduleClassStart) {
   if (!slot && !sched) {
     return { pickupTime: "—", classTime: "—" };
   }
-
-  let classStart24 = sched;
-  if (!classStart24) {
-    // Manual ride with no schedule: DB stores pickup window
-    classStart24 = addMinutes(slot, 15);
+  if (!slot) {
+    return { pickupTime: "—", classTime: "—" };
   }
 
-  const pickup24 = subtractMinutes(classStart24, 15);
+  const isScheduledRide = sched != null && slot === sched;
+  if (isScheduledRide) {
+    return {
+      pickupTime: formatTime12h(subtractMinutes(sched, 15)),
+      classTime: formatTime12h(sched),
+    };
+  }
+
+  // Manual ride (or scheduled day exists but this ride was a one-off):
+  // saved start_time is the pickup window; class start is +15.
   return {
-    pickupTime: formatTime12h(pickup24),
-    classTime: formatTime12h(classStart24),
+    pickupTime: formatTime12h(slot),
+    classTime: formatTime12h(addMinutes(slot, 15)),
   };
 }
