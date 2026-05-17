@@ -4,6 +4,7 @@ import { resolveRoute } from "../lib/routeUser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -26,26 +27,8 @@ const C = {
   border: "#E2E8F0",
 };
 
-/* ─── Interactive Leaflet map (embedded via iframe on web, wide only) ─── */
-const LEAFLET_MAP_HTML = `<!DOCTYPE html>
-<html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<style>
-html,body,#map{margin:0;padding:0;width:100%;height:100%;border-radius:16px;}
-.leaflet-control-zoom a{width:28px!important;height:28px!important;line-height:28px!important;font-size:14px!important;}
-.leaflet-control-attribution{font-size:9px!important;padding:2px 5px!important;}
-</style>
-</head><body>
-<div id="map"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script>
-var map=L.map('map',{zoomControl:false,zoomSnap:0.1}).setView([41.5015,-90.5485],16);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
-  attribution:'OpenStreetMap CARTO',maxZoom:20}).addTo(map);
-L.control.zoom({position:'bottomright'}).addTo(map);
-</script>
-</body></html>`;
+const GUSLIFT_LOGO_SRC = "/GusliftLogo.png";
+
 
 /* ─── Hoverable Button ─── */
 function HoverButton({ style, textStyle, label, onPress, hoverBg, hoverText }) {
@@ -107,6 +90,7 @@ export default function Welcome() {
   const isWide = screenWidth > 850;
   const [pickup, setPickup] = useState("Augustana College");
   const [destination, setDestination] = useState("");
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -284,7 +268,7 @@ export default function Welcome() {
           </Text>
           <Text style={[styles.heroSubtitle, !isWide && styles.heroSubtitleSmall]}>
             Student carpooling for your campus. Because getting to class
-            shouldn't be the hardest part of your day.
+            should not be the hardest part of your day.
           </Text>
 
           {/* Ride Form */}
@@ -330,20 +314,23 @@ export default function Welcome() {
           </View>
         </View>
 
-        {/* Right: Map (wide screens only) */}
+        {/* Right: Logo image (wide screens only) */}
         {isWide && (
           <View style={styles.heroGraphic}>
-            <View style={styles.mapWindow}>
-              <iframe
-                srcDoc={LEAFLET_MAP_HTML}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                  borderRadius: 8,
-                }}
-                title="Campus Map"
-              />
+            <View style={styles.logoWindow}>
+              {logoLoadFailed ? (
+                <View style={styles.logoFallback}>
+                  <Logo size="lg" />
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: GUSLIFT_LOGO_SRC }}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                  accessibilityLabel="GusLift logo"
+                  onError={() => setLogoLoadFailed(true)}
+                />
+              )}
             </View>
           </View>
         )}
@@ -564,7 +551,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* ── MAP AREA (wide only) ── */
+  /* ── LOGO AREA (wide only) ── */
   heroGraphic: {
     flex: 1.2,
     backgroundColor: C.card,
@@ -574,7 +561,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 28,
   },
-  mapWindow: {
+  logoWindow: {
     width: "90%",
     height: "85%",
     maxWidth: 520,
@@ -593,5 +580,15 @@ const styles = StyleSheet.create({
         elevation: 5,
       },
     }),
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+  },
+  logoFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
   },
 });
