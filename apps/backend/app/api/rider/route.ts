@@ -6,24 +6,33 @@ import { NextRequest, NextResponse } from "next/server";
  * so we can verify the authenticated user.
  */
 function getSupabaseWithAuth(request: NextRequest) {
+  // Accept either name so a single .env works whether it was scaffolded for
+  // a Next.js client (NEXT_PUBLIC_*) or a generic server context (SUPABASE_*).
   const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY 
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
-    throw new Error("SUPABASE_URL is required.");
+    throw new Error(
+      "Missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL).",
+    );
   }
   if (!supabaseKey) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required.");
   }
 
+  // Forward the user's JWT *only* if the client sent one, so supabase.auth.getUser()
+  // can verify the request in resolveUserId's fallback path. If we always set the
+  // Authorization header — even to an empty string — we blow away the SDK's default
+  // `Bearer <serviceRoleKey>` value, and Supabase Storage then rejects uploads with
+  // "headers must have required property 'authorization'". The mobile app currently
+  // identifies users by userID in the body, so the Authorization header is absent
+  // and the service-role default is what we actually want here.
+  const authHeader = request.headers.get("Authorization");
   return createClient(supabaseUrl, supabaseKey, {
-    global: {
-      headers: {
-        Authorization: request.headers.get("Authorization") || "",
-      },
-    },
+    ...(authHeader
+      ? { global: { headers: { Authorization: authHeader } } }
+      : {}),
   });
 }
 
@@ -108,20 +117,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid days format" }, { status: 400 });
     }
 
-    const { error: userError } = await supabase.from("User").upsert({
-      id: resolvedUserId,
-      name,
-      residence,
-      ...(picture_url ? { picture_url } : {}),
-      is_driver: false,
-    });
+    // Chain .select() so we get back the actual rows written. Without this,
+    // supabase-js defaults to Prefer: return=minimal and a successful HTTP
+    // response can hide a zero-row write (e.g. RLS filtering, or an Authorization
+    // header that downgraded us to anon). Using returned row count as the source
+    // of truth makes silent failures impossible.
+    const { data: userRows, error: userError } = await supabase
+      .from("User")
+      .upsert({
+        id: resolvedUserId,
+        name,
+        residence,
+        ...(picture_url ? { picture_url } : {}),
+        is_driver: false,
+      })
+      .select();
 
     if (userError) {
+      console.error("User upsert error:", userError);
       return NextResponse.json({ error: userError.message }, { status: 500 });
+    }
+    if (!userRows || userRows.length === 0) {
+      console.error("User upsert returned 0 rows", { resolvedUserId });
+      return NextResponse.json(
+        { error: "User row was not written (RLS or schema issue)." },
+        { status: 500 },
+      );
     }
 
     // Upsert so re-registration updates the existing schedule instead of failing
-    const { error: scheduleError } = await supabase
+    const { data: scheduleRows, error: scheduleError } = await supabase
       .from("schedule")
       .upsert(
         {
@@ -132,17 +157,36 @@ export async function POST(request: NextRequest) {
           dropoff_loc,
         },
         { onConflict: "user_id" }
-      );
+      )
+      .select();
 
     if (scheduleError) {
+      console.error("Schedule upsert error:", scheduleError);
       return NextResponse.json(
         { error: scheduleError.message },
         { status: 500 },
       );
     }
+    if (!scheduleRows || scheduleRows.length === 0) {
+      console.error("Schedule upsert returned 0 rows", { resolvedUserId });
+      return NextResponse.json(
+        { error: "Schedule row was not written (RLS or schema issue)." },
+        { status: 500 },
+      );
+    }
+
+    console.log("Rider registered", {
+      userId: resolvedUserId,
+      scheduleId: scheduleRows[0]?.id,
+      days: Object.keys(daysJson ?? {}),
+    });
 
     return NextResponse.json(
-      { message: "Rider registered successfully" },
+      {
+        message: "Rider registered successfully",
+        user: userRows[0],
+        schedule: scheduleRows[0],
+      },
       { status: 200 },
     );
   } catch (error) {

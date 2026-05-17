@@ -127,7 +127,7 @@ export default function TimePickerField({
                   />
                 </View>
 
-                <View style={[styles.wheelCol, { marginLeft: 12 }]}>
+                <View style={[styles.wheelCol, styles.periodCol]}>
                   <Text style={styles.wheelLabel}> </Text>
                   <WheelPicker
                     key={`p-${periodIdx}`}
@@ -207,6 +207,10 @@ const styles = StyleSheet.create({
   },
   wheelCol: {
     alignItems: "center",
+  },
+  periodCol: {
+    marginLeft: 12,
+    minWidth: 64,
   },
   wheelLabel: {
     fontSize: 10,

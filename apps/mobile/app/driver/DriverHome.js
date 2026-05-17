@@ -19,8 +19,6 @@ import TimePickerField from "../../components/setup/TimePickerField";
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const DAY_LABELS = {
   mon: "Monday",
@@ -96,8 +94,9 @@ export default function DriverHome() {
   const [residence, setResidence] = useState(null);
   const [classStart, setClassStart] = useState(null);
   const [classEnd, setClassEnd] = useState(null);
+  // Auto-computed from classStart (15 min before). Not user-editable on the
+  // saved-schedule card — that picker is reserved for the manual offer flow.
   const [pickupTime, setPickupTime] = useState("");
-  const [schedulePickup, setSchedulePickup] = useState("");
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
@@ -111,13 +110,16 @@ export default function DriverHome() {
     loadRides();
   }, []);
 
+  // Seed the manual pickup with the saved pickup/residence the first time the
+  // schedule resolves, so the user has a sensible starting point to edit. The
+  // saved-route card doesn't have its own input anymore — it shows `from`
+  // directly — so it doesn't need a seed.
   useEffect(() => {
     if (scheduleLoading) return;
     const seed =
       (from && String(from).trim()) ||
       (residence && String(residence).trim()) ||
       "";
-    setSchedulePickup((prev) => (prev.trim() ? prev : seed));
     setManualPickup((prev) => (prev.trim() ? prev : seed));
   }, [scheduleLoading, from, residence]);
 
@@ -131,38 +133,39 @@ export default function DriverHome() {
       );
 
       const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
+      if (!normalizedBackendUrl) return;
 
-      const [scheduleRes, userRes] = await Promise.all([
-        normalizedBackendUrl
-          ? fetch(`${normalizedBackendUrl}/api/driver/schedule`, {
-              headers: { "x-user-id": user.id },
-            })
-          : Promise.resolve(null),
-        fetch(`${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence,picture_url`, {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        }),
-      ]);
+      // /api/driver/schedule already returns days + pickup_loc + dropoff_loc +
+      // from + residence + picture_url, so we go through the backend just like
+      // the legacy /driver/OfferRide screen does. Previously this screen also
+      // fired a parallel fetch to Supabase REST using EXPO_PUBLIC_SUPABASE_URL
+      // / EXPO_PUBLIC_SUPABASE_ANON_KEY, but those env vars are not defined in
+      // apps/mobile/.env (Expo only exposes EXPO_PUBLIC_* to the bundle), so
+      // the URL resolved to "undefined/rest/..." and the rejected fetch made
+      // Promise.all throw, dumping us into the empty catch and leaving every
+      // schedule state null — which is what produced the "—" Class starts/ends.
+      const res = await fetch(`${normalizedBackendUrl}/api/driver/schedule`, {
+        headers: { "x-user-id": user.id },
+      });
+      if (!res.ok) return;
 
-      const userData = await userRes.json();
-      const userResidence = userData?.[0]?.residence ?? null;
-      if (userData?.[0]?.picture_url) setPictureUrl(userData[0].picture_url);
-      setResidence(userResidence);
+      const body = await res.json();
+      const today = getCurrentWeekday();
+      const todaySchedule = body.days?.[today];
+      const resolvedFrom =
+        body.from ?? body.pickup_loc ?? body.residence ?? null;
 
-      if (scheduleRes?.ok) {
-        const body = await scheduleRes.json();
-        const today = getCurrentWeekday();
-        const resolvedFrom = body.from ?? body.pickup_loc ?? body.residence ?? userResidence ?? null;
-        const todaySchedule = body.days?.[today];
-
-        if (body.picture_url) setPictureUrl(body.picture_url);
-        setFrom(resolvedFrom);
-        setDropoffLoc(body.dropoff_loc ?? null);
-        setClassStart(todaySchedule?.start_time ?? null);
-        setClassEnd(todaySchedule?.end_time ?? null);
-      }
+      if (body.picture_url) setPictureUrl(body.picture_url);
+      setResidence(body.residence ?? null);
+      setFrom(resolvedFrom);
+      setDropoffLoc(body.dropoff_loc ?? null);
+      const startTime = todaySchedule?.start_time ?? null;
+      setClassStart(startTime);
+      setClassEnd(todaySchedule?.end_time ?? null);
+      // Default pickup time = 15 minutes before class starts. The saved-route
+      // card surfaces this as a read-only value; the manual section has its
+      // own editable picker for ad-hoc offers.
+      setPickupTime(startTime ? subtractMinutes(startTime, 15) : "");
     } catch (_) {
       // Keep the dashboard usable even if schedule fetch fails.
     } finally {
@@ -266,7 +269,7 @@ export default function DriverHome() {
     router.push({
       pathname: "/driver/DriverWaitingRoom",
       params: {
-        from: schedulePickup.trim() || (from ?? ""),
+        from: from ?? "",
         to: dropoffLoc ?? "",
         pickupTime,
         classStart: classStart ?? "",
@@ -360,21 +363,7 @@ export default function DriverHome() {
         </View>
 
         <View style={styles.scheduleCard}>
-          <View style={styles.cardHeaderRow}>
-            <View>
-              <Text style={styles.cardEyebrow}>Saved commute</Text>
-              <Text style={styles.cardTitle}>Use your default route for today</Text>
-            </View>
-          </View>
-
-          <Text style={styles.inputLabel}>Pickup location</Text>
-          <AutocompleteInput
-            style={styles.input}
-            placeholder="Off-campus house, Westerlin, library"
-            placeholderTextColor="#8a93a5"
-            value={schedulePickup}
-            onChangeText={setSchedulePickup}
-          />
+          <Text style={styles.savedRouteHeader}>Today&apos;s saved route</Text>
 
           {scheduleLoading ? (
             <ActivityIndicator
@@ -383,35 +372,42 @@ export default function DriverHome() {
               style={styles.inlineLoader}
             />
           ) : (
-            <>
-              <Text style={styles.inputLabel}>Class starts</Text>
-              <View style={styles.inputDisplay}>
-                <Text style={styles.inputDisplayText}>{formatTime12h(classStart)}</Text>
+            <View style={styles.savedRouteList}>
+              <View style={styles.savedRouteRow}>
+                <Text style={styles.savedRouteLabel}>From</Text>
+                <Text style={styles.savedRouteValue} numberOfLines={1}>
+                  {from ?? "—"}
+                </Text>
               </View>
-
-              <Text style={styles.inputLabel}>Class ends</Text>
-              <View style={styles.inputDisplay}>
-                <Text style={styles.inputDisplayText}>{formatTime12h(classEnd)}</Text>
+              <View style={styles.savedRouteDivider} />
+              <View style={styles.savedRouteRow}>
+                <Text style={styles.savedRouteLabel}>Class Starts</Text>
+                <Text style={styles.savedRouteValue}>
+                  {formatTime12h(classStart)}
+                </Text>
               </View>
-
-              <Text style={styles.inputLabel}>Pickup time</Text>
-              <TimePickerField
-                value={pickupTime}
-                onChange={setPickupTime}
-                placeholder="Select a pick up time"
-              />
-
-              <Text style={styles.helperText}>
-                This opens a driver waiting room using your default pickup point and today&apos;s
-                class window.
-              </Text>
-            </>
+              <View style={styles.savedRouteDivider} />
+              <View style={styles.savedRouteRow}>
+                <Text style={styles.savedRouteLabel}>Class End</Text>
+                <Text style={styles.savedRouteValue}>
+                  {formatTime12h(classEnd)}
+                </Text>
+              </View>
+              <View style={styles.savedRouteDivider} />
+              <View style={styles.savedRouteRow}>
+                <Text style={styles.savedRouteLabel}>Pick Up Time</Text>
+                <Text style={styles.savedRouteValueAccent}>
+                  {formatTime12h(pickupTime)}
+                </Text>
+              </View>
+            </View>
           )}
 
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleScheduleOffer}
             activeOpacity={0.88}
+            disabled={scheduleLoading || !classStart}
           >
             <Text style={styles.primaryButtonText}>Offer using schedule</Text>
           </TouchableOpacity>
@@ -696,6 +692,45 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: "#64748B",
     marginBottom: 4,
+  },
+  savedRouteHeader: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    color: "#64748B",
+  },
+  savedRouteList: {
+    gap: 0,
+  },
+  savedRouteRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    gap: 16,
+  },
+  savedRouteDivider: {
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  savedRouteLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  savedRouteValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  savedRouteValueAccent: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#3B82F6",
   },
   cardTitle: {
     fontSize: 21,

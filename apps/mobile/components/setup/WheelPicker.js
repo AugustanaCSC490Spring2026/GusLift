@@ -33,10 +33,8 @@ export default function WheelPicker({ data, initialIndex = 0, onChange }) {
     const index = Math.round(y / ITEM_HEIGHT);
     const clamped = Math.max(0, Math.min(data.length - 1, index));
 
-    // Update highlight in real time
     setActiveIndex(clamped);
 
-    // Notify parent only once scrolling settles
     clearTimeout(scrollTimer.current);
     scrollTimer.current = setTimeout(() => onChange(clamped), 120);
   };
@@ -63,10 +61,11 @@ export default function WheelPicker({ data, initialIndex = 0, onChange }) {
           const realIndex = i - 2;
           const isActive = realIndex === activeIndex;
           const isNear = Math.abs(realIndex - activeIndex) === 1;
+          const isReal = realIndex >= 0 && realIndex < data.length;
           return (
             <View
               key={i}
-              style={[styles.item, isWeb && styles.itemWeb]}
+              style={[styles.item, isWeb && isReal && styles.itemWeb]}
             >
               <Text
                 style={[
