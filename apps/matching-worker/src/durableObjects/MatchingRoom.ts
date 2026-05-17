@@ -63,6 +63,12 @@ export class MatchingRoom implements DurableObject {
   private pushDedupes: Map<string, number> = new Map();
   /** Per-rider trip destination from rider_request (survives pending/timeouts) */
   private riderTripDestinations: Map<string, string> = new Map();
+  /**
+   * riderId -> set of driverIds the rider has rejected.
+   * Lives for the DO lifetime so the driver cannot reselect a rider that
+   * already turned them down, even after disconnects/reconnects.
+   */
+  private rejectedDriversByRider: Map<string, Set<string>> = new Map();
   private slotKey: string = "";
   private env: Env;
 
@@ -129,6 +135,14 @@ export class MatchingRoom implements DurableObject {
     };
   }
 
+  private rejectedRidersForDriver(driverId: string): string[] {
+    const out: string[] = [];
+    for (const [riderId, drivers] of this.rejectedDriversByRider.entries()) {
+      if (drivers.has(driverId)) out.push(riderId);
+    }
+    return out;
+  }
+
   private async sendInitialState(userId: string): Promise<void> {
     const riderProfiles = await Promise.all(
       this.riders_waiting.map((r) => this.fetchRiderProfile(r.rider_id)),
@@ -156,6 +170,7 @@ export class MatchingRoom implements DurableObject {
       riders,
       drivers,
       pending_matches,
+      rejected_by_me: this.rejectedRidersForDriver(userId),
     });
   }
 
@@ -416,6 +431,10 @@ export class MatchingRoom implements DurableObject {
     if (ev.driver_id !== userId) return;
     const ds = this.drivers.get(ev.driver_id);
     if (!ds) return;
+    // Defensive: if the rider already rejected this driver in this room,
+    // refuse the reselect even if a stale UI somehow allowed the click.
+    const rejectedFor = this.rejectedDriversByRider.get(ev.rider_id);
+    if (rejectedFor && rejectedFor.has(ev.driver_id)) return;
     const idx = this.riders_waiting.findIndex(
       (r) => r.rider_id === ev.rider_id,
     );
@@ -509,6 +528,13 @@ export class MatchingRoom implements DurableObject {
 
     this.pending_matches.delete(ev.rider_id);
     this.clearMatchTimeout(ev.rider_id);
+
+    let rejectedDrivers = this.rejectedDriversByRider.get(ev.rider_id);
+    if (!rejectedDrivers) {
+      rejectedDrivers = new Set<string>();
+      this.rejectedDriversByRider.set(ev.rider_id, rejectedDrivers);
+    }
+    rejectedDrivers.add(ev.driver_id);
 
     const joined_at = Date.now();
     const waiting: RiderWaiting = {

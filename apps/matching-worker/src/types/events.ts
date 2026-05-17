@@ -73,6 +73,11 @@ export type InitialStateMessage = {
   riders: RiderWaitingWire[];
   drivers: DriverWaitingWire[];
   pending_matches: Array<{ rider_id: string; driver_id: string }>;
+  /**
+   * Rider IDs that have rejected this user (when this user is a driver).
+   * Lets the driver UI restore the "Rejected your request" state on reconnect.
+   */
+  rejected_by_me: string[];
 };
 
 export type DriverJoinedMessage = {
