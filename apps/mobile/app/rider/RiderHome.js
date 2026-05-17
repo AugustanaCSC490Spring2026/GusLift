@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import {
 } from "react-native";
 import AutocompleteInput from "../../components/setup/AutocompleteInput";
 import TimePickerField from "../../components/setup/TimePickerField";
+import { useMatching } from "../../context/MatchingContext";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -48,6 +50,7 @@ function getInitial(name) {
 
 export default function RiderHome() {
   const router = useRouter();
+  const { pendingMatch } = useMatching();
 
   const [firstName, setFirstName] = useState("");
   const [pictureUrl, setPictureUrl] = useState(null);
@@ -55,11 +58,11 @@ export default function RiderHome() {
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
+  const [schedulePickup, setSchedulePickup] = useState("");
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
   const [manualFieldError, setManualFieldError] = useState(null);
-  const [ridesLoading, setRidesLoading] = useState(true);
   const [rides, setRides] = useState([]);
 
   useEffect(() => {
@@ -73,6 +76,7 @@ export default function RiderHome() {
       (pickupLoc && String(pickupLoc).trim()) ||
       (residence && String(residence).trim()) ||
       "";
+    setSchedulePickup((prev) => (prev.trim() ? prev : seed));
     setManualPickup((prev) => (prev.trim() ? prev : seed));
   }, [scheduleLoading, pickupLoc, residence]);
 
@@ -163,8 +167,6 @@ export default function RiderHome() {
       setRides(enriched);
     } catch (_) {
       setRides([]);
-    } finally {
-      setRidesLoading(false);
     }
   }
 
@@ -203,14 +205,13 @@ export default function RiderHome() {
     router.push({
       pathname: "/rider/RiderWaitingRoom",
       params: {
-        from: pickupLoc ?? "",
+        from: schedulePickup.trim() || (pickupLoc ?? ""),
         to: dropoffLoc ?? "",
         matchMode: "schedule",
       },
     });
   }
 
-  const previewRides = rides.slice(0, 3);
   const nextRide = rides[0] ?? null;
   const routeReady = Boolean(pickupLoc || dropoffLoc);
 
@@ -222,10 +223,46 @@ export default function RiderHome() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroGlowOne} />
-          <View style={styles.heroGlowTwo} />
+        {pendingMatch && (
+          <Pressable
+            style={styles.pendingMatchCard}
+            onPress={() => {
+              const carParts = pendingMatch.driver?.car
+                ? [
+                    [pendingMatch.driver.car.color, pendingMatch.driver.car.make, pendingMatch.driver.car.model]
+                      .filter(Boolean).join(" ").trim(),
+                    pendingMatch.driver.car.license_plate,
+                  ].filter(Boolean)
+                : [];
+              router.push({
+                pathname: "/rider/AvailableDrivers",
+                params: {
+                  driverId: pendingMatch.driver_id,
+                  driverName: pendingMatch.driver?.name ?? "",
+                  driverPic: pendingMatch.driver?.picture_url ?? "",
+                  driverTo: pendingMatch.driver?.to_location ?? "",
+                  driverCar: carParts.join(" · "),
+                },
+              });
+            }}
+            activeOpacity={0.88}
+          >
+            <View style={styles.pendingMatchLeft}>
+              <Text style={styles.pendingMatchIcon}>⚡</Text>
+              <View>
+                <Text style={styles.pendingMatchTitle}>Driver found!</Text>
+                <Text style={styles.pendingMatchSub}>
+                  {pendingMatch.driver?.name
+                    ? `${pendingMatch.driver.name} is waiting for you`
+                    : "A driver is waiting for your confirmation"}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.pendingMatchChevron}>›</Text>
+          </Pressable>
+        )}
 
+        <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View style={styles.avatarWrap}>
               {pictureUrl ? (
@@ -235,10 +272,8 @@ export default function RiderHome() {
               )}
             </View>
             <View style={styles.heroIdentity}>
-              <Text style={styles.eyebrow}>Campus commute</Text>
               <Text style={styles.heroTitle}>Hello, {firstName || "Rider"}</Text>
               <View style={styles.rolePill}>
-                <Ionicons name="walk-outline" size={13} color="#3B82F6" />
                 <Text style={styles.rolePillText}>Rider mode</Text>
               </View>
             </View>
@@ -249,12 +284,12 @@ export default function RiderHome() {
               ? `Next pickup ${DAY_LABELS[nextRide.day] ?? nextRide.day} at ${formatTime12h(
                   nextRide.start_time,
                 )}.`
-              : "Use your saved route for everyday matching, or request a one-off ride anytime."}
+              : "Request a ride using your schedule or set a custom pickup time."}
           </Text>
 
           <View style={styles.metricRow}>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Upcoming</Text>
+              <Text style={styles.metricLabel}>Upcoming rides</Text>
               <Text style={styles.metricValue}>{rides.length}</Text>
             </View>
             <View style={styles.metricCard}>
@@ -266,22 +301,28 @@ export default function RiderHome() {
           </View>
 
           <View style={styles.heroActionRow}>
-            <TouchableOpacity
-              style={styles.heroPrimaryAction}
-              onPress={handleScheduleRequest}
-              activeOpacity={0.88}
+            <Pressable
+              style={({ hovered, pressed }) => [
+                styles.heroPrimaryAction,
+                hovered && styles.heroActionHovered,
+                pressed && { opacity: 0.9 },
+              ]}
+              onPress={() => router.push("/rider/ScheduledRidesRider")}
             >
-              <Ionicons name="flash-outline" size={16} color="#3B82F6" />
-              <Text style={styles.heroPrimaryActionText}>Use saved route</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.heroSecondaryAction}
-              onPress={() => router.push("/rider/RiderSetup")}
-              activeOpacity={0.88}
+              <Text style={styles.heroPrimaryActionText}>View upcoming rides</Text>
+            </Pressable>
+            <Pressable
+              style={({ hovered, pressed }) => [
+                styles.heroSecondaryAction,
+                hovered && styles.heroActionHovered,
+                pressed && { opacity: 0.9 },
+              ]}
+              onPress={() => router.push("/rider/ManageSchedule")}
             >
-              <Text style={styles.heroSecondaryActionText}>Edit setup</Text>
-            </TouchableOpacity>
+              <Text style={styles.heroSecondaryActionText}>View schedule</Text>
+            </Pressable>
           </View>
+
         </View>
 
         <View style={styles.sectionHeader}>
@@ -295,10 +336,16 @@ export default function RiderHome() {
               <Text style={styles.cardEyebrow}>Saved commute</Text>
               <Text style={styles.cardTitle}>Fastest option for regular trips</Text>
             </View>
-            <View style={styles.iconBadge}>
-              <Ionicons name="map-outline" size={18} color="#3B82F6" />
-            </View>
           </View>
+
+          <Text style={styles.inputLabel}>Pickup location</Text>
+          <AutocompleteInput
+            style={styles.input}
+            placeholder="Augie Hall, Westerlin, library"
+            placeholderTextColor="#8a93a5"
+            value={schedulePickup}
+            onChangeText={setSchedulePickup}
+          />
 
           {scheduleLoading ? (
             <ActivityIndicator
@@ -308,23 +355,16 @@ export default function RiderHome() {
             />
           ) : (
             <>
-              <View style={styles.routePanel}>
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>From</Text>
-                  <Text style={styles.routeValue}>{pickupLoc ?? "—"}</Text>
-                </View>
-                <View style={styles.routeDivider} />
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>To</Text>
-                  <Text style={styles.routeValue}>{dropoffLoc ?? "—"}</Text>
-                </View>
-                <View style={styles.routeDivider} />
-                <View style={styles.routeRow}>
-                  <Text style={styles.routeLabel}>Pickup timing</Text>
-                  <Text style={styles.routeValue}>
-                    {routeReady ? "From first class today" : "Finish setup first"}
-                  </Text>
-                </View>
+              <Text style={styles.inputLabel}>Going to</Text>
+              <View style={styles.inputDisplay}>
+                <Text style={styles.inputDisplayText}>{dropoffLoc ?? "Augustana College"}</Text>
+              </View>
+
+              <Text style={styles.inputLabel}>Pickup timing</Text>
+              <View style={styles.inputDisplay}>
+                <Text style={styles.inputDisplayText}>
+                  {nextRide ? formatTime12h(nextRide.start_time) : "—"}
+                </Text>
               </View>
 
               <Text style={styles.helperText}>
@@ -347,9 +387,6 @@ export default function RiderHome() {
             <View>
               <Text style={styles.cardEyebrow}>One-off request</Text>
               <Text style={styles.cardTitle}>Choose a custom pickup time</Text>
-            </View>
-            <View style={styles.iconBadgeWarm}>
-              <Ionicons name="time-outline" size={18} color="#3B82F6" />
             </View>
           </View>
 
@@ -386,7 +423,7 @@ export default function RiderHome() {
               setManualTime(value);
               if (manualFieldError) setManualFieldError(null);
             }}
-            placeholder="e.g. 16:45"
+            placeholder="Select a pick up time"
           />
 
           {manualFieldError ? (
@@ -401,110 +438,6 @@ export default function RiderHome() {
             <Text style={styles.secondaryButtonText}>Request with custom time</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.sectionHeaderCompact}>
-          <View>
-            <Text style={styles.sectionEyebrow}>Ride management</Text>
-            <Text style={styles.sectionTitle}>Upcoming rides</Text>
-          </View>
-          <View style={styles.headerLinksRow}>
-            <TouchableOpacity
-              style={styles.inlineLink}
-              onPress={() => router.push("/rider/RideHistoryRider")}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="time-outline" size={13} color="#8b7351" />
-              <Text style={[styles.inlineLinkText, { color: "#8b7351" }]}>History</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.inlineLink}
-              onPress={() => router.push("/rider/ScheduledRidesRider")}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.inlineLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={13} color="#163b67" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {ridesLoading ? (
-          <ActivityIndicator
-            size="small"
-            color="#3B82F6"
-            style={styles.inlineLoader}
-          />
-        ) : previewRides.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-clear-outline" size={28} color="#94A3B8" />
-            <Text style={styles.emptyStateTitle}>No rides booked yet</Text>
-            <Text style={styles.emptyStateText}>
-              Your accepted rides will appear here as soon as a driver match is confirmed.
-            </Text>
-          </View>
-        ) : (
-          previewRides.map((ride) => (
-            <TouchableOpacity
-              key={ride.id}
-              style={styles.rideCard}
-              activeOpacity={0.86}
-              onPress={() =>
-                router.push({
-                  pathname: "/rider/RideDetailRider",
-                  params: {
-                    day: ride.day,
-                    start_time: ride.start_time,
-                    location: ride.location ?? "",
-                    driverName: ride.driver?.name ?? "",
-                    driverPic: ride.driver?.picture_url ?? "",
-                    carMake: ride.car?.make ?? "",
-                    carModel: ride.car?.model ?? "",
-                    carColor: ride.car?.color ?? "",
-                  },
-                })
-              }
-            >
-              <View style={styles.rideCardTop}>
-                <Text style={styles.rideDay}>
-                  {DAY_LABELS[ride.day] ?? ride.day}
-                </Text>
-                <Text style={styles.rideTime}>{formatTime12h(ride.start_time)}</Text>
-              </View>
-
-              <View style={styles.routeTagRow}>
-                <View style={styles.routeTag}>
-                  <Ionicons name="navigate-outline" size={13} color="#64748B" />
-                  <Text style={styles.routeTagText}>{ride.location ?? "—"}</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={14} color="#94A3B8" />
-                <View style={styles.routeTag}>
-                  <Ionicons name="school-outline" size={13} color="#64748B" />
-                  <Text style={styles.routeTagText}>Augustana College</Text>
-                </View>
-              </View>
-
-              <View style={styles.driverStrip}>
-                <View style={styles.driverAvatarSmall}>
-                  <Text style={styles.driverAvatarSmallText}>
-                    {getInitial(ride.driver?.name || "D")}
-                  </Text>
-                </View>
-                <View style={styles.driverMeta}>
-                  <Text style={styles.driverNameText}>
-                    {ride.driver?.name ?? "Driver assigned"}
-                  </Text>
-                  <Text style={styles.driverSubText}>
-                    {ride.car
-                      ? `${ride.car.color || ""} ${ride.car.make || ""} ${
-                          ride.car.model || ""
-                        }`.trim()
-                      : "Vehicle details will appear here"}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-              </View>
-            </TouchableOpacity>
-          ))
-        )}
       </ScrollView>
     </View>
   );
@@ -522,32 +455,67 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 18,
   },
+  pendingMatchCard: {
+    backgroundColor: "#0F172A",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  pendingMatchLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  pendingMatchIcon: {
+    fontSize: 22,
+  },
+  pendingMatchTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
+  },
+  pendingMatchSub: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.65)",
+    marginTop: 2,
+  },
+  pendingMatchChevron: {
+    fontSize: 26,
+    color: "rgba(255,255,255,0.4)",
+    lineHeight: 28,
+  },
   heroCard: {
     backgroundColor: "#3B82F6",
-    borderRadius: 8,
-    padding: 22,
+    borderRadius: 24,
+    padding: 16,
     overflow: "hidden",
-    gap: 18,
+    gap: 10,
   },
   heroGlowOne: {
     position: "absolute",
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#FFFFFF",
     top: -72,
     right: -28,
-    opacity: 0.48,
+    opacity: 0.2,
   },
   heroGlowTwo: {
     position: "absolute",
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#FFFFFF",
     bottom: -62,
     left: -34,
-    opacity: 0.18,
+    opacity: 0.1,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -555,22 +523,22 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   avatarWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
   },
   avatarText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
   },
   heroIdentity: {
     flex: 1,
@@ -584,10 +552,10 @@ const styles = StyleSheet.create({
     color: "#DBEAFE",
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.7,
+    letterSpacing: -0.5,
   },
   rolePill: {
     alignSelf: "flex-start",
@@ -616,22 +584,22 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    borderRadius: 10,
-    backgroundColor: "rgba(59, 130, 246, 0.12)",
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(59, 130, 246, 0.14)",
-    padding: 14,
-    gap: 6,
+    borderColor: "rgba(255, 255, 255, 0.14)",
+    padding: 10,
+    gap: 2,
   },
   metricLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
     color: "#DBEAFE",
   },
   metricValue: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: "#FFFFFF",
   },
@@ -646,32 +614,38 @@ const styles = StyleSheet.create({
   },
   heroPrimaryAction: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 8,
-    backgroundColor: "#EFF6FF",
-    flexDirection: "row",
+    minHeight: 42,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
   },
   heroPrimaryActionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#3B82F6",
   },
   heroSecondaryAction: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.30)",
+    minHeight: 42,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   heroSecondaryActionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  heroActionHovered: {
+    transform: [{ translateY: -2 }],
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
   sectionHeader: {
     gap: 4,
@@ -699,7 +673,7 @@ const styles = StyleSheet.create({
   },
   scheduleCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     padding: 20,
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -707,7 +681,7 @@ const styles = StyleSheet.create({
   },
   manualCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     padding: 20,
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -742,21 +716,21 @@ const styles = StyleSheet.create({
   iconBadge: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: "#EFF6FF",
+    borderRadius: 14,
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   iconBadgeWarm: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: "#EFF6FF",
+    borderRadius: 14,
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   routePanel: {
-    borderRadius: 10,
+    borderRadius: 20,
     backgroundColor: "#F8FAFC",
     paddingHorizontal: 16,
     paddingVertical: 6,
@@ -810,10 +784,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#0F172A",
   },
+  inputDisplay: {
+    minHeight: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    justifyContent: "center",
+  },
+  inputDisplayText: {
+    fontSize: 15,
+    color: "#0F172A",
+    fontWeight: "600",
+  },
   fieldError: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#B45309",
+    color: "#ef4444",
   },
   primaryButton: {
     minHeight: 52,
@@ -830,7 +819,7 @@ const styles = StyleSheet.create({
   secondaryButton: {
     minHeight: 52,
     borderRadius: 8,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -838,7 +827,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#FFFFFF",
   },
   headerLinksRow: {
     flexDirection: "row",
@@ -860,7 +849,7 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
   emptyState: {
-    borderRadius: 10,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -882,7 +871,7 @@ const styles = StyleSheet.create({
   },
   rideCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     padding: 18,
@@ -896,12 +885,12 @@ const styles = StyleSheet.create({
   rideDay: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
   },
   rideTime: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#94A3B8",
+    color: "#64748B",
   },
   routeTagRow: {
     flexDirection: "row",
@@ -921,7 +910,7 @@ const styles = StyleSheet.create({
   routeTagText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#475569",
+    color: "#0F172A",
   },
   driverStrip: {
     flexDirection: "row",
@@ -934,8 +923,8 @@ const styles = StyleSheet.create({
   driverAvatarSmall: {
     width: 38,
     height: 38,
-    borderRadius: 8,
-    backgroundColor: "#EFF6FF",
+    borderRadius: 14,
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },

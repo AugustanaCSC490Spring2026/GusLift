@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -188,6 +189,11 @@ export default function RiderWaitingRoom() {
 
   return (
     <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={handleCancel}
@@ -206,7 +212,6 @@ export default function RiderWaitingRoom() {
       </View>
 
       <View style={styles.heroCard}>
-        <View style={styles.heroGlow} />
         <Text style={styles.heroEyebrow}>Rider queue</Text>
         <Text style={styles.heroTitle}>Ride request in progress</Text>
         <Text style={styles.heroBody}>
@@ -242,9 +247,7 @@ export default function RiderWaitingRoom() {
               ? formatTime12h(effectiveSlotTime)
               : needsManualTime
                 ? "Enter below"
-                : matchMode !== "manual" && !isManualEntry
-                  ? "First class today"
-                  : "—"}
+                : "—"}
           </Text>
         </View>
       </View>
@@ -320,6 +323,7 @@ export default function RiderWaitingRoom() {
           </Text>
         </View>
       ) : null}
+      </ScrollView>
     </View>
   );
 }
@@ -336,8 +340,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  content: {
     paddingHorizontal: 20,
     paddingTop: 60,
+    paddingBottom: 40,
     gap: 16,
   },
   headerRow: {
@@ -348,8 +355,8 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 16,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -369,31 +376,21 @@ const styles = StyleSheet.create({
   cancelChipText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#0F172A",
   },
   heroCard: {
     backgroundColor: "#3B82F6",
-    borderRadius: 10,
+    borderRadius: 26,
     padding: 22,
     overflow: "hidden",
     gap: 10,
-  },
-  heroGlow: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "#EFF6FF",
-    top: -60,
-    right: -28,
-    opacity: 0.45,
   },
   heroEyebrow: {
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: "#DBEAFE",
+    color: "rgba(255,255,255,0.8)",
   },
   heroTitle: {
     fontSize: 29,
@@ -404,7 +401,7 @@ const styles = StyleSheet.create({
   heroBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#DBEAFE",
+    color: "rgba(255,255,255,0.85)",
     maxWidth: "92%",
   },
   statusPill: {
@@ -415,7 +412,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(59, 130, 246, 0.14)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     marginTop: 4,
   },
   liveDot: {
@@ -437,7 +434,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     paddingHorizontal: 18,
@@ -446,7 +443,7 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
     marginBottom: 10,
   },
   summaryRow: {
@@ -494,7 +491,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     minHeight: 48,
-    borderRadius: 8,
+    borderRadius: 16,
     backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
@@ -507,7 +504,7 @@ const styles = StyleSheet.create({
   },
   manualCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     padding: 18,
@@ -516,7 +513,7 @@ const styles = StyleSheet.create({
   manualTitle: {
     fontSize: 21,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
     lineHeight: 26,
   },
   manualHint: {
@@ -552,8 +549,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   liveCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     padding: 22,
@@ -563,7 +560,7 @@ const styles = StyleSheet.create({
   liveTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
     textAlign: "center",
   },
   liveBody: {

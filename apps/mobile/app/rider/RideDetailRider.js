@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const DAY_LABELS = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday",
@@ -20,6 +20,10 @@ export default function RideDetailRider() {
 
   return (
     <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
@@ -71,6 +75,7 @@ export default function RideDetailRider() {
           )}
         </View>
       </View>
+      </ScrollView>
     </View>
   );
 }
@@ -79,13 +84,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  content: {
     padding: 24,
     paddingTop: 56,
+    paddingBottom: 40,
   },
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
@@ -93,7 +101,7 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: "#0F172A",
+    color: "#64748B",
     fontWeight: "600",
   },
   header: {
@@ -163,8 +171,8 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: 56,
     height: 56,
-    borderRadius: 8,
-    backgroundColor: "#dbeafe",
+    borderRadius: 28,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },

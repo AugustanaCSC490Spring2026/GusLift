@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -108,6 +109,11 @@ export default function DriverWaitingRoom() {
 
   return (
     <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={handleGoOffline}
@@ -126,7 +132,6 @@ export default function DriverWaitingRoom() {
       </View>
 
       <View style={styles.heroCard}>
-        <View style={styles.heroGlow} />
         <Text style={styles.heroEyebrow}>Driver queue</Text>
         <Text style={styles.heroTitle}>Ride offer is live</Text>
         <Text style={styles.heroBody}>
@@ -181,7 +186,7 @@ export default function DriverWaitingRoom() {
       <View style={styles.signalCard}>
         {connected ? (
           <>
-            <ActivityIndicator size="small" color="#1a4a37" />
+            <ActivityIndicator size="small" color="#3B82F6" />
             <Text style={styles.signalTitle}>Listening for riders now</Text>
             <Text style={styles.signalBody}>
               The screen will automatically move you to the rider queue as soon as someone
@@ -207,6 +212,7 @@ export default function DriverWaitingRoom() {
           {connected ? "Stop offering this ride" : "Leave this screen"}
         </Text>
       </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
@@ -215,8 +221,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  content: {
     paddingHorizontal: 20,
     paddingTop: 60,
+    paddingBottom: 40,
     gap: 16,
   },
   headerRow: {
@@ -227,8 +236,8 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 16,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -248,31 +257,21 @@ const styles = StyleSheet.create({
   offlineChipText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#0F172A",
   },
   heroCard: {
     backgroundColor: "#3B82F6",
-    borderRadius: 10,
+    borderRadius: 26,
     padding: 22,
     overflow: "hidden",
     gap: 10,
-  },
-  heroGlow: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "#EFF6FF",
-    top: -58,
-    right: -28,
-    opacity: 0.46,
   },
   heroEyebrow: {
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: "#DBEAFE",
+    color: "rgba(255,255,255,0.8)",
   },
   heroTitle: {
     fontSize: 29,
@@ -283,7 +282,7 @@ const styles = StyleSheet.create({
   heroBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#DBEAFE",
+    color: "rgba(255,255,255,0.85)",
     maxWidth: "93%",
   },
   statusPill: {
@@ -294,7 +293,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(59, 130, 246, 0.14)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     marginTop: 4,
   },
   liveDot: {
@@ -310,7 +309,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     paddingHorizontal: 18,
@@ -319,7 +318,7 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
     marginBottom: 10,
   },
   summaryRow: {
@@ -348,8 +347,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#E2E8F0",
   },
   signalCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     padding: 22,
@@ -359,7 +358,7 @@ const styles = StyleSheet.create({
   signalTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
     textAlign: "center",
   },
   signalBody: {
@@ -370,11 +369,10 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minHeight: 52,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: "auto",
     marginBottom: 20,
   },
   primaryButtonText: {

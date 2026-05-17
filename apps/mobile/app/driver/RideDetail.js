@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: "#0F172A",
+    color: "#64748B",
     fontWeight: "600",
   },
   header: {
@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: 52,
     height: 52,
-    borderRadius: 10,
-    backgroundColor: "#dbeafe",
+    borderRadius: 26,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },

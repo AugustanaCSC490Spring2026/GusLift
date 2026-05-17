@@ -306,16 +306,16 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: 12, // changed from marginBottom 12 to center more cleanly but sticking to original mostly
+    marginVertical: 12,
     alignSelf: "flex-start",
   },
   closeText: {
     fontSize: 16,
-    color: "#0F172A",
+    color: "#64748B",
     fontWeight: "600",
   },
   header: {
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   orLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#CBD5E1",
+    backgroundColor: "#E2E8F0",
   },
   orText: {
     fontSize: 13,

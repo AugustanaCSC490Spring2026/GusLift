@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { resolveRoute } from "../lib/routeUser";
+import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from "react-native-svg";
@@ -34,49 +35,12 @@ export default function GlobalMenu() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Do not show the menu on login/signup/setup pages
-  const hidePaths = ["/", "/index", "/signup", "/role", "/About"];
-  const shouldHide =
-    hidePaths.includes(pathname) || pathname?.toLowerCase().includes("setup");
-
-  async function loadUserSnapshot() {
-    try {
-      const stored = await AsyncStorage.getItem("@user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setCurrentRole(parsed?.role);
-        setAvatarUri(parsed?.picture || parsed?.avatar_url || null);
-        return parsed;
-      }
-    } catch (e) {
-      // ignore
-    }
-    return null;
-  }
-
-  async function loadUnreadCount() {
-    if (!BACKEND_URL) return;
-    const user = await loadUserSnapshot();
-    if (!user?.id) return;
-    try {
-      const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
-      const res = await fetch(`${normalizedBackendUrl}/api/notifications?limit=1`, {
-        headers: { "x-user-id": String(user.id) },
-      });
-      if (!res.ok) return;
-      const payload = await res.json();
-      setUnreadCount(Number(payload?.unread_count || 0));
-    } catch (e) {
-      // Keep the menu usable if notification count fails.
-    }
-  }
-
-  useEffect(() => {
-    if (!shouldHide) {
-      loadUnreadCount();
-    }
-  }, [pathname, shouldHide]);
-
-  if (shouldHide) {
+  const hidePaths = [
+    "/", "/index", "/signup", "/role", "/About",
+    "/rider/AvailableDrivers", "/rider/RiderWaitingRoom",
+    "/driver/AvailableRiders", "/driver/DriverWaitingRoom",
+  ];
+  if (hidePaths.includes(pathname) || pathname?.toLowerCase().includes("setup")) {
     return null;
   }
 
@@ -117,19 +81,8 @@ export default function GlobalMenu() {
       const updated = { ...parsed, role: newRole };
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
 
-      if (newRole === "driver") {
-        if (parsed.driverSetupComplete) {
-          router.replace("/driver/DriverHome");
-        } else {
-          router.replace("/driver/DriverSetup");
-        }
-      } else {
-        if (parsed.riderSetupComplete) {
-          router.replace("/rider/RiderHome");
-        } else {
-          router.replace("/rider/RiderSetup");
-        }
-      }
+      const dest = await resolveRoute(updated, { verifyDriver: false });
+      router.replace(dest);
     } catch (e) {
       Alert.alert("Error", "Could not switch role.");
     }
@@ -279,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#F8FAFC",
+    borderBottomColor: "#E2E8F0",
   },
   menuItemText: {
     fontSize: 16,

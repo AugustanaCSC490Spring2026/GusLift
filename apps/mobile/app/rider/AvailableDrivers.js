@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -215,6 +216,11 @@ export default function AvailableDrivers() {
 
   return (
     <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={handleCancel}
@@ -338,6 +344,7 @@ export default function AvailableDrivers() {
           </TouchableOpacity>
         </>
       )}
+      </ScrollView>
     </View>
   );
 }
@@ -346,8 +353,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  content: {
     paddingHorizontal: 20,
     paddingTop: 60,
+    paddingBottom: 40,
     gap: 16,
   },
   headerRow: {
@@ -358,8 +368,8 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 16,
+    backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -379,11 +389,11 @@ const styles = StyleSheet.create({
   ridesButtonText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#0F172A",
   },
   heroCard: {
-    backgroundColor: "#3B82F6",
-    borderRadius: 10,
+    backgroundColor: "#0F172A",
+    borderRadius: 26,
     padding: 22,
     overflow: "hidden",
     gap: 10,
@@ -393,14 +403,14 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#3B82F6",
     top: -58,
     right: -28,
-    opacity: 0.45,
+    opacity: 0.4,
   },
   heroCardMatched: {
-    backgroundColor: "#3B82F6",
-    borderRadius: 10,
+    backgroundColor: "#0F172A",
+    borderRadius: 26,
     padding: 22,
     overflow: "hidden",
     gap: 10,
@@ -410,17 +420,17 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#3B82F6",
     top: -58,
     right: -28,
-    opacity: 0.28,
+    opacity: 0.55,
   },
   heroEyebrow: {
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: "#DBEAFE",
+    color: "rgba(255,255,255,0.7)",
   },
   heroTitle: {
     fontSize: 29,
@@ -431,12 +441,12 @@ const styles = StyleSheet.create({
   heroBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#DBEAFE",
+    color: "rgba(255,255,255,0.8)",
     maxWidth: "94%",
   },
   tripCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     paddingHorizontal: 18,
@@ -445,7 +455,7 @@ const styles = StyleSheet.create({
   tripTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
     marginBottom: 10,
   },
   tripRow: {
@@ -474,8 +484,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#E2E8F0",
   },
   waitingCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     padding: 22,
@@ -485,7 +495,7 @@ const styles = StyleSheet.create({
   waitingTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#3B82F6",
+    color: "#0F172A",
     textAlign: "center",
   },
   waitingBody: {
@@ -496,7 +506,7 @@ const styles = StyleSheet.create({
   },
   driverCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     padding: 18,
@@ -512,8 +522,8 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: 62,
     height: 62,
-    borderRadius: 10,
-    backgroundColor: "#EFF6FF",
+    borderRadius: 22,
+    backgroundColor: "rgba(59,130,246,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -540,7 +550,7 @@ const styles = StyleSheet.create({
   },
   matchInfoCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     paddingHorizontal: 18,
@@ -548,13 +558,13 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minHeight: 52,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
   },
   primaryButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   primaryButtonText: {
     fontSize: 15,
@@ -563,14 +573,14 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     minHeight: 52,
-    borderRadius: 10,
-    backgroundColor: "#EFF6FF",
+    borderRadius: 18,
+    backgroundColor: "rgba(59,130,246,0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#64748B",
+    color: "#3B82F6",
   },
 });

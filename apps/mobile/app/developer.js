@@ -38,6 +38,9 @@ export default function DeveloperMenu() {
           <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/ScheduledRidesRider")}>
             <Text style={styles.buttonText}>Scheduled Rides (Rider)</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => router.push("/rider/RideHistoryRider")}>
+            <Text style={styles.buttonText}>Ride History (Rider)</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -95,7 +98,7 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     backgroundColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
@@ -104,7 +107,7 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 16,
-    color: "#0F172A",
+    color: "#64748B",
     fontWeight: "600",
   },
   header: {
