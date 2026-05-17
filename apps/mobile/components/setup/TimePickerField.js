@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { B } from "./SetupIcons";
-import WheelPicker from "./WheelPicker";
 
 const HOURS = Array.from({ length: 12 }, (_, i) =>
   String(i + 1).padStart(2, "0"),
@@ -9,9 +15,9 @@ const HOURS = Array.from({ length: 12 }, (_, i) =>
 const MINUTES = Array.from({ length: 60 }, (_, i) =>
   String(i).padStart(2, "0"),
 );
-const PERIODS = ["AM", "PM"];
 
-// HH:MM (24h) → wheel indices. Falls back to current time when value is absent.
+const ROW_HEIGHT = 40;
+
 function parse24h(value) {
   if (value && /^\d{2}:\d{2}$/.test(value)) {
     const [hh, mm] = value.split(":").map(Number);
@@ -30,21 +36,45 @@ function parse24h(value) {
   };
 }
 
-// Wheel indices → HH:MM (24h) string
 function to24h(hourIdx, minIdx, periodIdx) {
-  let h = hourIdx + 1; // 1–12
-  if (periodIdx === 0 && h === 12) h = 0; // 12 AM → 00
-  else if (periodIdx === 1 && h !== 12) h += 12; // PM → +12
+  let h = hourIdx + 1;
+  if (periodIdx === 0 && h === 12) h = 0;
+  else if (periodIdx === 1 && h !== 12) h += 12;
   return `${String(h).padStart(2, "0")}:${String(minIdx).padStart(2, "0")}`;
 }
 
-// HH:MM (24h) → "H:MM AM/PM" for display
 function format12h(value) {
   if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
   const [hh, mm] = value.split(":").map(Number);
   const period = hh >= 12 ? "PM" : "AM";
   const h = hh % 12 || 12;
   return `${h}:${String(mm).padStart(2, "0")} ${period}`;
+}
+
+function ColumnList({ data, selectedIndex, onSelect }) {
+  return (
+    <ScrollView
+      style={styles.colScroll}
+      contentContainerStyle={styles.colContent}
+      showsVerticalScrollIndicator
+    >
+      {data.map((item, i) => {
+        const isSelected = i === selectedIndex;
+        return (
+          <TouchableOpacity
+            key={i}
+            style={[styles.row, isSelected && styles.rowSelected]}
+            onPress={() => onSelect(i)}
+            activeOpacity={0.6}
+          >
+            <Text style={[styles.rowText, isSelected && styles.rowTextSelected]}>
+              {item}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
 }
 
 export default function TimePickerField({
@@ -104,37 +134,63 @@ export default function TimePickerField({
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.wheelsRow}>
-                <View style={styles.wheelCol}>
-                  <Text style={styles.wheelLabel}>HR</Text>
-                  <WheelPicker
-                    key={`h-${hourIdx}`}
+              <View style={styles.columnsRow}>
+                <View style={styles.column}>
+                  <Text style={styles.columnLabel}>HR</Text>
+                  <ColumnList
                     data={HOURS}
-                    initialIndex={hourIdx}
-                    onChange={setHourIdx}
+                    selectedIndex={hourIdx}
+                    onSelect={setHourIdx}
                   />
                 </View>
 
-                <Text style={styles.colon}>:</Text>
-
-                <View style={styles.wheelCol}>
-                  <Text style={styles.wheelLabel}>MIN</Text>
-                  <WheelPicker
-                    key={`m-${minIdx}`}
+                <View style={styles.column}>
+                  <Text style={styles.columnLabel}>MIN</Text>
+                  <ColumnList
                     data={MINUTES}
-                    initialIndex={minIdx}
-                    onChange={setMinIdx}
+                    selectedIndex={minIdx}
+                    onSelect={setMinIdx}
                   />
                 </View>
 
-                <View style={[styles.wheelCol, styles.periodCol]}>
-                  <Text style={styles.wheelLabel}> </Text>
-                  <WheelPicker
-                    key={`p-${periodIdx}`}
-                    data={PERIODS}
-                    initialIndex={periodIdx}
-                    onChange={setPeriodIdx}
-                  />
+                <View style={styles.periodColumn}>
+                  <Text style={styles.columnLabel}> </Text>
+                  <View style={styles.periodGroup}>
+                    <TouchableOpacity
+                      style={[
+                        styles.periodBtn,
+                        periodIdx === 0 && styles.periodBtnActive,
+                      ]}
+                      onPress={() => setPeriodIdx(0)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.periodText,
+                          periodIdx === 0 && styles.periodTextActive,
+                        ]}
+                      >
+                        AM
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.periodBtn,
+                        periodIdx === 1 && styles.periodBtnActive,
+                      ]}
+                      onPress={() => setPeriodIdx(1)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.periodText,
+                          periodIdx === 1 && styles.periodTextActive,
+                        ]}
+                      >
+                        PM
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </View>
@@ -198,33 +254,81 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: B.blue,
   },
-  wheelsRow: {
+  columnsRow: {
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 12,
+  },
+  column: {
+    flex: 1,
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 12,
   },
-  wheelCol: {
+  periodColumn: {
+    width: 80,
     alignItems: "center",
   },
-  periodCol: {
-    marginLeft: 12,
-    minWidth: 64,
-  },
-  wheelLabel: {
+  columnLabel: {
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.5,
     color: B.slate400,
-    marginBottom: 4,
+    marginBottom: 6,
     textTransform: "uppercase",
   },
-  colon: {
-    fontSize: 22,
+  colScroll: {
+    height: ROW_HEIGHT * 5,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: B.border,
+    borderRadius: 8,
+    backgroundColor: B.slate50,
+  },
+  colContent: {
+    paddingVertical: 4,
+  },
+  row: {
+    height: ROW_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowSelected: {
+    backgroundColor: "rgba(59,130,246,0.12)",
+  },
+  rowText: {
+    fontSize: 15,
+    color: B.text,
+  },
+  rowTextSelected: {
+    fontSize: 16,
     fontWeight: "700",
-    color: B.slate400,
-    marginHorizontal: 4,
-    marginTop: 20,
+    color: B.blue,
+  },
+  periodGroup: {
+    width: "100%",
+    gap: 8,
+  },
+  periodBtn: {
+    height: ROW_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: B.border,
+    borderRadius: 8,
+    backgroundColor: B.slate50,
+  },
+  periodBtnActive: {
+    backgroundColor: B.blue,
+    borderColor: B.blue,
+  },
+  periodText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: B.text,
+  },
+  periodTextActive: {
+    color: B.white,
   },
 });

@@ -4,13 +4,16 @@ import { NextResponse } from "next/server";
 /**
  * Expo web (e.g. localhost:8081) calls the Next API on another origin (localhost:3000).
  * Browsers require CORS headers or the response is blocked and fetch() fails (no redirect).
+ *
+ * Note: this file is intentionally named `middleware.ts` (not `proxy.ts`) because
+ * OpenNext's Cloudflare adapter only supports Edge middleware, while Next.js 16's
+ * new `proxy.ts` runs on the Node.js runtime which is incompatible.
  */
 function corsOrigin(request: NextRequest): string {
   const origin = request.headers.get("origin");
   if (!origin) return "*";
   const allowedEnv = process.env.CORS_ALLOW_ORIGIN;
   if (allowedEnv) return allowedEnv;
-  // Local dev: Metro / Expo on common hosts
   if (
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
     /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
@@ -39,7 +42,7 @@ function withCors(request: NextRequest, response: NextResponse) {
   return response;
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   if (request.method === "OPTIONS") {
     const res = new NextResponse(null, { status: 204 });
     return withCors(request, res);
