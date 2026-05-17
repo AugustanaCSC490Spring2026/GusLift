@@ -21,6 +21,15 @@ function formatTime12h(timeStr) {
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+function subtractMinutes(timeStr, minutes) {
+  if (!timeStr || !TIME_RE.test(String(timeStr).trim())) return "";
+  const [h, m] = String(timeStr).trim().split(":").map(Number);
+  const total = Math.max(0, h * 60 + m - minutes);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+    total % 60,
+  ).padStart(2, "0")}`;
+}
+
 export default function RiderWaitingRoom() {
   const router = useRouter();
   const { connect, send, onMessage, disconnect } = useMatching();
@@ -165,12 +174,17 @@ export default function RiderWaitingRoom() {
     }
   }
 
-  const effectiveSlotTime =
+  // In manual mode the time the user typed in is the class start time.
+  // Pickup time is always 15 minutes before class start.
+  const effectiveClassStart =
     isManualEntry && timeParam
       ? String(timeParam).trim()
       : manualTime.trim() && TIME_RE.test(manualTime.trim())
         ? manualTime.trim()
         : null;
+  const effectivePickup = effectiveClassStart
+    ? subtractMinutes(effectiveClassStart, 15)
+    : null;
 
   const statusLabel = connectError
     ? "Connection issue"
@@ -236,8 +250,19 @@ export default function RiderWaitingRoom() {
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Pickup time</Text>
           <Text style={styles.summaryValue}>
-            {effectiveSlotTime
-              ? formatTime12h(effectiveSlotTime)
+            {effectivePickup
+              ? formatTime12h(effectivePickup)
+              : needsManualTime
+                ? "Enter below"
+                : "—"}
+          </Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Class starts</Text>
+          <Text style={styles.summaryValue}>
+            {effectiveClassStart
+              ? formatTime12h(effectiveClassStart)
               : needsManualTime
                 ? "Enter below"
                 : "—"}
@@ -261,10 +286,10 @@ export default function RiderWaitingRoom() {
 
       {needsManualTime ? (
         <View style={styles.manualCard}>
-          <Text style={styles.manualTitle}>Add a one-off pickup time</Text>
+          <Text style={styles.manualTitle}>Add a one-off class time</Text>
           <Text style={styles.manualHint}>
-            Your saved schedule did not provide a usable time for today, so matching needs a
-            manual pickup window.
+            Your saved schedule did not provide a usable time for today. Enter the class
+            start time — we&apos;ll pick you up 15 minutes before.
           </Text>
           {!from?.trim() ? (
             <TextInput

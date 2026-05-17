@@ -62,41 +62,22 @@ export function getScheduleClassStart(scheduleDays, rideDate) {
 }
 
 /**
- * Pickup is always 15 minutes before class start.
+ * Pickup is always 15 minutes before class start, for both scheduled and
+ * manual rides. `Rides.start_time` is treated as the class start time in both
+ * cases, so the rider and driver always see the same numbers for a given ride
+ * regardless of their individual saved schedules.
  *
- * The DB stores `Rides.start_time` differently depending on how the ride was
- * matched, because the matching slot key carries different semantics:
- *  - Scheduled ride: slot time = `schedule.days[day].start_time` (class start),
- *    so `Rides.start_time === scheduleClassStart`. Pickup = start − 15.
- *  - Manual ride: slot time = the time the rider/driver typed in, treated as
- *    the desired pickup window. Pickup = start, class = start + 15.
- *
- * We disambiguate by comparing the saved ride time to the user's saved class
- * start for that weekday. If they match → scheduled. Otherwise → manual.
+ * The second argument is unused now but kept so existing callers don't need to
+ * change.
  */
-export function deriveRideDisplayTimes(rideStartTime, scheduleClassStart) {
+// eslint-disable-next-line no-unused-vars
+export function deriveRideDisplayTimes(rideStartTime, _scheduleClassStart) {
   const slot = normalizeTime24(rideStartTime);
-  const sched = normalizeTime24(scheduleClassStart);
-
-  if (!slot && !sched) {
-    return { pickupTime: "—", classTime: "—" };
-  }
   if (!slot) {
     return { pickupTime: "—", classTime: "—" };
   }
-
-  const isScheduledRide = sched != null && slot === sched;
-  if (isScheduledRide) {
-    return {
-      pickupTime: formatTime12h(subtractMinutes(sched, 15)),
-      classTime: formatTime12h(sched),
-    };
-  }
-
-  // Manual ride (or scheduled day exists but this ride was a one-off):
-  // saved start_time is the pickup window; class start is +15.
   return {
-    pickupTime: formatTime12h(slot),
-    classTime: formatTime12h(addMinutes(slot, 15)),
+    pickupTime: formatTime12h(subtractMinutes(slot, 15)),
+    classTime: formatTime12h(slot),
   };
 }

@@ -447,15 +447,18 @@ export default function DriverHome() {
             onChangeText={setManualDropoff}
           />
 
-          <Text style={styles.inputLabel}>Pickup time</Text>
+          <Text style={styles.inputLabel}>Class start time</Text>
           <TimePickerField
             value={manualTime}
             onChange={(value) => {
               setManualTime(value);
               if (manualFieldError) setManualFieldError(null);
             }}
-            placeholder="Select a pick up time"
+            placeholder="Select class start time"
           />
+          <Text style={styles.helperText}>
+            We&apos;ll pick riders up 15 minutes before class starts.
+          </Text>
 
           {manualFieldError ? (
             <Text style={styles.fieldError}>{manualFieldError}</Text>
