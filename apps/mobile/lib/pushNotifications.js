@@ -1,7 +1,27 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+
+let expoNotificationsModule;
+export function getExpoNotifications() {
+  if (expoNotificationsModule !== undefined) return expoNotificationsModule;
+  if (Platform.OS === "web") {
+    expoNotificationsModule = null;
+    return null;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    expoNotificationsModule = require("expo-notifications");
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[notifications] expo-notifications failed to load — rebuild the dev client: npx expo run:android",
+      e?.message || String(e),
+    );
+    expoNotificationsModule = null;
+  }
+  return expoNotificationsModule;
+}
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || "";
@@ -21,6 +41,8 @@ function getProjectId() {
 export async function registerCurrentUserPushToken() {
   try {
     if (Platform.OS === "web") return null;
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return null;
     const base = normalizeBackendUrl();
     if (!base) {
       console.log("[push] no BACKEND_URL configured");

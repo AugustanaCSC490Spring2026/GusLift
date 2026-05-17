@@ -5,7 +5,12 @@
       "Bash(./gradlew.bat --stop)",
       "Bash(adb *)",
       "Bash(node -e ' *)",
-      "Bash(./gradlew clean *)"
+      "Bash(./gradlew clean *)",
+      "Bash(git ls-tree *)",
+      "Bash(python -m pip install --quiet python-pptx)",
+      "Bash(python -m pip install --quiet --user python-pptx)",
+      "Bash(python -c \"import pptx; print\\('pptx', pptx.__version__\\)\")",
+      "Bash(python build_pptx.py)"
     ]
   }
 }

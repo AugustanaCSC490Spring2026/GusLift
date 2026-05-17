@@ -220,7 +220,8 @@ export default function RiderHome() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled
         showsVerticalScrollIndicator={false}
       >
         {pendingMatch && (

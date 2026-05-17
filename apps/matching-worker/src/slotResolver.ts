@@ -99,6 +99,37 @@ export function resolveMatchingSlotWithOverride(
   return `${normalizeLocation(locationRaw)}:${day}:${timeRaw}`;
 }
 
+export type ParsedMatchingSlot = {
+  location: string;
+  day: DayKey | string;
+  start_time: string;
+};
+
+/**
+ * Parse a slot key produced by resolveMatchingSlot / resolveMatchingSlotWithOverride.
+ * Format: `{location}:{day}:{HH}:{MM}` or legacy `{location}:{day}:{HH}`.
+ */
+export function parseMatchingSlotKey(slotKey: string): ParsedMatchingSlot {
+  const parts = slotKey.split(":");
+  const location = parts[0] ?? "";
+  const day = parts[1] ?? "";
+  const timeParts = parts.slice(2);
+  let start_time = "";
+  if (timeParts.length >= 2) {
+    start_time = `${timeParts[0]}:${timeParts[1]}`;
+  } else if (timeParts.length === 1) {
+    start_time = timeParts[0] ?? "";
+  }
+  return { location, day, start_time };
+}
+
+/** Postgres `time` expects HH:MM; hour-only slot segments default minutes to :00. */
+export function slotStartTimeToDb(start_time: string): string {
+  const trimmed = start_time.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.includes(":") ? trimmed : `${trimmed}:00`;
+}
+
 export class SlotResolveError extends Error {
   constructor(message: string) {
     super(message);

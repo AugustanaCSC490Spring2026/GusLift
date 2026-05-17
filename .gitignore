@@ -67,3 +67,6 @@ apps/backend/.next/
 # Matching worker — TS practice (see apps/matching-worker/practice/)
 apps/matching-worker/practice/matching-room-ts-practice.md
 apps/matching-worker/practice/matching-room-exercises.starter.ts
+
+# Presentation slides (local, not tracked)
+slides/

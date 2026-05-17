@@ -44,6 +44,15 @@ export default function RiderWaitingRoom() {
   const [manualLocation, setManualLocation] = useState(from ?? "");
   const [connectError, setConnectError] = useState(null);
 
+  function buildRiderRequest(riderId) {
+    const tripTo = String(to ?? "").trim();
+    return {
+      type: "rider_request",
+      rider_id: riderId,
+      ...(tripTo ? { to_location: tripTo } : {}),
+    };
+  }
+
   useEffect(() => {
     let unsubscribe;
     let cancelled = false;
@@ -98,7 +107,7 @@ export default function RiderWaitingRoom() {
         return;
       }
       if (result?.ok && result.userId) {
-        send({ type: "rider_request", rider_id: result.userId });
+        send(buildRiderRequest(result.userId));
         setConnected(true);
         return;
       }
@@ -121,7 +130,7 @@ export default function RiderWaitingRoom() {
     const result = await connect({ location: loc, time });
     if (result?.ok && result.userId) {
       setNeedsManualTime(false);
-      send({ type: "rider_request", rider_id: result.userId });
+      send(buildRiderRequest(result.userId));
       setConnected(true);
     } else if (result?.error) {
       setConnectError(result.error);
@@ -140,7 +149,7 @@ export default function RiderWaitingRoom() {
       return;
     }
     if (result?.ok && result.userId) {
-      send({ type: "rider_request", rider_id: result.userId });
+      send(buildRiderRequest(result.userId));
       setConnected(true);
     } else {
       setConnectError(result?.error ?? "Could not connect.");

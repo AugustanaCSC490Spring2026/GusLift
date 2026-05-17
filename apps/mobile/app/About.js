@@ -329,7 +329,9 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     ...Platform.select({
       web: {
-        flex: "1 1 45%",
+        flexGrow: 1,
+        flexShrink: 1,
+        flexBasis: "45%",
         minWidth: 260,
         transition: "transform 0.25s ease, box-shadow 0.25s ease",
         cursor: "default",

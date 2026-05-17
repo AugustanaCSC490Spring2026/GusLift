@@ -55,7 +55,12 @@ export default function DriverWaitingRoom() {
         : await connect();
 
       if (result?.ok && result.userId) {
-        send({ type: "driver_online", driver_id: result.userId });
+        const tripTo = String(to ?? "").trim();
+        send({
+          type: "driver_online",
+          driver_id: result.userId,
+          ...(tripTo ? { to_location: tripTo } : {}),
+        });
         setConnected(true);
         setStatusMessage("");
       } else if (result?.needsManualTime) {

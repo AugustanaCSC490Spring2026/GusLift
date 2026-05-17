@@ -1,6 +1,10 @@
 import type { Env } from "../db";
 import { getSupabase } from "../db";
 import { sendMatchPushNotification } from "../pushNotifications";
+import {
+  parseMatchingSlotKey,
+  slotStartTimeToDb,
+} from "../slotResolver";
 import type {
   AcceptMatchEvent,
   ClientEvent,
@@ -57,6 +61,8 @@ export class MatchingRoom implements DurableObject {
   private connections: Map<string, WebSocket> = new Map();
   private matchTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private pushDedupes: Map<string, number> = new Map();
+  /** Per-rider trip destination from rider_request (survives pending/timeouts) */
+  private riderTripDestinations: Map<string, string> = new Map();
   private slotKey: string = "";
   private env: Env;
 
@@ -87,21 +93,49 @@ export class MatchingRoom implements DurableObject {
   }
 
 
+  private resolveRiderToLocation(
+    riderId: string,
+    waiting: RiderWaiting | undefined,
+    profile: RiderProfile,
+  ): string | null {
+    const fromWaiting =
+      typeof waiting?.to_location === "string" ? waiting.to_location.trim() : "";
+    if (fromWaiting) return fromWaiting;
+    const fromTrip = this.riderTripDestinations.get(riderId);
+    if (fromTrip) return fromTrip;
+    return profile.to_location;
+  }
+
+  private riderWaitingWire(
+    waiting: RiderWaiting,
+    profile: RiderProfile,
+  ): {
+    rider_id: string;
+    joined_at: number;
+    name: string | null;
+    picture_url: string | null;
+    to_location: string | null;
+  } {
+    return {
+      rider_id: waiting.rider_id,
+      joined_at: waiting.joined_at,
+      name: profile.name,
+      picture_url: profile.picture_url,
+      to_location: this.resolveRiderToLocation(
+        waiting.rider_id,
+        waiting,
+        profile,
+      ),
+    };
+  }
+
   private async sendInitialState(userId: string): Promise<void> {
     const riderProfiles = await Promise.all(
       this.riders_waiting.map((r) => this.fetchRiderProfile(r.rider_id)),
     );
-    const riders = this.riders_waiting.map((r, idx) => {
-      const profile = riderProfiles[idx];
-      return {
-        rider_id: r.rider_id,
-        joined_at: r.joined_at,
-        name: profile?.name ?? null,
-        picture_url: profile?.picture_url ?? null,
-        to_location: profile?.to_location ?? null,
-      };
-
-    });
+    const riders = this.riders_waiting.map((r, idx) =>
+      this.riderWaitingWire(r, riderProfiles[idx]!),
+    );
   
 
     const drivers = Array.from(this.drivers.entries()).map(
@@ -142,20 +176,16 @@ export class MatchingRoom implements DurableObject {
         if (driverId != null) {
           this.pending_matches.delete(riderId);
           const joined_at = Date.now();
-          this.riders_waiting.push({
+          const waiting: RiderWaiting = {
             rider_id: riderId,
             joined_at,
-          });
+            to_location: this.riderTripDestinations.get(riderId) ?? null,
+          };
+          this.riders_waiting.push(waiting);
           const profile = await this.fetchRiderProfile(riderId);
           this.broadcast({
             type: "rider_joined",
-            rider: {
-              rider_id: riderId,
-              joined_at,
-              name: profile.name,
-              picture_url: profile.picture_url,
-              to_location: profile.to_location,
-            },
+            rider: this.riderWaitingWire(waiting, profile),
           });
         }
       })();
@@ -168,12 +198,7 @@ export class MatchingRoom implements DurableObject {
     day: string;
     start_time: string;
   } {
-    const parts = this.slotKey.split(":");
-    return {
-      location: parts[0] ?? "",
-      day: parts[1] ?? "",
-      start_time: parts[2] ?? "",
-    };
+    return parseMatchingSlotKey(this.slotKey);
   }
 
   private shouldSendPush(
@@ -200,11 +225,7 @@ export class MatchingRoom implements DurableObject {
     rider_to_location?: string | null,
   ): Promise<RideRow> {
     const { location, start_time } = this.parseSlotKey();
-    // Normalize start_time to a valid Postgres time value.
-    // Our slot key sometimes stores just "HH" (e.g. "09"); Postgres `time`
-    // expects at least "HH:MM", so default missing minutes to ":00".
-    const dbStartTime =
-      start_time && !start_time.includes(":") ? `${start_time}:00` : start_time;
+    const dbStartTime = slotStartTimeToDb(start_time);
     const now = new Date();
     const ride_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const riderDrop =
@@ -246,12 +267,12 @@ export class MatchingRoom implements DurableObject {
         .from("schedule")
         .select("dropoff_loc")
         .eq("user_id", riderId)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(1),
     ]);
 
     const schedRows = schedRes.data as { dropoff_loc: string | null }[] | null;
-    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
+    const to_location = schedRows?.[0]?.dropoff_loc?.trim() || null;
 
     if (userRes.error || !userRes.data) {
       return {
@@ -295,7 +316,7 @@ export class MatchingRoom implements DurableObject {
         .from("schedule")
         .select("dropoff_loc")
         .eq("user_id", driverId)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(1),
     ]);
 
@@ -318,7 +339,7 @@ export class MatchingRoom implements DurableObject {
       picture_url: string | null;
     } | null;
     const schedRows = schedRes.data as { dropoff_loc: string | null }[] | null;
-    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
+    const to_location = schedRows?.[0]?.dropoff_loc?.trim() || null;
 
     const car: CarDetails | null = {
       make: row.make,
@@ -344,6 +365,12 @@ export class MatchingRoom implements DurableObject {
     const state = await this.fetchDriverPublicInfo(ev.driver_id);
     if (!state) return;
 
+    const tripTo =
+      typeof ev.to_location === "string" ? ev.to_location.trim() : "";
+    if (tripTo) {
+      state.to_location = tripTo;
+    }
+
     this.drivers.set(ev.driver_id, state);
     this.broadcast({
       type: "driver_joined",
@@ -367,21 +394,21 @@ export class MatchingRoom implements DurableObject {
     if (ev.rider_id !== userId) return;
     if (this.pending_matches.has(ev.rider_id)) return;
     if (this.riders_waiting.some((r) => r.rider_id === ev.rider_id)) return;
+    const tripTo =
+      typeof ev.to_location === "string" ? ev.to_location.trim() : "";
+    if (tripTo) {
+      this.riderTripDestinations.set(ev.rider_id, tripTo);
+    }
     const rider: RiderWaiting = {
       rider_id: ev.rider_id,
       joined_at: Date.now(),
+      to_location: tripTo || this.riderTripDestinations.get(ev.rider_id) || null,
     };
     this.riders_waiting.push(rider);
     const profile = await this.fetchRiderProfile(ev.rider_id);
     this.broadcast({
       type: "rider_joined",
-      rider: {
-        rider_id: rider.rider_id,
-        joined_at: rider.joined_at,
-        name: profile.name,
-        picture_url: profile.picture_url,
-        to_location: profile.to_location,
-      },
+      rider: this.riderWaitingWire(rider, profile),
     });
   }
 
@@ -484,10 +511,12 @@ export class MatchingRoom implements DurableObject {
     this.clearMatchTimeout(ev.rider_id);
 
     const joined_at = Date.now();
-    this.riders_waiting.push({
+    const waiting: RiderWaiting = {
       rider_id: ev.rider_id,
       joined_at,
-    });
+      to_location: this.riderTripDestinations.get(ev.rider_id) ?? null,
+    };
+    this.riders_waiting.push(waiting);
 
     const profile = await this.fetchRiderProfile(ev.rider_id);
 
@@ -498,13 +527,7 @@ export class MatchingRoom implements DurableObject {
     });
     this.broadcast({
       type: "rider_joined",
-      rider: {
-        rider_id: ev.rider_id,
-        joined_at,
-        name: profile.name,
-        picture_url: profile.picture_url,
-        to_location: profile.to_location,
-      },
+      rider: this.riderWaitingWire(waiting, profile),
     });
   }
 
@@ -550,6 +573,7 @@ export class MatchingRoom implements DurableObject {
       this.riders_waiting = this.riders_waiting.filter(
         (r) => r.rider_id !== userId,
       );
+      this.riderTripDestinations.delete(userId);
       this.pending_matches.delete(userId);
       this.clearMatchTimeout(userId);
     });

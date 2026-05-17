@@ -2,11 +2,15 @@
 export type DriverOnlineEvent = {
   type: "driver_online";
   driver_id: string;
+  /** Trip destination from the driver flow; overrides schedule.dropoff_loc when set */
+  to_location?: string | null;
 };
 
 export type RiderRequestEvent = {
   type: "rider_request";
   rider_id: string;
+  /** Trip destination from the rider flow; overrides schedule.dropoff_loc when set */
+  to_location?: string | null;
 };
 
 export type SelectRiderEvent = {

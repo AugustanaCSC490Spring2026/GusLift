@@ -92,6 +92,7 @@ export default function DriverHome() {
   const [pictureUrl, setPictureUrl] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [from, setFrom] = useState(null);
+  const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
   const [classStart, setClassStart] = useState(null);
   const [classEnd, setClassEnd] = useState(null);
@@ -158,6 +159,7 @@ export default function DriverHome() {
 
         if (body.picture_url) setPictureUrl(body.picture_url);
         setFrom(resolvedFrom);
+        setDropoffLoc(body.dropoff_loc ?? null);
         setClassStart(todaySchedule?.start_time ?? null);
         setClassEnd(todaySchedule?.end_time ?? null);
       }
@@ -265,6 +267,7 @@ export default function DriverHome() {
       pathname: "/driver/DriverWaitingRoom",
       params: {
         from: schedulePickup.trim() || (from ?? ""),
+        to: dropoffLoc ?? "",
         pickupTime,
         classStart: classStart ?? "",
         classEnd: classEnd ?? "",
@@ -284,7 +287,8 @@ export default function DriverHome() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
