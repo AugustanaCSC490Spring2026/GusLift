@@ -15,6 +15,10 @@ import {
 } from 'react-native';
 import { ClockIcon, HistoryLineIcon } from "../../components/Icons";
 import { useMatching } from "../../context/MatchingContext";
+import {
+  deriveRideDisplayTimes,
+  getScheduleClassStart,
+} from "../../lib/rideTimeDisplay";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -126,7 +130,7 @@ const RideCard = ({ ride, onPress, isFirstOfUpcoming }) => {
       <View style={styles.infoRow}>
         <InfoBox label="Pick up time" value={ride.pickupTime} accent />
         <View style={{ width: 10 }} />
-        <InfoBox label="Arrival" value={ride.classTime} />
+        <InfoBox label="Class start time" value={ride.classTime} />
       </View>
 
       <Timeline pickup={ride.pickup} destination={ride.destination} compact />
@@ -173,7 +177,7 @@ const RideDetail = ({ ride, onBack }) => {
           <View style={styles.infoRow}>
             <InfoBox label="Pick up time" value={ride.pickupTime} accent />
             <View style={{ width: 10 }} />
-            <InfoBox label="Arrival" value={ride.classTime} />
+            <InfoBox label="Class start time" value={ride.classTime} />
           </View>
 
           <View style={{ marginTop: 24 }}>
@@ -245,23 +249,37 @@ export default function ScheduledRidesRider() {
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
       const isHistory = type === 'history';
       const url = `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(String(user.id))}${isHistory ? '&history=true' : ''}`;
-      
-      const res = await fetch(url);
+
+      const [res, scheduleRes] = await Promise.all([
+        fetch(url),
+        fetch(`${normalizedBackendUrl}/api/rider/schedule`, {
+          headers: { "x-user-id": String(user.id) },
+        }),
+      ]);
       if (!res.ok) return;
-      
+
       const payload = await res.json();
       const ridesData = payload?.rides ?? [];
+      let scheduleDays = null;
+      if (scheduleRes.ok) {
+        const scheduleBody = await scheduleRes.json();
+        scheduleDays = scheduleBody?.days ?? null;
+      }
 
       const enriched = ridesData.map((ride) => {
-        const [h, m] = ride.start_time.split(":").map(Number);
-        const endM = (m + 10) % 60;
-        const endH = h + Math.floor((m + 10) / 60);
-        const classTime = formatTime12h(`${endH}:${endM}`);
+        const scheduleClassStart = getScheduleClassStart(
+          scheduleDays,
+          ride.ride_date,
+        );
+        const { pickupTime, classTime } = deriveRideDisplayTimes(
+          ride.start_time,
+          scheduleClassStart,
+        );
 
         return {
           id: ride.id,
           timestamp: ride.ride_date,
-          pickupTime: formatTime12h(ride.start_time),
+          pickupTime,
           classTime,
           pickup: ride.pickup_loc,
           destination: ride.dropoff_loc,

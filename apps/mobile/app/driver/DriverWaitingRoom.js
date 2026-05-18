@@ -20,6 +20,15 @@ function formatTime12h(timeStr) {
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+function subtractMinutes(timeStr, minutes) {
+  if (!timeStr || !TIME_RE.test(String(timeStr).trim())) return "";
+  const [h, m] = String(timeStr).trim().split(":").map(Number);
+  const total = Math.max(0, h * 60 + m - minutes);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+    total % 60,
+  ).padStart(2, "0")}`;
+}
+
 export default function DriverWaitingRoom() {
   const router = useRouter();
   const { connect, send, disconnect, onMessage } = useMatching();
@@ -43,6 +52,15 @@ export default function DriverWaitingRoom() {
 
   const isManualEntry = matchMode === "manual";
 
+  // For both modes pickup is always 15 minutes before class start. For manual
+  // mode the user types in the class start time directly; for schedule mode
+  // OfferRide/DriverHome pass the class start (and a pre-derived pickup, but
+  // we recompute here so the source of truth stays in one place).
+  const effectiveClassStart = isManualEntry ? time : classStart;
+  const effectivePickup = effectiveClassStart
+    ? subtractMinutes(effectiveClassStart, 15)
+    : pickupTime;
+
   const [connected, setConnected] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -55,7 +73,12 @@ export default function DriverWaitingRoom() {
         : await connect();
 
       if (result?.ok && result.userId) {
-        send({ type: "driver_online", driver_id: result.userId });
+        const tripTo = String(to ?? "").trim();
+        send({
+          type: "driver_online",
+          driver_id: result.userId,
+          ...(tripTo ? { to_location: tripTo } : {}),
+        });
         setConnected(true);
         setStatusMessage("");
       } else if (result?.needsManualTime) {
@@ -77,8 +100,8 @@ export default function DriverWaitingRoom() {
             pathname: "/driver/AvailableRiders",
             params: {
               from,
-              pickupTime: isManualEntry ? time : pickupTime,
-              classStart,
+              pickupTime: effectivePickup,
+              classStart: effectiveClassStart,
               classEnd,
               to,
               matchMode,
@@ -163,17 +186,17 @@ export default function DriverWaitingRoom() {
         <View style={styles.divider} />
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Pickup time</Text>
+          <Text style={styles.summaryValue}>{formatTime12h(effectivePickup)}</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Class starts</Text>
           <Text style={styles.summaryValue}>
-            {formatTime12h(isManualEntry ? time : pickupTime)}
+            {formatTime12h(effectiveClassStart)}
           </Text>
         </View>
-        {!isManualEntry ? (
+        {!isManualEntry && classEnd ? (
           <>
-            <View style={styles.divider} />
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Class starts</Text>
-              <Text style={styles.summaryValue}>{formatTime12h(classStart)}</Text>
-            </View>
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Class ends</Text>

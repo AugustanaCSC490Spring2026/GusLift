@@ -15,6 +15,10 @@ import {
   View
 } from 'react-native';
 import { ClockIcon, HistoryLineIcon, SearchLineIcon } from "../../components/Icons";
+import {
+  deriveRideDisplayTimes,
+  getScheduleClassStart,
+} from "../../lib/rideTimeDisplay";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -125,7 +129,7 @@ const RideCard = ({ group, onPress, isFirstOfUpcoming }) => {
       <View style={styles.infoRow}>
         <InfoBox label="Pick up time" value={group.pickupTime} accent />
         <View style={{ width: 10 }} />
-        <InfoBox label="Arrival" value={group.classTime} />
+        <InfoBox label="Class start time" value={group.classTime} />
       </View>
 
       <Timeline pickup={group.pickup} destination={group.destination} compact />
@@ -141,7 +145,9 @@ const RideCard = ({ group, onPress, isFirstOfUpcoming }) => {
             <Text style={styles.driverLabel}>RIDERS</Text>
             <Text style={styles.driverName}>
               {group.riders.length} {group.riders.length === 1 ? 'rider' : 'riders'}
-              {group.riders.length > 0 ? ` • ${group.riders.map(r => r.name.split(' ')[0]).join(', ')}` : ''}
+              {group.riders.length > 0
+                ? ` • ${group.riders.map(r => (r.name || 'Unknown').split(' ')[0]).join(', ')}`
+                : ''}
             </Text>
           </View>
         </View>
@@ -170,7 +176,7 @@ const RideDetail = ({ group, onBack, onComplete, completingKey }) => {
           <View style={styles.infoRow}>
             <InfoBox label="Pick up time" value={group.pickupTime} accent />
             <View style={{ width: 10 }} />
-            <InfoBox label="Arrival" value={group.classTime} />
+            <InfoBox label="Class start time" value={group.classTime} />
           </View>
 
           <View style={{ marginTop: 24 }}>
@@ -234,26 +240,27 @@ export default function ScheduledRidesDriver() {
     loadRides('history');
   }, []);
 
-  function groupRidesMapping(rides, type) {
+  function groupRidesMapping(rides, type, scheduleDays) {
     const map = new Map();
     for (const ride of rides) {
       // Create a unique key per timeslot
       const key = `${ride.ride_date || ride.day}|${ride.start_time}`;
       if (!map.has(key)) {
-        let classTime = "—";
-        if (ride.start_time) {
-          const [h, m] = ride.start_time.split(":").map(Number);
-          const endM = (m + 10) % 60;
-          const endH = h + Math.floor((m + 10) / 60);
-          classTime = formatTime12h(`${endH}:${endM}`);
-        }
+        const scheduleClassStart = getScheduleClassStart(
+          scheduleDays,
+          ride.ride_date,
+        );
+        const { pickupTime, classTime } = deriveRideDisplayTimes(
+          ride.start_time,
+          scheduleClassStart,
+        );
 
         map.set(key, {
           key,
           id: key, // for rendering loop
           timestamp: ride.ride_date || new Date().toISOString(),
-          pickupTime: formatTime12h(ride.start_time),
-          classTime: classTime,
+          pickupTime,
+          classTime,
           pickup: ride.pickup_loc || ride.location || "Unknown Pickup",
           destination: ride.dropoff_loc || "Augustana College",
           status: type === 'history' || ride.status === 'completed' ? 'Completed' : 'Confirmed',
@@ -286,13 +293,23 @@ export default function ScheduledRidesDriver() {
       const isHistory = type === 'history';
       const url = `${normalizedBackendUrl}/api/driver/rides?driver_id=${encodeURIComponent(String(user.id))}${isHistory ? '&history=true' : ''}`;
 
-      const res = await fetch(url);
+      const [res, scheduleRes] = await Promise.all([
+        fetch(url),
+        fetch(`${normalizedBackendUrl}/api/driver/schedule`, {
+          headers: { "x-user-id": String(user.id) },
+        }),
+      ]);
       if (!res.ok) return;
 
       const payload = await res.json();
       const ridesData = payload?.rides ?? [];
+      let scheduleDays = null;
+      if (scheduleRes.ok) {
+        const scheduleBody = await scheduleRes.json();
+        scheduleDays = scheduleBody?.days ?? null;
+      }
 
-      const grouped = groupRidesMapping(ridesData, type);
+      const grouped = groupRidesMapping(ridesData, type, scheduleDays);
 
       if (isHistory) {
         setHistoryGroups(grouped);

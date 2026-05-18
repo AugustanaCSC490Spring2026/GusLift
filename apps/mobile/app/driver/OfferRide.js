@@ -215,7 +215,7 @@ export default function OfferRide() {
             onChangeText={setManualDropoff}
           />
 
-          <Text style={styles.fieldLabel}>Pickup time (24h)</Text>
+          <Text style={styles.fieldLabel}>Class start time (24h)</Text>
           <TimePickerField
             value={manualTime}
             onChange={(t) => {
@@ -224,6 +224,9 @@ export default function OfferRide() {
             }}
             placeholder="e.g. 08:30"
           />
+          <Text style={styles.fieldHelper}>
+            Riders will be picked up 15 minutes before class starts.
+          </Text>
 
           {manualFieldError ? <Text style={styles.fieldError}>{manualFieldError}</Text> : null}
 
@@ -362,6 +365,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#b45309",
     marginTop: 8,
+    marginBottom: 4,
+  },
+  fieldHelper: {
+    fontSize: 13,
+    color: "#64748B",
+    marginTop: 6,
     marginBottom: 4,
   },
   input: {

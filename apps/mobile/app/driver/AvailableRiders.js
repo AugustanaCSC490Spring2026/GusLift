@@ -14,9 +14,22 @@ import {
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-function RiderCard({ rider, isPending, onPress }) {
+function RiderCard({ rider, isPending, isRejected, onPress }) {
+  const disabled = isPending || isRejected;
+  const buttonLabel = isRejected
+    ? "Rejected"
+    : isPending
+      ? "Waiting..."
+      : "Select";
+
   return (
-    <View style={[styles.card, isPending && styles.cardPending]}>
+    <View
+      style={[
+        styles.card,
+        isPending && styles.cardPending,
+        isRejected && styles.cardRejected,
+      ]}
+    >
       {rider.picture_url ? (
         <Image source={{ uri: rider.picture_url }} style={styles.avatar} />
       ) : (
@@ -29,25 +42,32 @@ function RiderCard({ rider, isPending, onPress }) {
 
       <View style={styles.info}>
         <Text style={styles.name}>{rider.name ?? "Unknown rider"}</Text>
-        {rider.to_location ? (
+        {isRejected ? (
+          <Text style={styles.rejectedNote}>
+            Rider rejected your request
+          </Text>
+        ) : rider.to_location ? (
           <Text style={styles.toLocation}>Going to {rider.to_location}</Text>
         ) : null}
-        {rider.rating != null ? (
-          <Text style={styles.rating}>Rating {rider.rating.toFixed(1)}</Text>
-        ) : (
-          <Text style={styles.ratingMuted}>No rating yet</Text>
-        )}
+        {!isRejected &&
+          (rider.rating != null ? (
+            <Text style={styles.rating}>Rating {rider.rating.toFixed(1)}</Text>
+          ) : (
+            <Text style={styles.ratingMuted}>No rating yet</Text>
+          ))}
       </View>
 
       <TouchableOpacity
-        style={[styles.selectButton, isPending && styles.selectButtonPending]}
+        style={[
+          styles.selectButton,
+          isPending && styles.selectButtonPending,
+          isRejected && styles.selectButtonRejected,
+        ]}
         onPress={onPress}
-        activeOpacity={isPending ? 1 : 0.86}
-        disabled={isPending}
+        activeOpacity={disabled ? 1 : 0.86}
+        disabled={disabled}
       >
-        <Text style={styles.selectButtonText}>
-          {isPending ? "Waiting..." : "Select"}
-        </Text>
+        <Text style={styles.selectButtonText}>{buttonLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -59,6 +79,7 @@ export default function AvailableRidersScreen() {
     useMatching();
   const [riders, setRiders] = useState([]);
   const [pendingRiderIds, setPendingRiderIds] = useState(new Set());
+  const [rejectedRiderIds, setRejectedRiderIds] = useState(new Set());
   const [capacity, setCapacity] = useState(4);
   const [seatsUsed, setSeatsUsed] = useState(0);
 
@@ -87,7 +108,12 @@ export default function AvailableRidersScreen() {
     setRiders(getRidersSnapshot?.() ?? []);
 
     const unsubscribe = onMessage((msg) => {
-      if (msg.type === "initial_state") setRiders(msg.riders ?? []);
+      if (msg.type === "initial_state") {
+        setRiders(msg.riders ?? []);
+        if (Array.isArray(msg.rejected_by_me)) {
+          setRejectedRiderIds(new Set(msg.rejected_by_me));
+        }
+      }
       if (msg.type === "rider_joined") {
         setRiders((prev) => {
           if (prev.some((rider) => rider.rider_id === msg.rider?.rider_id)) {
@@ -108,6 +134,12 @@ export default function AvailableRidersScreen() {
         setPendingRiderIds((prev) => {
           const next = new Set(prev);
           next.delete(msg.rider_id);
+          return next;
+        });
+        setRejectedRiderIds((prev) => {
+          if (prev.has(msg.rider_id)) return prev;
+          const next = new Set(prev);
+          next.add(msg.rider_id);
           return next;
         });
       }
@@ -136,6 +168,7 @@ export default function AvailableRidersScreen() {
 
   function handleSelectRider(rider) {
     if (pendingRiderIds.has(rider.rider_id)) return;
+    if (rejectedRiderIds.has(rider.rider_id)) return;
 
     if (capacity !== null && seatsUsed + pendingRiderIds.size >= capacity) {
       Alert.alert("Car Full", "Car seat capacity reached.");
@@ -232,6 +265,7 @@ export default function AvailableRidersScreen() {
               key={rider.rider_id}
               rider={rider}
               isPending={pendingRiderIds.has(rider.rider_id)}
+              isRejected={rejectedRiderIds.has(rider.rider_id)}
               onPress={() => handleSelectRider(rider)}
             />
           ))
@@ -378,6 +412,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#eef3ef",
     opacity: 0.85,
   },
+  cardRejected: {
+    backgroundColor: "#f7ecec",
+    borderColor: "#e0c4c4",
+    opacity: 0.85,
+  },
   avatar: {
     width: 56,
     height: 56,
@@ -409,6 +448,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#61746c",
   },
+  rejectedNote: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#a04141",
+  },
   rating: {
     fontSize: 13,
     fontWeight: "700",
@@ -429,6 +473,9 @@ const styles = StyleSheet.create({
   },
   selectButtonPending: {
     backgroundColor: "#81948b",
+  },
+  selectButtonRejected: {
+    backgroundColor: "#b07a7a",
   },
   selectButtonText: {
     fontSize: 13,

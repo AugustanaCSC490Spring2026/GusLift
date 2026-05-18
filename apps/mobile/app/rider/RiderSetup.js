@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Alert, Platform, TouchableOpacity, Text } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -39,6 +39,7 @@ export default function RiderSetup() {
   const [isSameAsPickup, setIsSameAsPickup] = useState(false);
 
   const [classBlocks, setClassBlocks] = useState([]);
+  const scheduleManagerRef = useRef(null);
   const [photo, setPhoto] = useState(null);
   const [selectedImageData, setSelectedImageData] = useState(null);
 
@@ -53,7 +54,7 @@ export default function RiderSetup() {
     return true;
   };
 
-  const submitRiderProfile = async () => {
+  const submitRiderProfile = async (blocksOverride) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
@@ -76,8 +77,13 @@ export default function RiderSetup() {
       formData.append("dropoff_loc", isSameAsPickup ? pickup.trim() : dropoff.trim());
       formData.append("is_rider", "true");
 
+      // setBlocks is async, so when handleNext flushes a pending draft and then
+      // immediately calls submitRiderProfile (edit-schedule mode), classBlocks
+      // here is still the stale value. blocksOverride lets the caller pass the
+      // already-merged list synchronously to avoid losing the just-committed block.
+      const finalBlocks = blocksOverride ?? classBlocks;
       const daysPayload = {};
-      classBlocks.forEach(block => {
+      finalBlocks.forEach(block => {
         block.days.forEach(day => {
           const key = day.toLowerCase();
           daysPayload[key] = {
@@ -124,8 +130,16 @@ export default function RiderSetup() {
   };
 
   const handleNext = () => {
+    // Auto-commit any half-filled but valid draft block on the schedule step
+    // so users don't lose schedule data they typed in but forgot to tap
+    // "Add to Week" on. Returns the merged blocks array synchronously.
+    let pendingBlocks = classBlocks;
+    if (step === 2 && scheduleManagerRef.current) {
+      pendingBlocks = scheduleManagerRef.current.commitDraft() ?? classBlocks;
+    }
+
     if (isEditing && step === 2) {
-      submitRiderProfile();
+      submitRiderProfile(pendingBlocks);
     } else if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {
@@ -194,7 +208,11 @@ export default function RiderSetup() {
       )}
 
       {step === 2 && (
-        <ScheduleManager blocks={classBlocks} setBlocks={setClassBlocks} />
+        <ScheduleManager
+          ref={scheduleManagerRef}
+          blocks={classBlocks}
+          setBlocks={setClassBlocks}
+        />
       )}
 
       {step === 3 && (

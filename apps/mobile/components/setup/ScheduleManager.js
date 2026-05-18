@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { s } from './SetupStyles';
 import { B, CheckIcon, TrashIcon } from './SetupIcons';
@@ -9,7 +9,7 @@ import TimePickerField from './TimePickerField';
 const DAY_SHORT = ['m', 't', 'w', 't', 'f', 's', 's'];
 const DAY_LONG = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export default function ScheduleManager({ blocks, setBlocks }) {
+const ScheduleManager = forwardRef(function ScheduleManager({ blocks, setBlocks }, ref) {
   const [tempFrom, setTempFrom] = useState('');
   const [tempTo, setTempTo] = useState('');
   const [tempDays, setTempDays] = useState([]);
@@ -41,9 +41,18 @@ export default function ScheduleManager({ blocks, setBlocks }) {
     }
   };
 
-  const addBlock = () => {
-    if (!tempFrom || !tempTo || tempDays.length === 0 || (!isAllDay && !startTime24) || (!isAllDay && !endTime) || timeError) return;
-    const block = {
+  const buildDraftBlock = () => {
+    if (
+      !tempFrom ||
+      !tempTo ||
+      tempDays.length === 0 ||
+      (!isAllDay && !startTime24) ||
+      (!isAllDay && !endTime) ||
+      timeError
+    ) {
+      return null;
+    }
+    return {
       id: Math.random().toString(36).substr(2, 9),
       from: tempFrom,
       to: tempTo,
@@ -52,9 +61,9 @@ export default function ScheduleManager({ blocks, setBlocks }) {
       end: isAllDay ? '' : endTime,
       recurrence: 'Weekly',
     };
-    setBlocks((prev) => [...prev, block]);
-    
-    // Reset form inputs after adding
+  };
+
+  const resetDraft = () => {
     setTempFrom('');
     setTempTo('');
     setTempDays([]);
@@ -62,6 +71,27 @@ export default function ScheduleManager({ blocks, setBlocks }) {
     setEndTime('');
     setTimeError('');
   };
+
+  const addBlock = () => {
+    const block = buildDraftBlock();
+    if (!block) return;
+    setBlocks((prev) => [...prev, block]);
+    resetDraft();
+  };
+
+  // Exposed to the parent (RiderSetup) so it can flush a half-filled but valid
+  // draft block when the user clicks "Next Step" without first tapping
+  // "Add to Week". Returns the merged blocks array synchronously so the parent
+  // can submit the up-to-date schedule without waiting for setBlocks to flush.
+  useImperativeHandle(ref, () => ({
+    commitDraft: () => {
+      const block = buildDraftBlock();
+      if (!block) return blocks;
+      setBlocks((prev) => [...prev, block]);
+      resetDraft();
+      return [...blocks, block];
+    },
+  }));
 
   return (
     <View style={{ gap: 24 }}>
@@ -237,4 +267,6 @@ export default function ScheduleManager({ blocks, setBlocks }) {
       </View>
     </View>
   );
-}
+});
+
+export default ScheduleManager;

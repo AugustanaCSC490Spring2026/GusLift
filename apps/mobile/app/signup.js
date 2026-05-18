@@ -63,7 +63,8 @@ export default function Signup() {
   const { role: presetRole, pickup: landingPickup, destination: landingDestination } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const handledAuthAttemptRef = useRef(0);
-  const enforceSchoolEmail = process.env.EXPO_PUBLIC_ENFORCE_SCHOOL_EMAIL !== "false";
+  const enforceSchoolEmail =
+    process.env.EXPO_PUBLIC_ENFORCE_SCHOOL_EMAIL !== "false";
 
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
   const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
@@ -83,13 +84,25 @@ export default function Signup() {
     ios: "EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS",
     default: "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB",
   });
+  // On Android, Google's OAuth server only accepts the reverse-client-ID scheme
+  // when "Enable custom URI scheme" is turned on in Cloud Console, i.e.:
+  //   com.googleusercontent.apps.{clientId}:/oauth2redirect/google
+  // That scheme is already registered in AndroidManifest.xml (added via app.json),
+  // so Android can route the callback correctly.
+  //
+  // expo-auth-session would otherwise auto-compute:
+  //   com.guslift.app:/oauthredirect  (Application.applicationId)
+  // which is NOT a registered scheme → Android can't open it → "dismiss".
   const androidReverseClientId = androidClientId
     ? androidClientId.split(".").reverse().join(".")
     : null;
   const fallbackRedirectUri =
     Platform.OS === "android" && androidReverseClientId
       ? `${androidReverseClientId}:/oauth2redirect/google`
-      : makeRedirectUri({ scheme: "guslift", path: "oauthredirect" });
+      : makeRedirectUri({
+          scheme: "guslift",
+          path: "oauthredirect",
+        });
   const redirectUri =
     Platform.OS === "web" && webRedirectUriOverride
       ? webRedirectUriOverride
@@ -100,7 +113,7 @@ export default function Signup() {
     webClientId,
     androidClientId,
     iosClientId,
-    redirectUri,
+    redirectUri, // always explicit – avoids the com.guslift.app scheme auto-inference
     selectAccount: true,
     ...(enforceSchoolEmail ? { extraParams: { hd: SCHOOL_DOMAIN } } : {}),
   });
@@ -248,8 +261,15 @@ export default function Signup() {
       if (!loading || handledAuthAttemptRef.current > 0) return;
       handledAuthAttemptRef.current = 1;
       const token = response.authentication?.accessToken;
-      if (token) { fetchUserInfo(token); }
-      else { setLoading(false); Alert.alert("Sign-in Error", "No access token returned. Please try again."); }
+      if (token) {
+        fetchUserInfo(token);
+      } else {
+        setLoading(false);
+        Alert.alert(
+          "Sign-in Error",
+          "No access token returned. Please try again.",
+        );
+      }
       return;
     }
     if (response?.type === "error") {
@@ -260,6 +280,7 @@ export default function Signup() {
     }
     if (response && response.type !== "success") {
       handledAuthAttemptRef.current = 1;
+      // Android can return dismiss/cancel; always clear spinner in those cases.
       setLoading(false);
     }
   }, [response, fetchUserInfo, loading]);
@@ -294,21 +315,40 @@ export default function Signup() {
           handledAuthAttemptRef.current = 1;
           try {
             const body = Object.entries({
-              code:          authResult.params.code,
-              client_id:     androidClientId,
-              redirect_uri:  redirectUri,
-              grant_type:    "authorization_code",
+              code: authResult.params.code,
+              client_id: androidClientId,
+              redirect_uri: redirectUri,
+              grant_type: "authorization_code",
               code_verifier: request?.codeVerifier ?? "",
-            }).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
+            })
+              .map(
+                ([k, v]) =>
+                  `${encodeURIComponent(k)}=${encodeURIComponent(v)}`,
+              )
+              .join("&");
 
-            const tokenRes  = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+            const tokenRes = await fetch(
+              "https://oauth2.googleapis.com/token",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body,
+              },
+            );
             const tokenData = await tokenRes.json();
-            console.log("[GusLift] Token exchange status:", tokenRes.status, tokenData.error ?? "ok");
 
-            if (tokenData.access_token) { fetchUserInfo(tokenData.access_token); }
-            else { setLoading(false); Alert.alert("Sign-in Error", `Token exchange failed: ${tokenData.error_description ?? tokenData.error ?? "unknown"}`); }
-          } catch (exchangeErr) {
-            console.log("[GusLift] Token exchange exception:", exchangeErr?.message);
+            if (tokenData.access_token) {
+              fetchUserInfo(tokenData.access_token);
+            } else {
+              setLoading(false);
+              Alert.alert(
+                "Sign-in Error",
+                `Token exchange failed: ${tokenData.error_description ?? tokenData.error ?? "unknown"}`,
+              );
+            }
+          } catch {
             setLoading(false);
             Alert.alert("Sign-in Error", "Token exchange failed. Please try again.");
           }

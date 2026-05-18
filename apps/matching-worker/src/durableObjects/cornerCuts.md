@@ -77,3 +77,6 @@ Fix the user flow for upcoming rides esp for rider. the shouldnt be able to go b
 
 Ride details when you click on the upcoming rides for rider still has hardcoded "To"
 the handle select rider tile is not showing the users correct To location. 
+
+
+driver should get notif if a new driver joins the DO.

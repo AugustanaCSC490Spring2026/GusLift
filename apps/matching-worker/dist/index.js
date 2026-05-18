@@ -12138,8 +12138,9 @@ async function sendMatchPushNotification(env, params) {
       body: JSON.stringify(messages)
     });
     if (!response.ok) {
+      const body = await response.text().catch(() => "");
       console.error(
-        `[push] expo send failed (${response.status}) for user ${params.recipientUserId}`
+        `[push] expo send failed (${response.status}) for user ${params.recipientUserId} tokens=${JSON.stringify(tokens)} body=${body}`
       );
       return;
     }
@@ -12162,436 +12163,6 @@ async function sendMatchPushNotification(env, params) {
   }
 }
 __name(sendMatchPushNotification, "sendMatchPushNotification");
-
-// src/durableObjects/MatchingRoom.ts
-var MATCH_TIMEOUT_MS = 4 * 60 * 1e3;
-var PUSH_DEDUPE_BUCKET_MS = 30 * 1e3;
-var PUSH_DEDUPE_RETENTION_MS = 2 * 60 * 1e3;
-var MatchingRoom = class {
-  drivers = /* @__PURE__ */ new Map();
-  riders_waiting = [];
-  pending_matches = /* @__PURE__ */ new Map();
-  connections = /* @__PURE__ */ new Map();
-  matchTimeouts = /* @__PURE__ */ new Map();
-  pushDedupes = /* @__PURE__ */ new Map();
-  slotKey = "";
-  env;
-  constructor(_ctx, env) {
-    this.env = env;
-  }
-  broadcast(message) {
-    const payload = JSON.stringify(message);
-    for (const ws of this.connections.values()) {
-      try {
-        ws.send(payload);
-      } catch (_) {
-      }
-    }
-  }
-  sendTo(userId, message) {
-    const ws = this.connections.get(userId);
-    if (ws) {
-      try {
-        ws.send(JSON.stringify(message));
-      } catch (_) {
-      }
-    }
-  }
-  async sendInitialState(userId) {
-    const riderProfiles = await Promise.all(
-      this.riders_waiting.map((r) => this.fetchRiderProfile(r.rider_id))
-    );
-    const riders = this.riders_waiting.map((r, idx) => {
-      const profile = riderProfiles[idx];
-      return {
-        rider_id: r.rider_id,
-        joined_at: r.joined_at,
-        name: profile?.name ?? null,
-        picture_url: profile?.picture_url ?? null,
-        to_location: profile?.to_location ?? null
-      };
-    });
-    const drivers = Array.from(this.drivers.entries()).map(
-      ([driver_id, s]) => ({
-        driver_id,
-        seats_remaining: s.seats_remaining,
-        name: s.name,
-        picture_url: s.picture_url,
-        to_location: s.to_location,
-        car: s.car
-      })
-    );
-    const pending_matches = Array.from(this.pending_matches.entries()).map(
-      ([rider_id, driver_id]) => ({ rider_id, driver_id })
-    );
-    this.sendTo(userId, {
-      type: "initial_state",
-      riders,
-      drivers,
-      pending_matches
-    });
-  }
-  clearMatchTimeout(riderId) {
-    const t = this.matchTimeouts.get(riderId);
-    if (t) {
-      clearTimeout(t);
-      this.matchTimeouts.delete(riderId);
-    }
-  }
-  scheduleMatchTimeout(riderId) {
-    this.clearMatchTimeout(riderId);
-    const id = setTimeout(() => {
-      void (async () => {
-        this.matchTimeouts.delete(riderId);
-        const driverId = this.pending_matches.get(riderId);
-        if (driverId != null) {
-          this.pending_matches.delete(riderId);
-          const joined_at = Date.now();
-          this.riders_waiting.push({
-            rider_id: riderId,
-            joined_at
-          });
-          const profile = await this.fetchRiderProfile(riderId);
-          this.broadcast({
-            type: "rider_joined",
-            rider: {
-              rider_id: riderId,
-              joined_at,
-              name: profile.name,
-              picture_url: profile.picture_url,
-              to_location: profile.to_location
-            }
-          });
-        }
-      })();
-    }, MATCH_TIMEOUT_MS);
-    this.matchTimeouts.set(riderId, id);
-  }
-  parseSlotKey() {
-    const parts = this.slotKey.split(":");
-    return {
-      location: parts[0] ?? "",
-      day: parts[1] ?? "",
-      start_time: parts[2] ?? ""
-    };
-  }
-  shouldSendPush(eventType, riderId, driverId) {
-    const now = Date.now();
-    const bucket = Math.floor(now / PUSH_DEDUPE_BUCKET_MS);
-    const key = `${this.slotKey}:${riderId}:${driverId}:${eventType}:${bucket}`;
-    if (this.pushDedupes.has(key))
-      return false;
-    this.pushDedupes.set(key, now);
-    const cutoff = now - PUSH_DEDUPE_RETENTION_MS;
-    for (const [k, ts] of this.pushDedupes.entries()) {
-      if (ts < cutoff)
-        this.pushDedupes.delete(k);
-    }
-    return true;
-  }
-  async insertRide(driver_id, rider_id, rider_to_location) {
-    const { location, start_time } = this.parseSlotKey();
-    const dbStartTime = start_time && !start_time.includes(":") ? `${start_time}:00` : start_time;
-    const ride_date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    const riderDrop = typeof rider_to_location === "string" ? rider_to_location.trim() : "";
-    const supabase = getSupabase(this.env);
-    const insertRow = {
-      driver_id,
-      rider_id,
-      ride_date,
-      start_time: dbStartTime,
-      location,
-      status: "accepted"
-    };
-    if (riderDrop) {
-      insertRow.rider_dropoff_loc = riderDrop;
-    }
-    const { data, error } = await supabase.from("Rides").insert(insertRow).select(
-      "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at"
-    ).single();
-    if (error || !data) {
-      throw new Error(error?.message || "Failed to insert accepted ride");
-    }
-    return data;
-  }
-  async fetchRiderProfile(riderId) {
-    const supabase = getSupabase(this.env);
-    const [userRes, schedRes] = await Promise.all([
-      supabase.from("User").select("id,name,residence,picture_url").eq("id", riderId).single(),
-      supabase.from("schedule").select("dropoff_loc").eq("user_id", riderId).order("created_at", { ascending: true }).limit(1)
-    ]);
-    const schedRows = schedRes.data;
-    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
-    if (userRes.error || !userRes.data) {
-      return {
-        id: riderId,
-        name: null,
-        residence: null,
-        picture_url: null,
-        to_location
-      };
-    }
-    const u = userRes.data;
-    return { ...u, to_location };
-  }
-  /**
-   * Loads driver User + Car + schedule dropoff for WebSocket payloads.
-   * Returns null if the driver has no car or invalid seat capacity.
-   */
-  async fetchDriverPublicInfo(driverId) {
-    const supabase = getSupabase(this.env);
-    const [userRes, carRes, schedRes] = await Promise.all([
-      supabase.from("User").select("name,picture_url").eq("id", driverId).single(),
-      supabase.from("Car").select("make,model,color,license_plate,capacity,created_at").eq("user_id", driverId).order("created_at", { ascending: false }).limit(1),
-      supabase.from("schedule").select("dropoff_loc").eq("user_id", driverId).order("created_at", { ascending: true }).limit(1)
-    ]);
-    const carRows = carRes.data;
-    const row = carRows?.[0];
-    const cap = row?.capacity;
-    const seats = typeof cap === "number" && cap > 0 ? cap : typeof cap === "string" ? Number(cap) : NaN;
-    if (!row || !Number.isFinite(seats) || seats <= 0) {
-      return null;
-    }
-    const user = userRes.data;
-    const schedRows = schedRes.data;
-    const to_location = schedRows?.[0]?.dropoff_loc ?? null;
-    const car = {
-      make: row.make,
-      model: row.model,
-      color: row.color,
-      license_plate: row.license_plate
-    };
-    return {
-      seats_remaining: seats,
-      name: user?.name ?? null,
-      picture_url: user?.picture_url ?? null,
-      to_location,
-      car
-    };
-  }
-  async handleDriverOnline(userId, ev) {
-    if (ev.driver_id !== userId)
-      return;
-    const state = await this.fetchDriverPublicInfo(ev.driver_id);
-    if (!state)
-      return;
-    this.drivers.set(ev.driver_id, state);
-    this.broadcast({
-      type: "driver_joined",
-      driver_id: ev.driver_id,
-      seats: state.seats_remaining,
-      name: state.name,
-      picture_url: state.picture_url,
-      to_location: state.to_location,
-      car: state.car
-    });
-    await this.sendInitialState(userId);
-  }
-  async handleRiderRequest(userId, ev) {
-    if (ev.rider_id !== userId)
-      return;
-    const rider = {
-      rider_id: ev.rider_id,
-      joined_at: Date.now()
-    };
-    this.riders_waiting.push(rider);
-    const profile = await this.fetchRiderProfile(ev.rider_id);
-    this.broadcast({
-      type: "rider_joined",
-      rider: {
-        rider_id: rider.rider_id,
-        joined_at: rider.joined_at,
-        name: profile.name,
-        picture_url: profile.picture_url,
-        to_location: profile.to_location
-      }
-    });
-  }
-  handleSelectRider(userId, ev) {
-    if (ev.driver_id !== userId)
-      return;
-    const ds = this.drivers.get(ev.driver_id);
-    if (!ds)
-      return;
-    const idx = this.riders_waiting.findIndex(
-      (r) => r.rider_id === ev.rider_id
-    );
-    if (idx === -1)
-      return;
-    this.riders_waiting.splice(idx, 1);
-    this.pending_matches.set(ev.rider_id, ev.driver_id);
-    this.broadcast({
-      type: "rider_reserved",
-      rider_id: ev.rider_id,
-      driver_id: ev.driver_id
-    });
-    this.sendTo(ev.rider_id, {
-      type: "match_request",
-      driver_id: ev.driver_id,
-      rider_id: ev.rider_id,
-      driver: {
-        name: ds.name,
-        picture_url: ds.picture_url,
-        to_location: ds.to_location,
-        car: ds.car
-      }
-    });
-    if (this.shouldSendPush("driver_selected_rider", ev.rider_id, ev.driver_id)) {
-      void sendMatchPushNotification(this.env, {
-        recipientUserId: ev.rider_id,
-        eventType: "driver_selected_rider",
-        riderId: ev.rider_id,
-        driverId: ev.driver_id
-      });
-    }
-    this.scheduleMatchTimeout(ev.rider_id);
-  }
-  async handleAcceptMatch(userId, ev) {
-    if (ev.rider_id !== userId)
-      return;
-    const driverId = this.pending_matches.get(ev.rider_id);
-    if (driverId !== ev.driver_id)
-      return;
-    this.pending_matches.delete(ev.rider_id);
-    this.clearMatchTimeout(ev.rider_id);
-    const driver = this.drivers.get(ev.driver_id);
-    if (!driver)
-      return;
-    driver.seats_remaining -= 1;
-    if (driver.seats_remaining <= 0) {
-      this.drivers.delete(ev.driver_id);
-    }
-    this.broadcast({ type: "rider_removed", rider_id: ev.rider_id });
-    this.broadcast({
-      type: "seat_update",
-      driver_id: ev.driver_id,
-      seats_remaining: driver.seats_remaining
-    });
-    const ride = await this.insertRide(
-      ev.driver_id,
-      ev.rider_id,
-      ev.rider_to_location
-    );
-    const rider = await this.fetchRiderProfile(ev.rider_id);
-    this.sendTo(ev.driver_id, {
-      type: "match_confirmed",
-      ride,
-      rider: {
-        id: rider.id,
-        name: rider.name,
-        residence: rider.residence,
-        picture_url: rider.picture_url,
-        to_location: rider.to_location
-      }
-    });
-    if (this.shouldSendPush("rider_confirmed_match", ev.rider_id, ev.driver_id)) {
-      void sendMatchPushNotification(this.env, {
-        recipientUserId: ev.driver_id,
-        eventType: "rider_confirmed_match",
-        riderId: ev.rider_id,
-        driverId: ev.driver_id,
-        rideId: ride.id
-      });
-    }
-  }
-  async handleRejectMatch(userId, ev) {
-    if (ev.rider_id !== userId)
-      return;
-    const driverId = this.pending_matches.get(ev.rider_id);
-    if (driverId !== ev.driver_id)
-      return;
-    this.pending_matches.delete(ev.rider_id);
-    this.clearMatchTimeout(ev.rider_id);
-    const joined_at = Date.now();
-    this.riders_waiting.push({
-      rider_id: ev.rider_id,
-      joined_at
-    });
-    const profile = await this.fetchRiderProfile(ev.rider_id);
-    this.broadcast({
-      type: "match_rejected",
-      rider_id: ev.rider_id,
-      driver_id: ev.driver_id
-    });
-    this.broadcast({
-      type: "rider_joined",
-      rider: {
-        rider_id: ev.rider_id,
-        joined_at,
-        name: profile.name,
-        picture_url: profile.picture_url,
-        to_location: profile.to_location
-      }
-    });
-  }
-  async handleMessage(userId, raw) {
-    let ev;
-    try {
-      ev = JSON.parse(raw);
-    } catch {
-      return;
-    }
-    switch (ev.type) {
-      case "driver_online":
-        await this.handleDriverOnline(userId, ev);
-        break;
-      case "rider_request":
-        await this.handleRiderRequest(userId, ev);
-        break;
-      case "select_rider":
-        this.handleSelectRider(userId, ev);
-        break;
-      case "accept_match":
-        await this.handleAcceptMatch(userId, ev);
-        break;
-      case "reject_match":
-        await this.handleRejectMatch(userId, ev);
-        break;
-    }
-  }
-  handleConnection(ws, userId) {
-    this.connections.set(userId, ws);
-    ws.addEventListener("message", (event) => {
-      const data = event.data;
-      if (typeof data === "string") {
-        void this.handleMessage(userId, data);
-      }
-    });
-    ws.addEventListener("close", () => {
-      this.connections.delete(userId);
-      this.drivers.delete(userId);
-      this.riders_waiting = this.riders_waiting.filter(
-        (r) => r.rider_id !== userId
-      );
-      this.pending_matches.delete(userId);
-      this.clearMatchTimeout(userId);
-    });
-  }
-  async fetch(request) {
-    if (request.headers.get("Upgrade") !== "websocket") {
-      return new Response("Expected WebSocket", { status: 426 });
-    }
-    const userId = request.headers.get("X-User-Id")?.trim();
-    const slotKey = request.headers.get("X-Slot-Key")?.trim();
-    if (!userId) {
-      return new Response("Missing X-User-Id", { status: 401 });
-    }
-    if (slotKey) {
-      this.slotKey = slotKey;
-    }
-    const pair = new WebSocketPair();
-    const client = pair[0];
-    const server = pair[1];
-    server.accept();
-    this.handleConnection(server, userId);
-    await this.sendInitialState(userId);
-    return new Response(null, {
-      status: 101,
-      webSocket: client
-    });
-  }
-};
-__name(MatchingRoom, "MatchingRoom");
 
 // src/slotResolver.ts
 var WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -12654,6 +12225,27 @@ function resolveMatchingSlotWithOverride(schedule, residence, override) {
   return `${normalizeLocation(locationRaw)}:${day}:${timeRaw}`;
 }
 __name(resolveMatchingSlotWithOverride, "resolveMatchingSlotWithOverride");
+function parseMatchingSlotKey(slotKey) {
+  const parts = slotKey.split(":");
+  const location = parts[0] ?? "";
+  const day = parts[1] ?? "";
+  const timeParts = parts.slice(2);
+  let start_time = "";
+  if (timeParts.length >= 2) {
+    start_time = `${timeParts[0]}:${timeParts[1]}`;
+  } else if (timeParts.length === 1) {
+    start_time = timeParts[0] ?? "";
+  }
+  return { location, day, start_time };
+}
+__name(parseMatchingSlotKey, "parseMatchingSlotKey");
+function slotStartTimeToDb(start_time) {
+  const trimmed = start_time.trim();
+  if (!trimmed)
+    return trimmed;
+  return trimmed.includes(":") ? trimmed : `${trimmed}:00`;
+}
+__name(slotStartTimeToDb, "slotStartTimeToDb");
 var SlotResolveError = class extends Error {
   constructor(message) {
     super(message);
@@ -12668,6 +12260,445 @@ var ManualSlotRequiredError = class extends SlotResolveError {
   }
 };
 __name(ManualSlotRequiredError, "ManualSlotRequiredError");
+
+// src/durableObjects/MatchingRoom.ts
+var MATCH_TIMEOUT_MS = 4 * 60 * 1e3;
+var PUSH_DEDUPE_BUCKET_MS = 30 * 1e3;
+var PUSH_DEDUPE_RETENTION_MS = 2 * 60 * 1e3;
+var MatchingRoom = class {
+  drivers = /* @__PURE__ */ new Map();
+  riders_waiting = [];
+  pending_matches = /* @__PURE__ */ new Map();
+  connections = /* @__PURE__ */ new Map();
+  matchTimeouts = /* @__PURE__ */ new Map();
+  pushDedupes = /* @__PURE__ */ new Map();
+  /** Per-rider trip destination from rider_request (survives pending/timeouts) */
+  riderTripDestinations = /* @__PURE__ */ new Map();
+  slotKey = "";
+  env;
+  constructor(_ctx, env) {
+    this.env = env;
+  }
+  broadcast(message) {
+    const payload = JSON.stringify(message);
+    for (const ws of this.connections.values()) {
+      try {
+        ws.send(payload);
+      } catch (_) {
+      }
+    }
+  }
+  sendTo(userId, message) {
+    const ws = this.connections.get(userId);
+    if (ws) {
+      try {
+        ws.send(JSON.stringify(message));
+      } catch (_) {
+      }
+    }
+  }
+  resolveRiderToLocation(riderId, waiting, profile) {
+    const fromWaiting = typeof waiting?.to_location === "string" ? waiting.to_location.trim() : "";
+    if (fromWaiting)
+      return fromWaiting;
+    const fromTrip = this.riderTripDestinations.get(riderId);
+    if (fromTrip)
+      return fromTrip;
+    return profile.to_location;
+  }
+  riderWaitingWire(waiting, profile) {
+    return {
+      rider_id: waiting.rider_id,
+      joined_at: waiting.joined_at,
+      name: profile.name,
+      picture_url: profile.picture_url,
+      to_location: this.resolveRiderToLocation(
+        waiting.rider_id,
+        waiting,
+        profile
+      )
+    };
+  }
+  async sendInitialState(userId) {
+    const riderProfiles = await Promise.all(
+      this.riders_waiting.map((r) => this.fetchRiderProfile(r.rider_id))
+    );
+    const riders = this.riders_waiting.map(
+      (r, idx) => this.riderWaitingWire(r, riderProfiles[idx])
+    );
+    const drivers = Array.from(this.drivers.entries()).map(
+      ([driver_id, s]) => ({
+        driver_id,
+        seats_remaining: s.seats_remaining,
+        name: s.name,
+        picture_url: s.picture_url,
+        to_location: s.to_location,
+        car: s.car
+      })
+    );
+    const pending_matches = Array.from(this.pending_matches.entries()).map(
+      ([rider_id, driver_id]) => ({ rider_id, driver_id })
+    );
+    this.sendTo(userId, {
+      type: "initial_state",
+      riders,
+      drivers,
+      pending_matches
+    });
+  }
+  clearMatchTimeout(riderId) {
+    const t = this.matchTimeouts.get(riderId);
+    if (t) {
+      clearTimeout(t);
+      this.matchTimeouts.delete(riderId);
+    }
+  }
+  scheduleMatchTimeout(riderId) {
+    this.clearMatchTimeout(riderId);
+    const id = setTimeout(() => {
+      void (async () => {
+        this.matchTimeouts.delete(riderId);
+        const driverId = this.pending_matches.get(riderId);
+        if (driverId != null) {
+          this.pending_matches.delete(riderId);
+          const joined_at = Date.now();
+          const waiting = {
+            rider_id: riderId,
+            joined_at,
+            to_location: this.riderTripDestinations.get(riderId) ?? null
+          };
+          this.riders_waiting.push(waiting);
+          const profile = await this.fetchRiderProfile(riderId);
+          this.broadcast({
+            type: "rider_joined",
+            rider: this.riderWaitingWire(waiting, profile)
+          });
+        }
+      })();
+    }, MATCH_TIMEOUT_MS);
+    this.matchTimeouts.set(riderId, id);
+  }
+  parseSlotKey() {
+    return parseMatchingSlotKey(this.slotKey);
+  }
+  shouldSendPush(eventType, riderId, driverId) {
+    const now = Date.now();
+    const bucket = Math.floor(now / PUSH_DEDUPE_BUCKET_MS);
+    const key = `${this.slotKey}:${riderId}:${driverId}:${eventType}:${bucket}`;
+    if (this.pushDedupes.has(key))
+      return false;
+    this.pushDedupes.set(key, now);
+    const cutoff = now - PUSH_DEDUPE_RETENTION_MS;
+    for (const [k, ts] of this.pushDedupes.entries()) {
+      if (ts < cutoff)
+        this.pushDedupes.delete(k);
+    }
+    return true;
+  }
+  async insertRide(driver_id, rider_id, rider_to_location) {
+    const { location, start_time } = this.parseSlotKey();
+    const dbStartTime = slotStartTimeToDb(start_time);
+    const now = /* @__PURE__ */ new Date();
+    const ride_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const riderDrop = typeof rider_to_location === "string" ? rider_to_location.trim() : "";
+    const supabase = getSupabase(this.env);
+    const insertRow = {
+      driver_id,
+      rider_id,
+      ride_date,
+      start_time: dbStartTime,
+      location,
+      status: "accepted"
+    };
+    if (riderDrop) {
+      insertRow.rider_dropoff_loc = riderDrop;
+    }
+    const { data, error } = await supabase.from("Rides").insert(insertRow).select(
+      "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at"
+    ).single();
+    if (error || !data) {
+      throw new Error(error?.message || "Failed to insert accepted ride");
+    }
+    return data;
+  }
+  async fetchRiderProfile(riderId) {
+    const supabase = getSupabase(this.env);
+    const [userRes, schedRes] = await Promise.all([
+      supabase.from("User").select("id,name,residence,picture_url").eq("id", riderId).single(),
+      supabase.from("schedule").select("dropoff_loc").eq("user_id", riderId).order("created_at", { ascending: false }).limit(1)
+    ]);
+    const schedRows = schedRes.data;
+    const to_location = schedRows?.[0]?.dropoff_loc?.trim() || null;
+    if (userRes.error || !userRes.data) {
+      return {
+        id: riderId,
+        name: null,
+        residence: null,
+        picture_url: null,
+        to_location
+      };
+    }
+    const u = userRes.data;
+    return { ...u, to_location };
+  }
+  /**
+   * Loads driver User + Car + schedule dropoff for WebSocket payloads.
+   * Returns null if the driver has no car or invalid seat capacity.
+   */
+  async fetchDriverPublicInfo(driverId) {
+    const supabase = getSupabase(this.env);
+    const [userRes, carRes, schedRes] = await Promise.all([
+      supabase.from("User").select("name,picture_url").eq("id", driverId).single(),
+      supabase.from("Car").select("make,model,color,license_plate,capacity,created_at").eq("user_id", driverId).order("created_at", { ascending: false }).limit(1),
+      supabase.from("schedule").select("dropoff_loc").eq("user_id", driverId).order("created_at", { ascending: false }).limit(1)
+    ]);
+    const carRows = carRes.data;
+    const row = carRows?.[0];
+    const cap = row?.capacity;
+    const seats = typeof cap === "number" && cap > 0 ? cap : typeof cap === "string" ? Number(cap) : NaN;
+    if (!row || !Number.isFinite(seats) || seats <= 0) {
+      return null;
+    }
+    const user = userRes.data;
+    const schedRows = schedRes.data;
+    const to_location = schedRows?.[0]?.dropoff_loc?.trim() || null;
+    const car = {
+      make: row.make,
+      model: row.model,
+      color: row.color,
+      license_plate: row.license_plate
+    };
+    return {
+      seats_remaining: seats,
+      name: user?.name ?? null,
+      picture_url: user?.picture_url ?? null,
+      to_location,
+      car
+    };
+  }
+  async handleDriverOnline(userId, ev) {
+    if (ev.driver_id !== userId)
+      return;
+    const state = await this.fetchDriverPublicInfo(ev.driver_id);
+    if (!state)
+      return;
+    const tripTo = typeof ev.to_location === "string" ? ev.to_location.trim() : "";
+    if (tripTo) {
+      state.to_location = tripTo;
+    }
+    this.drivers.set(ev.driver_id, state);
+    this.broadcast({
+      type: "driver_joined",
+      driver_id: ev.driver_id,
+      seats: state.seats_remaining,
+      name: state.name,
+      picture_url: state.picture_url,
+      to_location: state.to_location,
+      car: state.car
+    });
+    await this.sendInitialState(userId);
+  }
+  async handleRiderRequest(userId, ev) {
+    if (ev.rider_id !== userId)
+      return;
+    if (this.pending_matches.has(ev.rider_id))
+      return;
+    if (this.riders_waiting.some((r) => r.rider_id === ev.rider_id))
+      return;
+    const tripTo = typeof ev.to_location === "string" ? ev.to_location.trim() : "";
+    if (tripTo) {
+      this.riderTripDestinations.set(ev.rider_id, tripTo);
+    }
+    const rider = {
+      rider_id: ev.rider_id,
+      joined_at: Date.now(),
+      to_location: tripTo || this.riderTripDestinations.get(ev.rider_id) || null
+    };
+    this.riders_waiting.push(rider);
+    const profile = await this.fetchRiderProfile(ev.rider_id);
+    this.broadcast({
+      type: "rider_joined",
+      rider: this.riderWaitingWire(rider, profile)
+    });
+  }
+  handleSelectRider(userId, ev) {
+    if (ev.driver_id !== userId)
+      return;
+    const ds = this.drivers.get(ev.driver_id);
+    if (!ds)
+      return;
+    const idx = this.riders_waiting.findIndex(
+      (r) => r.rider_id === ev.rider_id
+    );
+    if (idx === -1)
+      return;
+    this.riders_waiting.splice(idx, 1);
+    this.pending_matches.set(ev.rider_id, ev.driver_id);
+    this.broadcast({
+      type: "rider_reserved",
+      rider_id: ev.rider_id,
+      driver_id: ev.driver_id
+    });
+    this.sendTo(ev.rider_id, {
+      type: "match_request",
+      driver_id: ev.driver_id,
+      rider_id: ev.rider_id,
+      driver: {
+        name: ds.name,
+        picture_url: ds.picture_url,
+        to_location: ds.to_location,
+        car: ds.car
+      }
+    });
+    if (this.shouldSendPush("driver_selected_rider", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.rider_id,
+        eventType: "driver_selected_rider",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id
+      });
+    }
+    this.scheduleMatchTimeout(ev.rider_id);
+  }
+  async handleAcceptMatch(userId, ev) {
+    if (ev.rider_id !== userId)
+      return;
+    const driverId = this.pending_matches.get(ev.rider_id);
+    if (driverId !== ev.driver_id)
+      return;
+    this.pending_matches.delete(ev.rider_id);
+    this.clearMatchTimeout(ev.rider_id);
+    const driver = this.drivers.get(ev.driver_id);
+    if (!driver)
+      return;
+    driver.seats_remaining -= 1;
+    if (driver.seats_remaining <= 0) {
+      this.drivers.delete(ev.driver_id);
+    }
+    this.broadcast({ type: "rider_removed", rider_id: ev.rider_id });
+    this.broadcast({
+      type: "seat_update",
+      driver_id: ev.driver_id,
+      seats_remaining: driver.seats_remaining
+    });
+    const rider = await this.fetchRiderProfile(ev.rider_id);
+    const ride = await this.insertRide(ev.driver_id, ev.rider_id, ev.rider_to_location);
+    this.sendTo(ev.driver_id, {
+      type: "match_confirmed",
+      ride,
+      rider: {
+        id: rider.id,
+        name: rider.name,
+        residence: rider.residence,
+        picture_url: rider.picture_url,
+        to_location: rider.to_location
+      }
+    });
+    if (this.shouldSendPush("rider_confirmed_match", ev.rider_id, ev.driver_id)) {
+      void sendMatchPushNotification(this.env, {
+        recipientUserId: ev.driver_id,
+        eventType: "rider_confirmed_match",
+        riderId: ev.rider_id,
+        driverId: ev.driver_id,
+        rideId: ride.id
+      });
+    }
+  }
+  async handleRejectMatch(userId, ev) {
+    if (ev.rider_id !== userId)
+      return;
+    const driverId = this.pending_matches.get(ev.rider_id);
+    if (driverId !== ev.driver_id)
+      return;
+    this.pending_matches.delete(ev.rider_id);
+    this.clearMatchTimeout(ev.rider_id);
+    const joined_at = Date.now();
+    const waiting = {
+      rider_id: ev.rider_id,
+      joined_at,
+      to_location: this.riderTripDestinations.get(ev.rider_id) ?? null
+    };
+    this.riders_waiting.push(waiting);
+    const profile = await this.fetchRiderProfile(ev.rider_id);
+    this.broadcast({
+      type: "match_rejected",
+      rider_id: ev.rider_id,
+      driver_id: ev.driver_id
+    });
+    this.broadcast({
+      type: "rider_joined",
+      rider: this.riderWaitingWire(waiting, profile)
+    });
+  }
+  async handleMessage(userId, raw) {
+    let ev;
+    try {
+      ev = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    switch (ev.type) {
+      case "driver_online":
+        await this.handleDriverOnline(userId, ev);
+        break;
+      case "rider_request":
+        await this.handleRiderRequest(userId, ev);
+        break;
+      case "select_rider":
+        this.handleSelectRider(userId, ev);
+        break;
+      case "accept_match":
+        await this.handleAcceptMatch(userId, ev);
+        break;
+      case "reject_match":
+        await this.handleRejectMatch(userId, ev);
+        break;
+    }
+  }
+  handleConnection(ws, userId) {
+    this.connections.set(userId, ws);
+    ws.addEventListener("message", (event) => {
+      const data = event.data;
+      if (typeof data === "string") {
+        void this.handleMessage(userId, data);
+      }
+    });
+    ws.addEventListener("close", () => {
+      this.connections.delete(userId);
+      this.drivers.delete(userId);
+      this.riders_waiting = this.riders_waiting.filter(
+        (r) => r.rider_id !== userId
+      );
+      this.riderTripDestinations.delete(userId);
+      this.pending_matches.delete(userId);
+      this.clearMatchTimeout(userId);
+    });
+  }
+  async fetch(request) {
+    if (request.headers.get("Upgrade") !== "websocket") {
+      return new Response("Expected WebSocket", { status: 426 });
+    }
+    const userId = request.headers.get("X-User-Id")?.trim();
+    const slotKey = request.headers.get("X-Slot-Key")?.trim();
+    if (!userId) {
+      return new Response("Missing X-User-Id", { status: 401 });
+    }
+    if (slotKey) {
+      this.slotKey = slotKey;
+    }
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+    server.accept();
+    this.handleConnection(server, userId);
+    await this.sendInitialState(userId);
+    return new Response(null, {
+      status: 101,
+      webSocket: client
+    });
+  }
+};
+__name(MatchingRoom, "MatchingRoom");
 
 // src/index.ts
 var CORS_HEADERS = {
@@ -12718,7 +12749,8 @@ var src_default = {
         const slot2 = resolveMatchingSlotWithOverride(schedule, residence, {
           location: url.searchParams.get("location"),
           time: url.searchParams.get("time"),
-          day: url.searchParams.get("day")
+          day: url.searchParams.get("day"),
+          timezone: url.searchParams.get("timezone")
         });
         return json({ ok: true, slot: slot2 });
       } catch (e) {
@@ -12744,7 +12776,8 @@ var src_default = {
       slot = resolveMatchingSlotWithOverride(schedule, residence, {
         location: url.searchParams.get("location"),
         time: url.searchParams.get("time"),
-        day: url.searchParams.get("day")
+        day: url.searchParams.get("day"),
+        timezone: url.searchParams.get("timezone")
       });
     } catch (e) {
       if (e instanceof ManualSlotRequiredError) {

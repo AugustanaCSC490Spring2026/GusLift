@@ -220,7 +220,8 @@ export default function RiderHome() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled
         showsVerticalScrollIndicator={false}
       >
         {pendingMatch && (
@@ -416,15 +417,18 @@ export default function RiderHome() {
             onChangeText={setManualDropoff}
           />
 
-          <Text style={styles.inputLabel}>Pickup time</Text>
+          <Text style={styles.inputLabel}>Class start time</Text>
           <TimePickerField
             value={manualTime}
             onChange={(value) => {
               setManualTime(value);
               if (manualFieldError) setManualFieldError(null);
             }}
-            placeholder="Select a pick up time"
+            placeholder="Select class start time"
           />
+          <Text style={styles.helperText}>
+            You&apos;ll be picked up 15 minutes before class starts.
+          </Text>
 
           {manualFieldError ? (
             <Text style={styles.fieldError}>{manualFieldError}</Text>

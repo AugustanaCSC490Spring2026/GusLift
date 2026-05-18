@@ -9,11 +9,13 @@ type DaysJson = Partial<Record<DayKey, DaySchedule>>;
 const BUCKET_NAME = "driver-pictures";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Accept either name so a single .env works whether it was scaffolded for
+  // a Next.js client (NEXT_PUBLIC_*) or a generic server context (SUPABASE_*).
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
+      "Missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) or SUPABASE_SERVICE_ROLE_KEY",
     );
   }
   return createClient(url, serviceKey);

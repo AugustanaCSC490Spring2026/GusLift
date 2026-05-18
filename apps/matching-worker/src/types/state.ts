@@ -20,6 +20,8 @@ export type DriverState = {
 export type RiderWaiting = {
   rider_id: string;
   joined_at: number;
+  /** Destination for this matching session (from rider_request) */
+  to_location?: string | null;
 };
 
 export type MatchingRoomState = {
