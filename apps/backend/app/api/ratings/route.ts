@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-function normRideId(id: string | number | null | undefined): string {
+function normRideId(id: unknown): string {
   if (id == null || id === "") return "";
   const s = String(id).trim();
   if (/^\d+$/.test(s)) return String(Number(s));
