@@ -155,6 +155,13 @@ const RideCard = ({ ride, onPress, isFirstOfUpcoming }) => {
             <Text style={styles.assigningText}>⚠ Assigning...</Text>
           </View>
         )}
+        {ride.status === 'Completed' && (
+          <View style={[styles.paymentPill, ride.paymentStatus === 'verified' ? styles.paymentPillPaid : styles.paymentPillPending]}>
+            <Text style={[styles.paymentPillText, ride.paymentStatus === 'verified' ? styles.paymentPillTextPaid : styles.paymentPillTextPending]}>
+              {ride.paymentStatus === 'verified' ? 'Paid' : 'Payment pending'}
+            </Text>
+          </View>
+        )}
         <Text style={styles.chevron}>›</Text>
       </View>
     </TouchableOpacity>
@@ -475,6 +482,8 @@ export default function ScheduledRidesRider() {
             plate: ride.car.license_plate,
           } : null,
           status: ride.status === 'completed' ? 'Completed' : 'Accepted',
+          paymentStatus: ride.payment_status ?? 'pending',
+          fareCents: ride.fare_cents ?? null,
         };
       });
 
@@ -669,6 +678,12 @@ const styles = StyleSheet.create({
   driverName: { fontSize: 12, fontWeight: '700', color: COLORS.dark },
   assigningText: { fontSize: 12, fontWeight: '700', color: COLORS.gray300 },
   chevron: { fontSize: 24, color: COLORS.gray200, lineHeight: 26 },
+  paymentPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  paymentPillPaid: { backgroundColor: '#DCFCE7' },
+  paymentPillPending: { backgroundColor: '#FEF3C7' },
+  paymentPillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  paymentPillTextPaid: { color: '#16A34A' },
+  paymentPillTextPending: { color: '#D97706' },
   pendingBanner: { backgroundColor: COLORS.dark, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   pendingBannerIcon: { fontSize: 20 },
   pendingBannerTitle: { fontSize: 15, fontWeight: '800', color: COLORS.white, letterSpacing: -0.3 },

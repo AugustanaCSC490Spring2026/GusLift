@@ -303,6 +303,16 @@ const RideDetail = ({ group, onBack, onComplete, completingKey, userId }) => {
                       <Text style={styles.detailDriverCar}>{rider.residence || 'No location given'}</Text>
                     </View>
                   </View>
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    {rider.fareCents != null && (
+                      <Text style={styles.historyFare}>${(rider.fareCents / 100).toFixed(2)}</Text>
+                    )}
+                    <View style={[styles.historyPayPill, rider.paymentStatus === 'verified' ? styles.historyPayPillPaid : styles.historyPayPillPending]}>
+                      <Text style={[styles.historyPayPillText, rider.paymentStatus === 'verified' ? styles.historyPayPillTextPaid : styles.historyPayPillTextPending]}>
+                        {rider.paymentStatus === 'verified' ? 'Paid' : 'Payment pending'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             ) : (
@@ -392,6 +402,8 @@ export default function ScheduledRidesDriver() {
           name: ride.rider.name,
           image: ride.rider.picture_url,
           residence: ride.rider.residence,
+          paymentStatus: ride.payment_status ?? 'pending',
+          fareCents: ride.fare_cents ?? null,
         });
       }
       if (ride.id) g.rideIds.push(String(ride.id));
@@ -650,4 +662,11 @@ const styles = StyleSheet.create({
   verifyButtonText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   verifiedText: { fontSize: 13, fontWeight: '700', color: '#16A34A' },
+  historyFare: { fontSize: 15, fontWeight: '800', color: COLORS.dark },
+  historyPayPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  historyPayPillPaid: { backgroundColor: '#DCFCE7' },
+  historyPayPillPending: { backgroundColor: '#FEF3C7' },
+  historyPayPillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  historyPayPillTextPaid: { color: '#16A34A' },
+  historyPayPillTextPending: { color: '#D97706' },
 });

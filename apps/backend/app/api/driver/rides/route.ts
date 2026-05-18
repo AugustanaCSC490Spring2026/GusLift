@@ -11,6 +11,9 @@ type RideRow = {
   rider_dropoff_loc?: string | null;
   status: string;
   created_at: string | null;
+  payment_status?: string | null;
+  payment_method?: string | null;
+  fare_cents?: number | null;
 };
 
 /** ISO date-only strings parse as UTC midnight; weekday in local time can be wrong. Use UTC calendar date. */
@@ -92,7 +95,7 @@ async function queryRides(
   opts: { driverId?: string; riderId?: string; limit?: number; history?: boolean },
 ): Promise<{ rows: RideRow[]; error: PostgrestError | null }> {
   const rideSelect =
-    "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at";
+    "id,driver_id,rider_id,ride_date,start_time,location,rider_dropoff_loc,status,created_at,payment_status,payment_method,fare_cents";
   const todayDate = getLocalTodayDate();
   for (const tableName of ["Rides", "rides"]) {
     let query = supabase
