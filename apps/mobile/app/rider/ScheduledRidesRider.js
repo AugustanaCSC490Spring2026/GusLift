@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, usePathname, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -14,13 +14,25 @@ import {
   View
 } from 'react-native';
 import { ClockIcon, HistoryLineIcon } from "../../components/Icons";
+import RatingPill from "../../components/RatingPill";
+import { useRiderCompletionFlow } from "../../context/RiderCompletionFlowContext";
 import { useMatching } from "../../context/MatchingContext";
+import {
+  buildRiderRideDetailHistoryParams,
+  hasStarScore,
+} from "../../lib/ratingUtils";
+import {
+  handleRiderCompletionDetected,
+  pollRiderUpcomingCompletions,
+} from "../../lib/riderCompletionPrompt";
 import {
   deriveRideDisplayTimes,
   getScheduleClassStart,
 } from "../../lib/rideTimeDisplay";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+
+const RIDES_POLL_MS = 5000;
 
 const COLORS = {
   blue: '#3B82F6',
@@ -111,7 +123,39 @@ const InfoBox = ({ label, value, accent }) => (
   </View>
 );
 
-const RideCard = ({ ride, onPress, isFirstOfUpcoming }) => {
+function mapHistoryApiRideToCard(ride, scheduleDays) {
+  const scheduleClassStart = getScheduleClassStart(scheduleDays, ride.ride_date);
+  const { pickupTime, classTime } = deriveRideDisplayTimes(
+    ride.start_time,
+    scheduleClassStart,
+  );
+  const car = ride.car;
+  return {
+    id: ride.id,
+    timestamp: ride.ride_date,
+    pickupTime,
+    classTime,
+    pickup: ride.pickup_loc ?? ride.location ?? "—",
+    destination: ride.dropoff_loc ?? "—",
+    driver: ride.driver
+      ? {
+          name: ride.driver.name,
+          image: ride.driver.picture_url || null,
+          car: car
+            ? [car.color, car.make, car.model].filter(Boolean).join(" ")
+            : null,
+          plate: car?.license_plate ?? null,
+        }
+      : null,
+    status: "Completed",
+    my_rating: ride.my_rating ?? null,
+    historyRow: ride,
+  };
+}
+
+const RideCard = ({ ride, onPress, isFirstOfUpcoming, showRating }) => {
+  const isCompleted = ride.status === "Completed";
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -124,7 +168,16 @@ const RideCard = ({ ride, onPress, isFirstOfUpcoming }) => {
             {formatRideDate(ride.timestamp).toUpperCase()}
           </Text>
         </View>
-        <StatusBadge status={ride.status} />
+        <View style={styles.cardTopRight}>
+          {showRating && isCompleted ? (
+            hasStarScore(ride.my_rating) ? (
+              <RatingPill score={ride.my_rating} variant="compact" />
+            ) : (
+              <RatingPill variant="cta" ctaLabel="Rate driver" />
+            )
+          ) : null}
+          <StatusBadge status={ride.status} />
+        </View>
       </View>
 
       <View style={styles.infoRow}>
@@ -225,21 +278,69 @@ export default function ScheduledRidesRider() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { pendingMatch } = useMatching();
+  const { startCompletionFlow } = useRiderCompletionFlow();
   const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
   const [selectedRide, setSelectedRide] = useState(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [upcomingRides, setUpcomingRides] = useState([]);
   const [historyRides, setHistoryRides] = useState([]);
+  const refreshRidesRef = useRef(() => Promise.resolve());
+
+  async function pollUpcomingForCompletion() {
+    if (!BACKEND_URL) return;
+    const stored = await AsyncStorage.getItem("@user");
+    if (!stored) return;
+    const user = JSON.parse(stored);
+
+    const { currentRides, justCompleted } = await pollRiderUpcomingCompletions(
+      user.id,
+      BACKEND_URL,
+    );
+
+    if (justCompleted) {
+      await handleRiderCompletionDetected({
+        justCompleted,
+        riderUserId: user.id,
+        startCompletionFlow,
+      });
+    }
+
+    await loadRides("upcoming", currentRides);
+  }
+
+  async function refreshAllRides() {
+    await pollUpcomingForCompletion();
+    await loadRides("history");
+  }
+
+  refreshRidesRef.current = refreshAllRides;
 
   useFocusEffect(
     useCallback(() => {
-      loadRides('upcoming');
-      loadRides('history');
-    }, [])
+      if (params.fromCompletion) {
+        setSelectedRide(null);
+        setActiveTab("upcoming");
+        void refreshRidesRef.current();
+      }
+    }, [params.fromCompletion]),
   );
 
-  async function loadRides(type) {
+  useEffect(() => {
+    void refreshAllRides();
+    const pollId = setInterval(() => {
+      void refreshRidesRef.current();
+    }, RIDES_POLL_MS);
+    return () => clearInterval(pollId);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshRidesRef.current();
+    }, []),
+  );
+
+  async function loadRides(type, upcomingFromPoll = null) {
     try {
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
@@ -247,24 +348,43 @@ export default function ScheduledRidesRider() {
       if (!BACKEND_URL) return;
 
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
-      const isHistory = type === 'history';
-      const url = `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(String(user.id))}${isHistory ? '&history=true' : ''}`;
+      const isHistory = type === "history";
 
-      const [res, scheduleRes] = await Promise.all([
-        fetch(url),
-        fetch(`${normalizedBackendUrl}/api/rider/schedule`, {
-          headers: { "x-user-id": String(user.id) },
-        }),
-      ]);
-      if (!res.ok) return;
-
-      const payload = await res.json();
-      const ridesData = payload?.rides ?? [];
+      const scheduleRes = await fetch(
+        `${normalizedBackendUrl}/api/rider/schedule`,
+        { headers: { "x-user-id": String(user.id) } },
+      );
       let scheduleDays = null;
       if (scheduleRes.ok) {
         const scheduleBody = await scheduleRes.json();
         scheduleDays = scheduleBody?.days ?? null;
       }
+
+      if (isHistory) {
+        const historyRes = await fetch(
+          `${normalizedBackendUrl}/api/rides/history?rider_id=${encodeURIComponent(String(user.id))}`,
+        );
+        if (!historyRes.ok) return;
+        const historyPayload = await historyRes.json();
+        const historyRows = historyPayload?.rides ?? [];
+        setHistoryRides(
+          historyRows.map((ride) => mapHistoryApiRideToCard(ride, scheduleDays)),
+        );
+        return;
+      }
+
+      const ridesData =
+        upcomingFromPoll != null
+          ? upcomingFromPoll
+          : await (async () => {
+              const url = `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(String(user.id))}`;
+              const res = await fetch(url);
+              if (!res.ok) return null;
+              const payload = await res.json();
+              return payload?.rides ?? [];
+            })();
+
+      if (ridesData == null) return;
 
       const enriched = ridesData.map((ride) => {
         const scheduleClassStart = getScheduleClassStart(
@@ -293,11 +413,7 @@ export default function ScheduledRidesRider() {
         };
       });
 
-      if (isHistory) {
-        setHistoryRides(enriched);
-      } else {
-        setUpcomingRides(enriched);
-      }
+      setUpcomingRides(enriched);
     } catch (_) {
       //setError("Failed to load rides. Please try again.");
     } finally {
@@ -317,7 +433,19 @@ export default function ScheduledRidesRider() {
     return <RideDetail ride={selectedRide} onBack={() => setSelectedRide(null)} />;
   }
 
-  const currentRides = activeTab === 'upcoming' ? upcomingRides : historyRides;
+  const currentRides = activeTab === "upcoming" ? upcomingRides : historyRides;
+  const isHistoryTab = activeTab === "history";
+
+  function openRide(ride) {
+    if (isHistoryTab && ride.historyRow) {
+      const params = buildRiderRideDetailHistoryParams(ride.historyRow);
+      if (params) {
+        router.push({ pathname: "/rider/RideDetailHistory", params });
+      }
+      return;
+    }
+    setSelectedRide(ride);
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -402,14 +530,19 @@ export default function ScheduledRidesRider() {
 
             <RideCard
               ride={currentRides[0]}
-              onPress={() => setSelectedRide(currentRides[0])}
+              onPress={() => openRide(currentRides[0])}
               isFirstOfUpcoming
+              showRating={isHistoryTab}
             />
 
             <View style={{ marginTop: 16 }}>
               {currentRides.slice(1).map((ride) => (
                 <View key={ride.id} style={{ marginBottom: 12 }}>
-                  <RideCard ride={ride} onPress={() => setSelectedRide(ride)} />
+                  <RideCard
+                    ride={ride}
+                    onPress={() => openRide(ride)}
+                    showRating={isHistoryTab}
+                  />
                 </View>
               ))}
             </View>
@@ -419,7 +552,11 @@ export default function ScheduledRidesRider() {
             {currentRides.length > 0 ? (
               currentRides.map((ride) => (
                 <View key={ride.id} style={{ marginBottom: 12 }}>
-                  <RideCard ride={ride} onPress={() => setSelectedRide(ride)} />
+                  <RideCard
+                    ride={ride}
+                    onPress={() => openRide(ride)}
+                    showRating={isHistoryTab}
+                  />
                 </View>
               ))
             ) : (
@@ -462,6 +599,7 @@ const styles = StyleSheet.create({
   cardBottomRounded: { borderBottomLeftRadius: 20, borderBottomRightRadius: 20, borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   cardFullRounded: { borderRadius: 20 },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   datePill: { backgroundColor: COLORS.bg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   datePillText: { fontSize: 10, fontWeight: '700', color: COLORS.gray400, letterSpacing: 0.5 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },

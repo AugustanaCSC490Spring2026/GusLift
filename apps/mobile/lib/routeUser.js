@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getLastAppMode } from "./appMode";
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -37,7 +38,10 @@ async function checkDriverProfileInDB(userId) {
 export async function resolveRoute(parsed, { verifyDriver = false } = {}) {
   if (!parsed?.role) return "/role";
 
-  if (parsed.role === "driver") {
+  const lastMode = await getLastAppMode();
+  const effectiveRole = lastMode || parsed.role;
+
+  if (effectiveRole === "driver") {
     if (parsed.driverSetupComplete) return "/driver/DriverHome";
 
     if (verifyDriver) {

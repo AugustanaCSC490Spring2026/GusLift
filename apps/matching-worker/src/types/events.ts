@@ -56,6 +56,8 @@ export type RiderWaitingWire = {
   picture_url: string | null;
   /** schedule.dropoff_loc */
   to_location: string | null;
+  /** Average rating received (`ratings` where `to_user_id` = this rider) */
+  rating?: number | null;
 };
 
 export type DriverWaitingWire = {
@@ -65,6 +67,7 @@ export type DriverWaitingWire = {
   picture_url: string | null;
   to_location: string | null;
   car: CarDetailsWire | null;
+  rating?: number | null;
 };
 
 /** Broadcast / server -> client messages */
@@ -88,6 +91,7 @@ export type DriverJoinedMessage = {
   picture_url: string | null;
   to_location: string | null;
   car: CarDetailsWire | null;
+  rating?: number | null;
 };
 
 export type RiderJoinedMessage = {
@@ -116,6 +120,7 @@ export type MatchRequestMessage = {
     picture_url: string | null;
     to_location: string | null;
     car: CarDetailsWire | null;
+    rating?: number | null;
   };
 };
 

@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,12 +10,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+import RatingPill from "../../components/RatingPill";
+import { useDriverCompletionFlow } from "../../context/DriverCompletionFlowContext";
 import AutocompleteInput from "../../components/setup/AutocompleteInput";
 import TimePickerField from "../../components/setup/TimePickerField";
+import { formatTime12h } from "../../lib/rideDisplayTime";
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -43,15 +45,6 @@ function subtractMinutes(timeStr, minutes) {
   return `${String(Math.floor(clipped / 60)).padStart(2, "0")}:${String(
     clipped % 60,
   ).padStart(2, "0")}`;
-}
-
-function formatTime12h(timeStr) {
-  if (!timeStr) return "—";
-  const [h, m] = String(timeStr).trim().split(":").map(Number);
-  if (isNaN(h)) return "—";
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m || 0).padStart(2, "0")} ${period}`;
 }
 
 function groupRides(rides) {
@@ -85,6 +78,7 @@ function getInitial(name) {
 
 export default function DriverHome() {
   const router = useRouter();
+  const { startDriverCompletionFlow } = useDriverCompletionFlow();
 
   const [firstName, setFirstName] = useState("");
   const [pictureUrl, setPictureUrl] = useState(null);
@@ -104,16 +98,23 @@ export default function DriverHome() {
   const [ridesLoading, setRidesLoading] = useState(true);
   const [groups, setGroups] = useState([]);
   const [completingKey, setCompletingKey] = useState(null);
+  const [driverRating, setDriverRating] = useState(null);
+  const [ratingCount, setRatingCount] = useState(0);
 
   useEffect(() => {
     loadSchedule();
     loadRides();
+    loadRating();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      void loadRating();
+    }, []),
+  );
+
   // Seed the manual pickup with the saved pickup/residence the first time the
-  // schedule resolves, so the user has a sensible starting point to edit. The
-  // saved-route card doesn't have its own input anymore — it shows `from`
-  // directly — so it doesn't need a seed.
+  // schedule resolves, so the user has a sensible starting point to edit.
   useEffect(() => {
     if (scheduleLoading) return;
     const seed =
@@ -204,6 +205,31 @@ export default function DriverHome() {
     }
   }
 
+  async function loadRating() {
+    try {
+      const stored = await AsyncStorage.getItem("@user");
+      if (!stored) return;
+      const user = JSON.parse(stored);
+      const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
+      if (!normalizedBackendUrl) return;
+      const res = await fetch(
+        `${normalizedBackendUrl}/api/ratings?user_id=${encodeURIComponent(String(user.id))}`,
+      );
+      if (!res.ok) return;
+      const payload = await res.json();
+      if (payload.success) {
+        setDriverRating(
+          typeof payload.average === "number" ? payload.average : null,
+        );
+        setRatingCount(
+          typeof payload.count === "number" ? payload.count : 0,
+        );
+      }
+    } catch {
+      // best-effort
+    }
+  }
+
   async function completeRides(groupKey, rideIds) {
     if (!rideIds?.length || completingKey) return;
     const stored = await AsyncStorage.getItem("@user");
@@ -229,6 +255,8 @@ export default function DriverHome() {
         return;
       }
       await loadRides();
+      await loadRating();
+      startDriverCompletionFlow();
     } catch {
       Alert.alert("Error", "Could not complete ride. Try again.");
     } finally {
@@ -305,8 +333,19 @@ export default function DriverHome() {
             </View>
             <View style={styles.heroIdentity}>
               <Text style={styles.heroTitle}>Hello, {firstName || "Driver"}</Text>
-              <View style={styles.rolePill}>
-                <Text style={styles.rolePillText}>Driver mode</Text>
+              <View style={styles.pillRow}>
+                <View style={styles.rolePill}>
+                  <Text style={styles.rolePillText}>Driver mode</Text>
+                </View>
+                {driverRating != null ? (
+                  <RatingPill
+                    average={driverRating}
+                    count={ratingCount}
+                    variant="hero"
+                  />
+                ) : ratingCount === 0 ? (
+                  <RatingPill label="No ratings yet" variant="heroMuted" />
+                ) : null}
               </View>
             </View>
           </View>
@@ -556,6 +595,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#FFFFFF",
     letterSpacing: -0.5,
+  },
+  pillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
   },
   rolePill: {
     alignSelf: "flex-start",

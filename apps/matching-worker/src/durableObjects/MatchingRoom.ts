@@ -43,6 +43,7 @@ type RiderProfile = {
   picture_url: string | null;
   /** schedule.dropoff_loc */
   to_location: string | null;
+  rating: number | null;
 };
 
 type CarRow = {
@@ -121,6 +122,7 @@ export class MatchingRoom implements DurableObject {
     name: string | null;
     picture_url: string | null;
     to_location: string | null;
+    rating: number | null;
   } {
     return {
       rider_id: waiting.rider_id,
@@ -132,6 +134,7 @@ export class MatchingRoom implements DurableObject {
         waiting,
         profile,
       ),
+      rating: null,
     };
   }
 
@@ -143,6 +146,22 @@ export class MatchingRoom implements DurableObject {
     return out;
   }
 
+  private async fetchAverageRatingForUser(
+    userId: string,
+  ): Promise<number | null> {
+    const supabase = getSupabase(this.env);
+    const { data, error } = await supabase
+      .from("ratings")
+      .select("score")
+      .eq("to_user_id", String(userId));
+    if (error || !data?.length) return null;
+    const sum = (data as { score: number }[]).reduce(
+      (s, r) => s + (Number(r.score) || 0),
+      0,
+    );
+    return Math.round((sum / data.length) * 10) / 10;
+  }
+
   private async sendInitialState(userId: string): Promise<void> {
     const riderProfiles = await Promise.all(
       this.riders_waiting.map((r) => this.fetchRiderProfile(r.rider_id)),
@@ -150,7 +169,6 @@ export class MatchingRoom implements DurableObject {
     const riders = this.riders_waiting.map((r, idx) =>
       this.riderWaitingWire(r, riderProfiles[idx]!),
     );
-  
 
     const drivers = Array.from(this.drivers.entries()).map(
       ([driver_id, s]) => ({
@@ -160,6 +178,7 @@ export class MatchingRoom implements DurableObject {
         picture_url: s.picture_url,
         to_location: s.to_location,
         car: s.car,
+        rating: s.rating,
       }),
     );
     const pending_matches = Array.from(this.pending_matches.entries()).map(
@@ -296,6 +315,7 @@ export class MatchingRoom implements DurableObject {
         residence: null,
         picture_url: null,
         to_location,
+        rating: null,
       };
     }
     const u = userRes.data as {
@@ -304,7 +324,7 @@ export class MatchingRoom implements DurableObject {
       residence: string | null;
       picture_url: string | null;
     };
-    return { ...u, to_location };
+    return { ...u, to_location, rating: null };
   }
 
   /**
@@ -363,12 +383,15 @@ export class MatchingRoom implements DurableObject {
       license_plate: row.license_plate,
     };
 
+    const rating = await this.fetchAverageRatingForUser(driverId);
+
     return {
       seats_remaining: seats,
       name: user?.name ?? null,
       picture_url: user?.picture_url ?? null,
       to_location,
       car,
+      rating,
     };
   }
 
@@ -395,6 +418,7 @@ export class MatchingRoom implements DurableObject {
       picture_url: state.picture_url,
       to_location: state.to_location,
       car: state.car,
+      rating: state.rating,
     });
     // initial_state on websocket open is often delivered before the app registers
     // any MatchingContext listeners, so it is dropped. Re-send after driver_online
@@ -456,6 +480,7 @@ export class MatchingRoom implements DurableObject {
         picture_url: ds.picture_url,
         to_location: ds.to_location,
         car: ds.car,
+        rating: ds.rating,
       },
     });
     if (this.shouldSendPush("driver_selected_rider", ev.rider_id, ev.driver_id)) {

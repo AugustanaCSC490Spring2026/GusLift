@@ -49,6 +49,14 @@ function weekdayKeyFromIsoDate(rideDate: string | null | undefined): string | nu
   return ISO_DOW_TO_DAY[w] ?? null;
 }
 
+/** Canonical ride id for ratings map / `.in()` so bigint vs text ids stay aligned. */
+function normRideId(id: string | number | null | undefined): string {
+  if (id == null || id === "") return "";
+  const s = String(id).trim();
+  if (/^\d+$/.test(s)) return String(Number(s));
+  return s;
+}
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -218,12 +226,73 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    /** Ratings the rider submitted (rider → driver). */
+    const myRatingByRideId = new Map<string, number>();
+    /** Ratings the driver received (rider → driver). */
+    const ratingReceivedByRideId = new Map<string, number>();
+
+    const rawRider = (riderId || "").trim();
+    if (rawRider) {
+      const riderVariants = Array.from(
+        new Set(
+          [rawRider, rawRider.toLowerCase(), rawRider.toUpperCase()].filter(
+            (s) => s.length > 0,
+          ),
+        ),
+      );
+      const { data: myRatingsData, error: myRatingsErr } = await supabase
+        .from("ratings")
+        .select("ride_id,score")
+        .in("from_user_id", riderVariants);
+      if (myRatingsErr) {
+        console.error("[rides/history] my ratings query:", myRatingsErr.message);
+      }
+      for (const row of (myRatingsData || []) as {
+        ride_id: string | number;
+        score: number;
+      }[]) {
+        const key = normRideId(row.ride_id);
+        if (!key) continue;
+        myRatingByRideId.set(key, row.score);
+      }
+    }
+
+    const rawDriver = (driverId || "").trim();
+    if (rawDriver) {
+      const driverVariants = Array.from(
+        new Set(
+          [rawDriver, rawDriver.toLowerCase(), rawDriver.toUpperCase()].filter(
+            (s) => s.length > 0,
+          ),
+        ),
+      );
+      const { data: receivedData, error: receivedErr } = await supabase
+        .from("ratings")
+        .select("ride_id,score")
+        .in("to_user_id", driverVariants);
+      if (receivedErr) {
+        console.error("[rides/history] received ratings query:", receivedErr.message);
+      }
+      for (const row of (receivedData || []) as {
+        ride_id: string | number;
+        score: number;
+      }[]) {
+        const key = normRideId(row.ride_id);
+        if (!key) continue;
+        ratingReceivedByRideId.set(key, row.score);
+      }
+    }
+
     const items = rideRows.map((ride) => {
       const day = weekdayKeyFromIsoDate(ride.ride_date);
       const riderTo =
         ride.rider_dropoff_loc ??
         scheduleByRider.get(ride.rider_id)?.dropoff_loc ??
         null;
+
+      const rideKey = normRideId(ride.id);
+      const myScore = myRatingByRideId.get(rideKey);
+      const receivedScore = ratingReceivedByRideId.get(rideKey);
 
       return {
         ...ride,
@@ -246,6 +315,8 @@ export async function GET(request: NextRequest) {
           picture_url: null,
         },
         car: carsByDriverId.get(ride.driver_id) || null,
+        my_rating: myScore ?? null,
+        rating_received: receivedScore ?? null,
       };
     });
 

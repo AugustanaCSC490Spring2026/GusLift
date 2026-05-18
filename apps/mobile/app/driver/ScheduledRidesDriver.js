@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import {
   View
 } from 'react-native';
 import { ClockIcon, HistoryLineIcon, SearchLineIcon } from "../../components/Icons";
+import { useDriverCompletionFlow } from "../../context/DriverCompletionFlowContext";
 import {
   deriveRideDisplayTimes,
   getScheduleClassStart,
@@ -226,9 +227,19 @@ const RideDetail = ({ group, onBack, onComplete, completingKey }) => {
 
 export default function ScheduledRidesDriver() {
   const router = useRouter();
+  const { startDriverCompletionFlow } = useDriverCompletionFlow();
   const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
   const [selectedRide, setSelectedRide] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (params.fromCompletion) {
+        setSelectedRide(null);
+        setActiveTab("upcoming");
+      }
+    }, [params.fromCompletion]),
+  );
 
   const [loading, setLoading] = useState(true);
   const [upcomingGroups, setUpcomingGroups] = useState([]);
@@ -342,10 +353,9 @@ export default function ScheduledRidesDriver() {
         return;
       }
 
-      // If success, we should refresh both lists and close detail
       setSelectedRide(null);
-      await Promise.all([loadRides('upcoming'), loadRides('history')]);
-
+      await Promise.all([loadRides("upcoming"), loadRides("history")]);
+      startDriverCompletionFlow();
     } catch {
       Alert.alert("Error", "Could not complete the route. Please try again.");
     } finally {

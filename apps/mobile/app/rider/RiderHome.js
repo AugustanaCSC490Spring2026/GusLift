@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -9,13 +9,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import AutocompleteInput from "../../components/setup/AutocompleteInput";
+import { useRiderCompletionFlow } from "../../context/RiderCompletionFlowContext";
 import TimePickerField from "../../components/setup/TimePickerField";
 import { useMatching } from "../../context/MatchingContext";
+import { formatTime12h } from "../../lib/rideDisplayTime";
+import { handleRiderCompletionDetected, pollRiderUpcomingCompletions } from "../../lib/riderCompletionPrompt";
+import { getStoredUserRole } from "../../lib/ratingUtils";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -34,15 +37,6 @@ const DAY_LABELS = {
 };
 const DAY_ORDER = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
-function formatTime12h(timeStr) {
-  if (!timeStr) return "—";
-  const [h, m] = String(timeStr).trim().split(":").map(Number);
-  if (isNaN(h)) return "—";
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m || 0).padStart(2, "0")} ${period}`;
-}
-
 function getInitial(name) {
   const trimmed = String(name || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : "R";
@@ -51,6 +45,7 @@ function getInitial(name) {
 export default function RiderHome() {
   const router = useRouter();
   const { pendingMatch } = useMatching();
+  const { startCompletionFlow } = useRiderCompletionFlow();
 
   const [firstName, setFirstName] = useState("");
   const [pictureUrl, setPictureUrl] = useState(null);
@@ -64,11 +59,33 @@ export default function RiderHome() {
   const [manualTime, setManualTime] = useState("");
   const [manualFieldError, setManualFieldError] = useState(null);
   const [rides, setRides] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  const pollRef = useRef(null);
+  const completionFlowActiveRef = useRef(false);
 
   useEffect(() => {
-    loadSchedule();
-    loadRides();
+    void (async () => {
+      const role = await getStoredUserRole();
+      setUserRole(role);
+      await loadSchedule();
+      await pollForCompletions();
+    })();
+
+    pollRef.current = setInterval(() => {
+      pollForCompletions();
+    }, 5000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void getStoredUserRole().then(setUserRole);
+      void pollForCompletions();
+    }, []),
+  );
 
   useEffect(() => {
     if (scheduleLoading) return;
@@ -122,51 +139,53 @@ export default function RiderHome() {
     }
   }
 
-  async function loadRides() {
+  function enrichUpcomingRides(ridesData) {
+    return ridesData
+      .map((ride) => ({
+        ...ride,
+        day:
+          ride.day ??
+          (ride.ride_date
+            ? new Date(ride.ride_date)
+                .toLocaleDateString("en-US", { weekday: "short" })
+                .toLowerCase()
+                .slice(0, 3)
+            : null),
+      }))
+      .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
+  }
+
+  function applyUpcomingRidesToUi(ridesData) {
+    setRides(enrichUpcomingRides(ridesData));
+  }
+
+  async function pollForCompletions() {
     try {
+      if (completionFlowActiveRef.current) return;
+
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
-      const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
-      if (!normalizedBackendUrl) {
-        setRides([]);
-        return;
-      }
+      if (!BACKEND_URL) return;
 
-      const res = await fetch(
-        `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(
-          String(user.id),
-        )}`,
+      const { currentRides, justCompleted } = await pollRiderUpcomingCompletions(
+        user.id,
+        BACKEND_URL,
       );
-      if (!res.ok) {
-        setRides([]);
-        return;
+
+      applyUpcomingRidesToUi(currentRides);
+
+      if (justCompleted) {
+        completionFlowActiveRef.current = true;
+        await handleRiderCompletionDetected({
+          justCompleted,
+          riderUserId: user.id,
+          startCompletionFlow,
+        });
+        completionFlowActiveRef.current = false;
       }
-
-      const payload = await res.json();
-      const ridesData = payload?.rides ?? [];
-      if (!ridesData.length) {
-        setRides([]);
-        return;
-      }
-
-      const enriched = ridesData
-        .map((ride) => ({
-          ...ride,
-          day:
-            ride.day ??
-            (ride.ride_date
-              ? new Date(ride.ride_date)
-                  .toLocaleDateString("en-US", { weekday: "short" })
-                  .toLowerCase()
-                  .slice(0, 3)
-              : null),
-        }))
-        .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
-
-      setRides(enriched);
-    } catch (_) {
-      setRides([]);
+    } catch {
+      completionFlowActiveRef.current = false;
     }
   }
 
