@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { setLastAppMode } from "../lib/appMode";
 import { resolveRoute } from "../lib/routeUser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -146,6 +147,7 @@ export default function Welcome() {
         if (!preview && role && role !== parsed.role) {
           const updated = { ...parsed, role };
           await AsyncStorage.setItem("@user", JSON.stringify(updated));
+          await setLastAppMode(role);
         }
 
         if (!role) {

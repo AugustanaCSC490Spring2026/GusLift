@@ -17,6 +17,8 @@ export type DriverState = {
   /** schedule.dropoff_loc — where they are headed */
   to_location: string | null;
   car: CarDetails | null;
+  /** Average of all `ratings.score` where `to_user_id` is this driver (null if none) */
+  rating: number | null;
 };
 
 export type RiderWaiting = {

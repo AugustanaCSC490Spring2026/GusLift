@@ -50,12 +50,6 @@ function RiderCard({ rider, isPending, isRejected, onPress }) {
         ) : rider.to_location ? (
           <Text style={styles.toLocation}>Going to {rider.to_location}</Text>
         ) : null}
-        {!isRejected &&
-          (rider.rating != null ? (
-            <Text style={styles.rating}>Rating {rider.rating.toFixed(1)}</Text>
-          ) : (
-            <Text style={styles.ratingMuted}>No rating yet</Text>
-          ))}
       </View>
 
       <TouchableOpacity

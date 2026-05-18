@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -9,17 +9,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import AutocompleteInput from "../../components/setup/AutocompleteInput";
+import { useRiderCompletionFlow } from "../../context/RiderCompletionFlowContext";
 import TimePickerField from "../../components/setup/TimePickerField";
 import { useMatching } from "../../context/MatchingContext";
 import { calculateFare } from "../../lib/fareCalc";
+import { formatTime12h } from "../../lib/rideDisplayTime";
+import { handleRiderCompletionDetected, pollRiderUpcomingCompletions } from "../../lib/riderCompletionPrompt";
+import { getStoredUserRole } from "../../lib/ratingUtils";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -34,14 +35,20 @@ const DAY_LABELS = {
   sun: "Sunday",
 };
 const DAY_ORDER = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
-function formatTime12h(timeStr) {
-  if (!timeStr) return "—";
-  const [h, m] = String(timeStr).trim().split(":").map(Number);
-  if (isNaN(h)) return "—";
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m || 0).padStart(2, "0")} ${period}`;
+function getCurrentWeekday() {
+  return WEEKDAYS[new Date().getUTCDay()];
+}
+
+function subtractMinutes(timeStr, minutes) {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":").map(Number);
+  const total = h * 60 + m - minutes;
+  const clipped = Math.max(0, total);
+  return `${String(Math.floor(clipped / 60)).padStart(2, "0")}:${String(
+    clipped % 60,
+  ).padStart(2, "0")}`;
 }
 
 function getInitial(name) {
@@ -52,6 +59,7 @@ function getInitial(name) {
 export default function RiderHome() {
   const router = useRouter();
   const { pendingMatch } = useMatching();
+  const { startCompletionFlow } = useRiderCompletionFlow();
 
   const [firstName, setFirstName] = useState("");
   const [pictureUrl, setPictureUrl] = useState(null);
@@ -59,17 +67,40 @@ export default function RiderHome() {
   const [pickupLoc, setPickupLoc] = useState(null);
   const [dropoffLoc, setDropoffLoc] = useState(null);
   const [residence, setResidence] = useState(null);
+  const [scheduledPickupTime, setScheduledPickupTime] = useState("");
   const [schedulePickup, setSchedulePickup] = useState("");
   const [manualPickup, setManualPickup] = useState("");
   const [manualDropoff, setManualDropoff] = useState("");
   const [manualTime, setManualTime] = useState("");
   const [manualFieldError, setManualFieldError] = useState(null);
   const [rides, setRides] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  const pollRef = useRef(null);
+  const completionFlowActiveRef = useRef(false);
 
   useEffect(() => {
-    loadSchedule();
-    loadRides();
+    void (async () => {
+      const role = await getStoredUserRole();
+      setUserRole(role);
+      await loadSchedule();
+      await pollForCompletions();
+    })();
+
+    pollRef.current = setInterval(() => {
+      pollForCompletions();
+    }, 5000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void getStoredUserRole().then(setUserRole);
+      void pollForCompletions();
+    }, []),
+  );
 
   useEffect(() => {
     if (scheduleLoading) return;
@@ -90,32 +121,35 @@ export default function RiderHome() {
         user.given_name || (user.name ? user.name.split(" ")[0] : ""),
       );
 
-      const [scheduleRes, userRes] = await Promise.all([
-        fetch(
-          `${SUPABASE_URL}/rest/v1/schedule?user_id=eq.${user.id}&select=pickup_loc,dropoff_loc`,
-          {
-            headers: {
-              apikey: SUPABASE_ANON_KEY,
-              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            },
-          },
-        ),
-        fetch(`${SUPABASE_URL}/rest/v1/User?id=eq.${user.id}&select=residence,picture_url`, {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        }),
-      ]);
+      const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
+      if (!normalizedBackendUrl) return;
 
-      const [scheduleData, userData] = await Promise.all([
-        scheduleRes.json(),
-        userRes.json(),
-      ]);
-      setPickupLoc(scheduleData?.[0]?.pickup_loc ?? null);
-      setDropoffLoc(scheduleData?.[0]?.dropoff_loc ?? null);
-      setResidence(userData?.[0]?.residence ?? null);
-      if (userData?.[0]?.picture_url) setPictureUrl(userData[0].picture_url);
+      // /api/rider/schedule already returns days + pickup_loc + dropoff_loc +
+      // residence + picture_url. Previously this screen fetched Supabase REST
+      // directly using EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      // but those env vars are not defined in apps/mobile/.env (Expo only
+      // exposes EXPO_PUBLIC_* to the bundle), so the URL resolved to
+      // "undefined/rest/..." and the rejected fetch made Promise.all throw,
+      // dumping us into the empty catch and leaving pickup_loc / dropoff_loc /
+      // residence all null — which is what made the rider home show "Add setup"
+      // and the fallback "Augustana College" instead of the saved schedule.
+      const res = await fetch(`${normalizedBackendUrl}/api/rider/schedule`, {
+        headers: { "x-user-id": user.id },
+      });
+      if (!res.ok) return;
+
+      const body = await res.json();
+      const today = getCurrentWeekday();
+      const todaySchedule = body.days?.[today];
+
+      if (body.picture_url) setPictureUrl(body.picture_url);
+      setResidence(body.residence ?? null);
+      setPickupLoc(body.pickup_loc ?? null);
+      setDropoffLoc(body.dropoff_loc ?? null);
+      const startTime = todaySchedule?.start_time ?? null;
+      // Default pickup time = 15 minutes before today's class starts, matching
+      // how the driver home surfaces the saved-schedule pickup time.
+      setScheduledPickupTime(startTime ? subtractMinutes(startTime, 15) : "");
     } catch (_) {
       // Keep the dashboard usable even if schedule fetch fails.
     } finally {
@@ -123,51 +157,53 @@ export default function RiderHome() {
     }
   }
 
-  async function loadRides() {
+  function enrichUpcomingRides(ridesData) {
+    return ridesData
+      .map((ride) => ({
+        ...ride,
+        day:
+          ride.day ??
+          (ride.ride_date
+            ? new Date(ride.ride_date)
+                .toLocaleDateString("en-US", { weekday: "short" })
+                .toLowerCase()
+                .slice(0, 3)
+            : null),
+      }))
+      .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
+  }
+
+  function applyUpcomingRidesToUi(ridesData) {
+    setRides(enrichUpcomingRides(ridesData));
+  }
+
+  async function pollForCompletions() {
     try {
+      if (completionFlowActiveRef.current) return;
+
       const stored = await AsyncStorage.getItem("@user");
       if (!stored) return;
       const user = JSON.parse(stored);
-      const normalizedBackendUrl = BACKEND_URL?.replace(/\/$/, "");
-      if (!normalizedBackendUrl) {
-        setRides([]);
-        return;
-      }
+      if (!BACKEND_URL) return;
 
-      const res = await fetch(
-        `${normalizedBackendUrl}/api/driver/rides?rider_id=${encodeURIComponent(
-          String(user.id),
-        )}`,
+      const { currentRides, justCompleted } = await pollRiderUpcomingCompletions(
+        user.id,
+        BACKEND_URL,
       );
-      if (!res.ok) {
-        setRides([]);
-        return;
+
+      applyUpcomingRidesToUi(currentRides);
+
+      if (justCompleted) {
+        completionFlowActiveRef.current = true;
+        await handleRiderCompletionDetected({
+          justCompleted,
+          riderUserId: user.id,
+          startCompletionFlow,
+        });
+        completionFlowActiveRef.current = false;
       }
-
-      const payload = await res.json();
-      const ridesData = payload?.rides ?? [];
-      if (!ridesData.length) {
-        setRides([]);
-        return;
-      }
-
-      const enriched = ridesData
-        .map((ride) => ({
-          ...ride,
-          day:
-            ride.day ??
-            (ride.ride_date
-              ? new Date(ride.ride_date)
-                  .toLocaleDateString("en-US", { weekday: "short" })
-                  .toLowerCase()
-                  .slice(0, 3)
-              : null),
-        }))
-        .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
-
-      setRides(enriched);
-    } catch (_) {
-      setRides([]);
+    } catch {
+      completionFlowActiveRef.current = false;
     }
   }
 
@@ -365,7 +401,11 @@ export default function RiderHome() {
               <Text style={styles.inputLabel}>Pickup timing</Text>
               <View style={styles.inputDisplay}>
                 <Text style={styles.inputDisplayText}>
-                  {nextRide ? formatTime12h(nextRide.start_time) : "—"}
+                  {scheduledPickupTime
+                    ? formatTime12h(scheduledPickupTime)
+                    : nextRide
+                    ? formatTime12h(nextRide.start_time)
+                    : "—"}
                 </Text>
               </View>
 
@@ -435,7 +475,7 @@ export default function RiderHome() {
             return (
               <View style={styles.fareRow}>
                 <Text style={styles.fareLabel}>Suggested fare</Text>
-                <Text style={styles.fareValue}>${fare.fareLabel}</Text>
+                <Text style={styles.fareValue}>{fare.fareLabel}</Text>
               </View>
             );
           })()}

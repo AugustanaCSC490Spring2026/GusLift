@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { setLastAppMode } from "../lib/appMode";
 import { resolveRoute } from "../lib/routeUser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -156,6 +157,7 @@ export default function Role() {
 
         const updated = { ...parsed, role: selectedRole };
         await AsyncStorage.setItem("@user", JSON.stringify(updated));
+        await setLastAppMode(selectedRole);
 
         const dest = await resolveRoute(updated, { verifyDriver: false });
         router.push(dest);

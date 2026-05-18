@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { useMatching } from "../../context/MatchingContext";
+import { fetchUserRatingSummary } from "../../lib/ratingUtils";
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -28,13 +29,21 @@ export default function AvailableDrivers() {
     driverPic: initialDriverPic,
     driverTo: initialDriverTo,
     driverCar: initialDriverCar,
+    driverRating: initialDriverRating,
     from,
     to,
   } = useLocalSearchParams();
   const { send, onMessage, userId, disconnect } = useMatching();
   const [matchedDriver, setMatchedDriver] = useState(null);
+  const [driverRatingCount, setDriverRatingCount] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const driverDirectoryRef = useRef(new Map());
+
+  function parseRatingParam(value) {
+    if (value == null || value === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
 
   function upsertDriverDirectory(driverId, rawDriver) {
     if (!driverId || !rawDriver) return;
@@ -53,6 +62,10 @@ export default function AvailableDrivers() {
       pickup_loc: rawDriver.pickup_loc ?? null,
       to_location: rawDriver.to_location ?? null,
       car: carParts.length ? carParts.join(" · ") : null,
+      rating:
+        rawDriver.rating != null && Number.isFinite(Number(rawDriver.rating))
+          ? Number(rawDriver.rating)
+          : null,
     });
   }
 
@@ -91,9 +104,19 @@ export default function AvailableDrivers() {
             pickup_loc: sourceDriver.pickup_loc ?? null,
             to_location: sourceDriver.to_location ?? null,
             car: carParts.length ? carParts.join(" · ") : null,
+            rating:
+              sourceDriver.rating != null &&
+              Number.isFinite(Number(sourceDriver.rating))
+                ? Number(sourceDriver.rating)
+                : null,
           };
         }
-        setMatchedDriver({ ...driver, driver_id: msg.driver_id });
+        const wsRating =
+          driver.rating != null && Number.isFinite(Number(driver.rating))
+            ? Number(driver.rating)
+            : null;
+        setMatchedDriver({ ...driver, driver_id: msg.driver_id, rating: wsRating });
+        setDriverRatingCount(null);
         setConfirming(false);
       }
       if (msg.type === "rider_joined" && msg.rider?.rider_id === userId) {
@@ -112,14 +135,44 @@ export default function AvailableDrivers() {
       to_location: initialDriverTo ? String(initialDriverTo) : null,
       car: initialDriverCar ? String(initialDriverCar) : null,
       driver_id: initialDriverId,
+      rating: parseRatingParam(initialDriverRating),
     });
+    setDriverRatingCount(null);
   }, [
     initialDriverId,
     initialDriverName,
     initialDriverPic,
     initialDriverTo,
     initialDriverCar,
+    initialDriverRating,
   ]);
+
+  useEffect(() => {
+    const driverId = matchedDriver?.driver_id;
+    if (!driverId || !BACKEND_URL) {
+      setDriverRatingCount(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { average, count } = await fetchUserRatingSummary(
+        driverId,
+        BACKEND_URL,
+      );
+      if (cancelled) return;
+      setDriverRatingCount(count);
+      setMatchedDriver((prev) => {
+        if (!prev || String(prev.driver_id) !== String(driverId)) return prev;
+        return {
+          ...prev,
+          rating: average ?? prev.rating ?? null,
+        };
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [matchedDriver?.driver_id]);
 
   async function waitForAcceptedRide(driverId) {
     if (!driverId || !userId) return null;
@@ -277,6 +330,16 @@ export default function AvailableDrivers() {
                 {matchedDriver.name ?? "Unknown driver"}
               </Text>
               <Text style={styles.driverLabel}>Assigned driver</Text>
+              {matchedDriver.rating != null ? (
+                <Text style={styles.driverAvgRating}>
+                  ★ {matchedDriver.rating.toFixed(1)} average
+                  {driverRatingCount != null && driverRatingCount > 0
+                    ? ` (${driverRatingCount})`
+                    : ""}
+                </Text>
+              ) : driverRatingCount === 0 ? (
+                <Text style={styles.driverAvgRatingMuted}>No ratings yet</Text>
+              ) : null}
             </View>
           </View>
 
@@ -535,6 +598,18 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textTransform: "uppercase",
     letterSpacing: 0.8,
+  },
+  driverAvgRating: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#b45309",
+    marginTop: 2,
+  },
+  driverAvgRatingMuted: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#9ca3af",
+    marginTop: 2,
   },
   matchInfoCard: {
     backgroundColor: "#FFFFFF",

@@ -96,6 +96,11 @@ export default function RiderWaitingRoom() {
               driverPic: msg.driver?.picture_url ?? "",
               driverTo: msg.driver?.to_location ?? "",
               driverCar,
+              driverRating:
+                msg.driver?.rating != null &&
+                Number.isFinite(Number(msg.driver.rating))
+                  ? String(msg.driver.rating)
+                  : "",
             },
           });
         }
