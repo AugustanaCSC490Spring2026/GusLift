@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  formatRideDateShort,
+  formatTime12h,
+} from "../../lib/rideDisplayTime";
+import RatingPill from "../../components/RatingPill";
+import {
+  buildRiderRideDetailHistoryParams,
+  hasStarScore,
+} from "../../lib/ratingUtils";
+import { safeGoBack } from "../../lib/navigation";
 
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -18,29 +28,6 @@ const DAY_LABELS = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday",
   thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday",
 };
-
-function formatTime12h(timeStr) {
-  if (!timeStr) return "—";
-  const [h, m] = timeStr.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
-}
-
-function formatDate(rideDateStr) {
-  if (!rideDateStr) return null;
-  try {
-    const [y, mo, d] = rideDateStr.split("-").map(Number);
-    const date = new Date(y, mo - 1, d);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return rideDateStr;
-  }
-}
 
 export default function RideHistoryRider() {
   const router = useRouter();
@@ -51,8 +38,14 @@ export default function RideHistoryRider() {
   const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    loadHistory();
+    void loadHistory();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory();
+    }, []),
+  );
 
   async function loadHistory() {
     try {
@@ -61,17 +54,24 @@ export default function RideHistoryRider() {
       const user = JSON.parse(stored);
       setUserId(user.id);
 
-      if (!BACKEND_URL) { setRides([]); return; }
+      if (!BACKEND_URL) {
+        setRides([]);
+        return;
+      }
 
       const normalizedBackendUrl = BACKEND_URL.replace(/\/$/, "");
       const res = await fetch(
         `${normalizedBackendUrl}/api/rides/history?rider_id=${encodeURIComponent(user.id)}`,
       );
-      if (!res.ok) { setRides([]); return; }
+      if (!res.ok) {
+        setRides([]);
+        return;
+      }
 
       const payload = await res.json();
       setRides(payload?.rides ?? []);
     } catch (_) {
+      // keep prior list
     } finally {
       setLoading(false);
     }
@@ -153,12 +153,18 @@ export default function RideHistoryRider() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
+      <TouchableOpacity
+        onPress={() => safeGoBack(router, "/rider/RiderHome")}
+        style={styles.closeButton}
+      >
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
 
       <View style={styles.headerRow}>
-        <Text style={styles.header}>Ride History</Text>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.header}>Ride History</Text>
+          <Text style={styles.roleHint}>Rider · tap a ride to rate your driver</Text>
+        </View>
         {rides.length > 0 && (
           <TouchableOpacity
             onPress={clearAll}
@@ -191,8 +197,25 @@ export default function RideHistoryRider() {
                 )}
               </TouchableOpacity>
 
+              <TouchableOpacity
+                style={styles.cardBody}
+                activeOpacity={0.8}
+                onPress={() => {
+                  const params = buildRiderRideDetailHistoryParams(ride);
+                  if (params) {
+                    router.push({
+                      pathname: "/rider/RideDetailHistory",
+                      params,
+                    });
+                  }
+                }}
+              >
+
               <Text style={styles.dateLabel}>
-                {formatDate(ride.ride_date) ?? DAY_LABELS[ride.day] ?? ride.day ?? "—"}
+                {formatRideDateShort(ride.ride_date) ??
+                  DAY_LABELS[ride.day] ??
+                  ride.day ??
+                  "—"}
               </Text>
 
               <View style={styles.rowLine}>
@@ -217,9 +240,17 @@ export default function RideHistoryRider() {
                 )}
               </View>
 
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>Completed</Text>
+              <View style={styles.ratingAndStatus}>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusText}>Completed</Text>
+                </View>
+                {hasStarScore(ride.my_rating) ? (
+                  <RatingPill score={ride.my_rating} variant="compact" />
+                ) : (
+                  <RatingPill variant="cta" ctaLabel="Rate driver" />
+                )}
               </View>
+              </TouchableOpacity>
             </View>
           ))
         )}
@@ -258,8 +289,18 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 20,
+    gap: 12,
+  },
+  headerTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  roleHint: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748B",
   },
   header: {
     fontSize: 26,
@@ -281,9 +322,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    position: "relative",
+    overflow: "hidden",
+  },
+  cardBody: {
     padding: 18,
     gap: 8,
-    position: "relative",
   },
   hideButton: {
     position: "absolute",
@@ -345,13 +389,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
   },
+  ratingAndStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 8,
+  },
   statusBadge: {
     alignSelf: "flex-start",
     backgroundColor: "#dcfce7",
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    marginTop: 4,
   },
   statusText: {
     fontSize: 12,

@@ -1,5 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
+import {
+  resolveAppMode,
+  rideHistoryHref,
+  scheduledRidesHref,
+  setLastAppMode,
+} from "../lib/appMode";
 import { resolveRoute } from "../lib/routeUser";
 import { useState } from "react";
 import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
@@ -43,17 +49,26 @@ export default function GlobalMenu() {
     return null;
   }
 
+  async function readStoredUser() {
+    try {
+      const stored = await AsyncStorage.getItem("@user");
+      if (!stored) return null;
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
+  }
+
   const toggleMenu = async () => {
     if (!isOpen) {
-      try {
-        const stored = await AsyncStorage.getItem("@user");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setCurrentRole(parsed?.role);
-          setAvatarUri(parsed?.picture || parsed?.avatar_url || null);
-        }
-      } catch (e) {
-        // ignore
+      const parsed = await readStoredUser();
+      if (parsed) {
+        const mode = await resolveAppMode({
+          pathname,
+          storedRole: parsed.role,
+        });
+        setCurrentRole(mode);
+        setAvatarUri(parsed?.picture || parsed?.avatar_url || null);
       }
     }
     setIsOpen(!isOpen);
@@ -63,7 +78,7 @@ export default function GlobalMenu() {
     setIsOpen(false);
     try {
       await deactivateCurrentUserPushToken();
-      await AsyncStorage.removeItem("@user");
+      await AsyncStorage.multiRemove(["@user", "@user_last_app_mode"]);
       router.replace("/");
     } catch (e) {
       Alert.alert("Error", "Failed to sign out.");
@@ -81,9 +96,14 @@ export default function GlobalMenu() {
       }
 
       const parsed = JSON.parse(stored);
-      const newRole = currentRole === "driver" ? "rider" : "driver";
+      const activeMode = await resolveAppMode({
+        pathname,
+        storedRole: parsed.role,
+      });
+      const newRole = activeMode === "driver" ? "rider" : "driver";
       const updated = { ...parsed, role: newRole };
       await AsyncStorage.setItem("@user", JSON.stringify(updated));
+      await setLastAppMode(newRole);
 
       const dest = await resolveRoute(updated, { verifyDriver: false });
       router.replace(dest);
@@ -117,31 +137,50 @@ export default function GlobalMenu() {
             
             {/* Menu Items */}
             {/* Menu Items */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => { 
-                setIsOpen(false); 
-                if (currentRole === "driver") {
-                  router.push("/driver/ScheduledRidesDriver?tab=upcoming");
-                } else if (currentRole === "rider") {
-                  router.push("/rider/ScheduledRidesRider?tab=upcoming");
-                }
-              }}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={async () => {
+                setIsOpen(false);
+                const parsed = await readStoredUser();
+                const mode = await resolveAppMode({
+                  pathname,
+                  storedRole: parsed?.role,
+                });
+                router.push(scheduledRidesHref(mode));
+              }}
+            >
               <ClockIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Upcoming Rides
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => { 
-                setIsOpen(false); 
-                if (currentRole === "driver") {
-                  router.push("/driver/RideHistoryDriver");
-                } else if (currentRole === "rider") {
-                  router.push("/rider/RideHistoryRider");
-                }
-              }}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={async () => {
+                setIsOpen(false);
+                const parsed = await readStoredUser();
+                const mode = await resolveAppMode({
+                  pathname,
+                  storedRole: parsed?.role,
+                });
+                router.push(rideHistoryHref(mode));
+              }}
+            >
               <HistoryLineIcon size={20} color="#64748B" />
               <Text style={styles.menuItemText}>
                 Ride History
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={handleSwitchRole}>
+              <Text style={styles.menuSwitchIcon}>
+                {currentRole === "driver" ? "🚶" : "🚗"}
+              </Text>
+              <Text style={styles.menuItemText}>
+                {currentRole === "driver"
+                  ? "Switch to rider mode"
+                  : "Switch to driver mode"}
               </Text>
             </TouchableOpacity>
 
@@ -203,5 +242,10 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     color: "#0F172A",
     fontWeight: "500",
+  },
+  menuSwitchIcon: {
+    fontSize: 18,
+    width: 20,
+    textAlign: "center",
   },
 });
