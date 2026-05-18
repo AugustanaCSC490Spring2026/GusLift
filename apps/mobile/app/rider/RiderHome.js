@@ -16,6 +16,7 @@ import {
 import AutocompleteInput from "../../components/setup/AutocompleteInput";
 import TimePickerField from "../../components/setup/TimePickerField";
 import { useMatching } from "../../context/MatchingContext";
+import { calculateFare } from "../../lib/fareCalc";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -368,6 +369,17 @@ export default function RiderHome() {
                 </Text>
               </View>
 
+              {(() => {
+                const fare = calculateFare(schedulePickup || pickupLoc, dropoffLoc);
+                if (!fare) return null;
+                return (
+                  <View style={styles.fareRow}>
+                    <Text style={styles.fareLabel}>Suggested fare</Text>
+                    <Text style={styles.fareValue}>{fare.fareLabel}</Text>
+                  </View>
+                );
+              })()}
+
               <Text style={styles.helperText}>
                 Best for your normal class-day commute with the route you already saved.
               </Text>
@@ -416,6 +428,17 @@ export default function RiderHome() {
             value={manualDropoff}
             onChangeText={setManualDropoff}
           />
+
+          {(() => {
+            const fare = calculateFare(manualPickup, manualDropoff || dropoffLoc);
+            if (!fare) return null;
+            return (
+              <View style={styles.fareRow}>
+                <Text style={styles.fareLabel}>Suggested fare</Text>
+                <Text style={styles.fareValue}>${fare.fareLabel}</Text>
+              </View>
+            );
+          })()}
 
           <Text style={styles.inputLabel}>Class start time</Text>
           <TimePickerField
@@ -851,6 +874,27 @@ const styles = StyleSheet.create({
   },
   inlineLoader: {
     marginVertical: 12,
+  },
+  fareRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "#F0F9FF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#BAE6FD",
+  },
+  fareLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0369A1",
+  },
+  fareValue: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0369A1",
   },
   emptyState: {
     borderRadius: 24,
