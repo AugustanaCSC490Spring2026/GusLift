@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { getCoords } from "../lib/campusCoords";
 
@@ -93,6 +93,18 @@ export default function RouteMap({ pickup, dropoff, extraMarkers = [], height = 
   });
 
   const html = buildLeafletHTML(markers);
+
+  if (Platform.OS === "web") {
+    return (
+      <View style={[styles.card, { height }]}>
+        <iframe
+          srcDoc={html}
+          style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+          title="Route Map"
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.card, { height }]}>
