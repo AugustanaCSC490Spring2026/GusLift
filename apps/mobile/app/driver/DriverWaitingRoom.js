@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useMatching } from "../../context/MatchingContext";
+import RouteMap from "../../components/RouteMap";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -205,6 +206,8 @@ export default function DriverWaitingRoom() {
           </>
         ) : null}
       </View>
+
+      <RouteMap pickup={from} dropoff={to} />
 
       <View style={styles.signalCard}>
         {connected ? (

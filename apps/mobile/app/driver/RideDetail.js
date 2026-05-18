@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import RouteMap from "../../components/RouteMap";
 
 const DAY_LABELS = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday",
@@ -50,6 +51,8 @@ export default function RideDetailDriver() {
           <Text style={styles.value}>{formatTime12h(start_time)}</Text>
         </View>
       </View>
+
+      <RouteMap pickup={pickup_loc} dropoff={dropoff_loc} />
 
       {/* Riders */}
       <Text style={styles.ridersHeader}>

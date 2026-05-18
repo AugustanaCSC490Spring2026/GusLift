@@ -54,6 +54,8 @@ export type RiderWaitingWire = {
   joined_at: number;
   name: string | null;
   picture_url: string | null;
+  /** schedule.pickup_loc */
+  pickup_loc: string | null;
   /** schedule.dropoff_loc */
   to_location: string | null;
 };
@@ -86,6 +88,7 @@ export type DriverJoinedMessage = {
   seats: number;
   name: string | null;
   picture_url: string | null;
+  pickup_loc: string | null;
   to_location: string | null;
   car: CarDetailsWire | null;
 };
@@ -114,6 +117,7 @@ export type MatchRequestMessage = {
   driver: {
     name: string | null;
     picture_url: string | null;
+    pickup_loc: string | null;
     to_location: string | null;
     car: CarDetailsWire | null;
   };

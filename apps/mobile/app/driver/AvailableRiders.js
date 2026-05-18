@@ -1,6 +1,7 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useMatching } from "../../context/MatchingContext";
+import RouteMap from "../../components/RouteMap";
 import {
   Alert,
   Image,
@@ -75,6 +76,9 @@ function RiderCard({ rider, isPending, isRejected, onPress }) {
 
 export default function AvailableRidersScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const driverFrom = Array.isArray(params.from) ? params.from[0] : (params.from ?? null);
+  const driverTo = Array.isArray(params.to) ? params.to[0] : (params.to ?? null);
   const { send, onMessage, userId, disconnect, getRidersSnapshot } =
     useMatching();
   const [riders, setRiders] = useState([]);
@@ -239,6 +243,15 @@ export default function AvailableRidersScreen() {
           <Text style={styles.metricValue}>{seatsRemaining}</Text>
         </View>
       </View>
+
+      <RouteMap
+        pickup={driverFrom}
+        dropoff={driverTo}
+        extraMarkers={riders
+          .filter((r) => r.pickup_loc && r.pickup_loc !== driverFrom)
+          .map((r) => ({ label: r.name ?? "Rider", location: r.pickup_loc, color: "#3B82F6" }))}
+        height={200}
+      />
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Waiting riders</Text>

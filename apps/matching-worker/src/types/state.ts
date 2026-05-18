@@ -12,6 +12,8 @@ export type DriverState = {
   seats_remaining: number;
   name: string | null;
   picture_url: string | null;
+  /** schedule.pickup_loc — where they depart from */
+  pickup_loc: string | null;
   /** schedule.dropoff_loc — where they are headed */
   to_location: string | null;
   car: CarDetails | null;
@@ -20,6 +22,8 @@ export type DriverState = {
 export type RiderWaiting = {
   rider_id: string;
   joined_at: number;
+  /** Pickup location for this matching session */
+  pickup_loc?: string | null;
   /** Destination for this matching session (from rider_request) */
   to_location?: string | null;
 };

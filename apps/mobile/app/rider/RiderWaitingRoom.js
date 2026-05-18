@@ -1,6 +1,7 @@
 import { useMatching } from "../../context/MatchingContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import RouteMap from "../../components/RouteMap";
 import {
   ActivityIndicator,
   ScrollView,
@@ -269,6 +270,8 @@ export default function RiderWaitingRoom() {
           </Text>
         </View>
       </View>
+
+      <RouteMap pickup={from} dropoff={to} />
 
       {connectError ? (
         <View style={styles.errorCard}>

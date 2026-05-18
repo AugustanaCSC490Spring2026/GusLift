@@ -41,6 +41,7 @@ type RiderProfile = {
   name: string | null;
   residence: string | null;
   picture_url: string | null;
+  pickup_loc: string | null;
   /** schedule.dropoff_loc */
   to_location: string | null;
 };
@@ -120,6 +121,7 @@ export class MatchingRoom implements DurableObject {
     joined_at: number;
     name: string | null;
     picture_url: string | null;
+    pickup_loc: string | null;
     to_location: string | null;
   } {
     return {
@@ -127,6 +129,7 @@ export class MatchingRoom implements DurableObject {
       joined_at: waiting.joined_at,
       name: profile.name,
       picture_url: profile.picture_url,
+      pickup_loc: waiting.pickup_loc ?? profile.pickup_loc ?? null,
       to_location: this.resolveRiderToLocation(
         waiting.rider_id,
         waiting,
@@ -158,6 +161,7 @@ export class MatchingRoom implements DurableObject {
         seats_remaining: s.seats_remaining,
         name: s.name,
         picture_url: s.picture_url,
+        pickup_loc: s.pickup_loc,
         to_location: s.to_location,
         car: s.car,
       }),
@@ -280,13 +284,14 @@ export class MatchingRoom implements DurableObject {
         .single(),
       supabase
         .from("schedule")
-        .select("dropoff_loc")
+        .select("pickup_loc,dropoff_loc")
         .eq("user_id", riderId)
         .order("created_at", { ascending: false })
         .limit(1),
     ]);
 
-    const schedRows = schedRes.data as { dropoff_loc: string | null }[] | null;
+    const schedRows = schedRes.data as { pickup_loc: string | null; dropoff_loc: string | null }[] | null;
+    const pickup_loc = schedRows?.[0]?.pickup_loc?.trim() || null;
     const to_location = schedRows?.[0]?.dropoff_loc?.trim() || null;
 
     if (userRes.error || !userRes.data) {
@@ -295,6 +300,7 @@ export class MatchingRoom implements DurableObject {
         name: null,
         residence: null,
         picture_url: null,
+        pickup_loc,
         to_location,
       };
     }
@@ -304,7 +310,7 @@ export class MatchingRoom implements DurableObject {
       residence: string | null;
       picture_url: string | null;
     };
-    return { ...u, to_location };
+    return { ...u, pickup_loc, to_location };
   }
 
   /**
@@ -329,7 +335,7 @@ export class MatchingRoom implements DurableObject {
         .limit(1),
       supabase
         .from("schedule")
-        .select("dropoff_loc")
+        .select("pickup_loc,dropoff_loc")
         .eq("user_id", driverId)
         .order("created_at", { ascending: false })
         .limit(1),
@@ -353,7 +359,8 @@ export class MatchingRoom implements DurableObject {
       name: string | null;
       picture_url: string | null;
     } | null;
-    const schedRows = schedRes.data as { dropoff_loc: string | null }[] | null;
+    const schedRows = schedRes.data as { pickup_loc: string | null; dropoff_loc: string | null }[] | null;
+    const pickup_loc = schedRows?.[0]?.pickup_loc?.trim() || null;
     const to_location = schedRows?.[0]?.dropoff_loc?.trim() || null;
 
     const car: CarDetails | null = {
@@ -367,6 +374,7 @@ export class MatchingRoom implements DurableObject {
       seats_remaining: seats,
       name: user?.name ?? null,
       picture_url: user?.picture_url ?? null,
+      pickup_loc,
       to_location,
       car,
     };
@@ -393,6 +401,7 @@ export class MatchingRoom implements DurableObject {
       seats: state.seats_remaining,
       name: state.name,
       picture_url: state.picture_url,
+      pickup_loc: state.pickup_loc,
       to_location: state.to_location,
       car: state.car,
     });
@@ -454,6 +463,7 @@ export class MatchingRoom implements DurableObject {
       driver: {
         name: ds.name,
         picture_url: ds.picture_url,
+        pickup_loc: ds.pickup_loc,
         to_location: ds.to_location,
         car: ds.car,
       },

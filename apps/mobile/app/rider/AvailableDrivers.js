@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import RouteMap from "../../components/RouteMap";
 import {
   ActivityIndicator,
   Image,
@@ -49,6 +50,7 @@ export default function AvailableDrivers() {
     driverDirectoryRef.current.set(String(driverId), {
       name: rawDriver.name ?? null,
       picture_url: rawDriver.picture_url ?? null,
+      pickup_loc: rawDriver.pickup_loc ?? null,
       to_location: rawDriver.to_location ?? null,
       car: carParts.length ? carParts.join(" · ") : null,
     });
@@ -86,6 +88,7 @@ export default function AvailableDrivers() {
           driver = {
             name: sourceDriver.name ?? null,
             picture_url: sourceDriver.picture_url ?? null,
+            pickup_loc: sourceDriver.pickup_loc ?? null,
             to_location: sourceDriver.to_location ?? null,
             car: carParts.length ? carParts.join(" · ") : null,
           };
@@ -236,6 +239,8 @@ export default function AvailableDrivers() {
             </View>
           </View>
 
+          <RouteMap pickup={from} dropoff={to} height={200} />
+
           <View style={styles.waitingCard}>
             <ActivityIndicator size="small" color="#3B82F6" />
             <Text style={styles.waitingTitle}>Matching is active</Text>
@@ -292,6 +297,17 @@ export default function AvailableDrivers() {
               </Text>
             </View>
           </View>
+
+          <RouteMap
+            pickup={from}
+            dropoff={to}
+            extraMarkers={
+              matchedDriver?.pickup_loc
+                ? [{ label: "Driver pickup", location: matchedDriver.pickup_loc, color: "#8B5CF6" }]
+                : []
+            }
+            height={220}
+          />
 
           <TouchableOpacity
             style={[styles.primaryButton, confirming && styles.primaryButtonDisabled]}
