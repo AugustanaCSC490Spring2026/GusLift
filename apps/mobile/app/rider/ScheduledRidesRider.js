@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Platform,
   SafeAreaView,
@@ -13,6 +14,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { calculateFare } from "../../lib/fareCalc";
 import { ClockIcon, HistoryLineIcon } from "../../components/Icons";
 import { useMatching } from "../../context/MatchingContext";
 import {
@@ -161,6 +163,65 @@ const RideCard = ({ ride, onPress, isFirstOfUpcoming }) => {
 
 const RideDetail = ({ ride, onBack }) => {
   const isCompleted = ride.status === 'Completed';
+  const [userId, setUserId] = useState(null);
+  const [paymentInfo, setPaymentInfo] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(true);
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [code, setCode] = useState(null);
+
+  const fareResult = calculateFare(ride.pickup, ride.destination);
+  const normalizedBackend = BACKEND_URL?.replace(/\/$/, "") ?? "";
+
+  useEffect(() => {
+    AsyncStorage.getItem("@user").then((stored) => {
+      if (stored) setUserId(JSON.parse(stored).id);
+    });
+    if (ride.id && BACKEND_URL) {
+      fetch(`${normalizedBackend}/api/rides/${ride.id}/payment`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) setPaymentInfo(data); })
+        .catch(() => {})
+        .finally(() => setPaymentLoading(false));
+    } else {
+      setPaymentLoading(false);
+    }
+  }, [ride.id]);
+
+  async function generateCode(method) {
+    if (!userId || !BACKEND_URL) return;
+    setGeneratingCode(true);
+    try {
+      const res = await fetch(`${normalizedBackend}/api/rides/${ride.id}/payment/code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({
+          payment_method: method,
+          fare_cents: fareResult?.fareCents ?? null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.code) {
+        setCode(data.code);
+        setPaymentInfo((prev) => ({ ...prev, payment_status: "code_issued" }));
+      } else {
+        Alert.alert("Error", data.error ?? "Could not generate code.");
+      }
+    } catch {
+      Alert.alert("Error", "Could not connect to server.");
+    } finally {
+      setGeneratingCode(false);
+    }
+  }
+
+  const paymentStatus = paymentInfo?.payment_status ?? "pending";
+  const driverPayment = paymentInfo?.driver_payment;
+
+  const hasVenmo = Boolean(driverPayment?.venmo_username);
+  const hasCashApp = Boolean(driverPayment?.cashapp_username);
+  const hasZelle = Boolean(driverPayment?.zelle_contact);
+  const hasCash = driverPayment?.accepts_cash !== false;
+  const hasStripe = Boolean(driverPayment?.stripe_onboarded);
+  const noPaymentMethods = !hasVenmo && !hasCashApp && !hasZelle && !hasCash && !hasStripe;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -204,6 +265,130 @@ const RideDetail = ({ ride, onBack }) => {
                 <Text style={styles.platePillValue}>{ride.driver.plate}</Text>
               </View>
             </View>
+          </View>
+        )}
+
+        {/* Payment section — only for accepted (upcoming) rides */}
+        {!isCompleted && (
+          <View style={styles.paymentCard}>
+            <Text style={styles.paymentTitle}>Payment</Text>
+
+            {fareResult && (
+              <View style={styles.fareRow}>
+                <Text style={styles.fareLabel}>Suggested fare</Text>
+                <Text style={styles.fareAmount}>{fareResult.fareLabel}</Text>
+              </View>
+            )}
+
+            {paymentLoading ? (
+              <ActivityIndicator color={COLORS.blue} style={{ marginTop: 12 }} />
+            ) : paymentStatus === "verified" ? (
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedBadgeText}>Payment verified by driver</Text>
+              </View>
+            ) : (code || paymentStatus === "code_issued") ? (
+              <View style={styles.codeBox}>
+                <Text style={styles.codeLabel}>Tell your driver this code</Text>
+                <Text style={styles.codeValue}>{code ?? "····"}</Text>
+                <Text style={styles.codeHint}>
+                  Say it out loud when you get in the car. Your driver will enter it to confirm.
+                </Text>
+                {!code && (
+                  <TouchableOpacity
+                    style={styles.reshowButton}
+                    onPress={() => generateCode(paymentInfo?.payment_method ?? "cash")}
+                    disabled={generatingCode}
+                  >
+                    <Text style={styles.reshowButtonText}>Re-show code</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : noPaymentMethods ? (
+              <Text style={styles.paymentNote}>
+                Your driver has not set up digital payments. Pay in cash when you get in.
+              </Text>
+            ) : (
+              <View style={styles.methodList}>
+                <Text style={styles.methodListLabel}>Choose how you will pay</Text>
+
+                {hasStripe && (
+                  <TouchableOpacity
+                    style={[styles.methodButton, { backgroundColor: "#635BFF" }]}
+                    onPress={() => generateCode("stripe")}
+                    disabled={generatingCode}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.methodButtonText}>Pay with card (Stripe)</Text>
+                  </TouchableOpacity>
+                )}
+
+                {hasVenmo && (
+                  <View style={styles.manualMethodRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.manualMethodName}>Venmo</Text>
+                      <Text style={styles.manualMethodHandle}>{driverPayment.venmo_username}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.iVePaidButton}
+                      onPress={() => generateCode("venmo")}
+                      disabled={generatingCode}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.iVePaidButtonText}>I&apos;ve paid</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {hasCashApp && (
+                  <View style={styles.manualMethodRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.manualMethodName}>Cash App</Text>
+                      <Text style={styles.manualMethodHandle}>{driverPayment.cashapp_username}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.iVePaidButton}
+                      onPress={() => generateCode("cashapp")}
+                      disabled={generatingCode}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.iVePaidButtonText}>I&apos;ve paid</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {hasZelle && (
+                  <View style={styles.manualMethodRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.manualMethodName}>Zelle</Text>
+                      <Text style={styles.manualMethodHandle}>{driverPayment.zelle_contact}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.iVePaidButton}
+                      onPress={() => generateCode("zelle")}
+                      disabled={generatingCode}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.iVePaidButtonText}>I&apos;ve paid</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {hasCash && (
+                  <TouchableOpacity
+                    style={styles.cashButton}
+                    onPress={() => generateCode("cash")}
+                    disabled={generatingCode}
+                    activeOpacity={0.85}
+                  >
+                    {generatingCode ? (
+                      <ActivityIndicator color={COLORS.dark} size="small" />
+                    ) : (
+                      <Text style={styles.cashButtonText}>I&apos;ll pay in cash</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         )}
 
@@ -509,4 +694,29 @@ const styles = StyleSheet.create({
   actionButtonDarkText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
   actionButtonRed: { backgroundColor: COLORS.redBg, borderRadius: 18, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA' },
   actionButtonRedText: { color: COLORS.red, fontSize: 14, fontWeight: '700' },
+  paymentCard: { backgroundColor: COLORS.white, borderRadius: 18, padding: 18, borderWidth: 1, borderColor: COLORS.gray200, gap: 14 },
+  paymentTitle: { fontSize: 17, fontWeight: '800', color: COLORS.dark },
+  fareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fareLabel: { fontSize: 14, color: COLORS.gray400 },
+  fareAmount: { fontSize: 20, fontWeight: '800', color: COLORS.dark },
+  verifiedBadge: { backgroundColor: '#DCFCE7', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center' },
+  verifiedBadgeText: { fontSize: 14, fontWeight: '700', color: '#16A34A' },
+  codeBox: { backgroundColor: COLORS.dark, borderRadius: 16, padding: 20, alignItems: 'center', gap: 8 },
+  codeLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' },
+  codeValue: { fontSize: 48, fontWeight: '900', color: COLORS.white, letterSpacing: 8 },
+  codeHint: { fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 18 },
+  reshowButton: { marginTop: 4, paddingVertical: 8, paddingHorizontal: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)' },
+  reshowButtonText: { fontSize: 13, fontWeight: '700', color: COLORS.white },
+  paymentNote: { fontSize: 14, color: COLORS.gray400, lineHeight: 20 },
+  methodList: { gap: 10 },
+  methodListLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', color: COLORS.gray400 },
+  methodButton: { borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  methodButtonText: { fontSize: 14, fontWeight: '800', color: COLORS.white },
+  manualMethodRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.gray200, gap: 12 },
+  manualMethodName: { fontSize: 13, fontWeight: '700', color: COLORS.dark },
+  manualMethodHandle: { fontSize: 14, color: COLORS.blue, fontWeight: '600', marginTop: 2 },
+  iVePaidButton: { backgroundColor: COLORS.blue, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  iVePaidButtonText: { fontSize: 13, fontWeight: '800', color: COLORS.white },
+  cashButton: { backgroundColor: COLORS.gray100, borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.gray200 },
+  cashButtonText: { fontSize: 14, fontWeight: '700', color: COLORS.dark },
 });

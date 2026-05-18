@@ -17,6 +17,15 @@ function CodeIcon({ size = 20, color = "#64748B" }) {
   );
 }
 
+function PayoutIcon({ size = 20, color = "#64748B" }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93V18h-2v1.93c-3.94-.49-7-3.85-7-7.93h1.08c.46 0 .85-.31.97-.75L7 8H5.08C6.38 5.14 9.02 3.09 12.17 3h-.17C9.02 3 6.38 5.14 5.08 8H7l1.03 3.25c.12.44.51.75.97.75H17c-.49-3.1-3.22-5.5-6.5-5.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M12 6v2m0 8v2m-3-5h6" stroke={color} strokeWidth={2} strokeLinecap="round"/>
+    </Svg>
+  );
+}
+
 function LogOutIcon({ size = 20, color = "#dc2626" }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -144,6 +153,13 @@ export default function GlobalMenu() {
                 Ride History
               </Text>
             </TouchableOpacity>
+
+            {currentRole === "driver" && (
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/driver/PayoutSettings"); }}>
+                <PayoutIcon size={20} color="#64748B" />
+                <Text style={styles.menuItemText}>Payout Settings</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.menuItem} onPress={() => { setIsOpen(false); router.push("/developer"); }}>
               <CodeIcon size={20} color="#64748B" />

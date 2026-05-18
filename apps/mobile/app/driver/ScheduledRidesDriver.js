@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +11,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -157,9 +158,110 @@ const RideCard = ({ group, onPress, isFirstOfUpcoming }) => {
   );
 };
 
-const RideDetail = ({ group, onBack, onComplete, completingKey }) => {
+function RiderPaymentRow({ rider, userId, normalizedBackend }) {
+  const [codeInput, setCodeInput] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [fareLabel, setFareLabel] = useState(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!rider.rideId || !normalizedBackend) return;
+    fetch(`${normalizedBackend}/api/rides/${rider.rideId}/payment`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        if (data.payment_status === "verified") setVerified(true);
+        if (data.fare_cents) setFareLabel(`$${(data.fare_cents / 100).toFixed(2)}`);
+      })
+      .catch(() => {});
+  }, [rider.rideId]);
+
+  async function handleVerify() {
+    const code = codeInput.trim();
+    if (code.length !== 4) {
+      Alert.alert("Enter 4-digit code", "Ask the rider for their 4-digit payment code.");
+      return;
+    }
+    if (!userId || !rider.rideId || !normalizedBackend) return;
+    setVerifying(true);
+    try {
+      const res = await fetch(`${normalizedBackend}/api/rides/${rider.rideId}/payment/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (res.ok && (data.success || data.already_verified)) {
+        setVerified(true);
+        setCodeInput("");
+      } else if (res.status === 422) {
+        Alert.alert("Wrong code", "That code doesn't match. Ask the rider to check their app.");
+      } else if (res.status === 409) {
+        Alert.alert("No code yet", "The rider hasn't generated a payment code yet.");
+      } else {
+        Alert.alert("Error", data.error ?? "Could not verify.");
+      }
+    } catch {
+      Alert.alert("Error", "Could not connect to server.");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  return (
+    <View style={styles.riderPayRow}>
+      <View style={styles.riderPayInfo}>
+        {rider.image ? (
+          <Image source={{ uri: rider.image }} style={styles.detailDriverAvatar} />
+        ) : (
+          <View style={[styles.detailDriverAvatar, { backgroundColor: COLORS.gray200 }]} />
+        )}
+        <View style={{ marginLeft: 12, flex: 1 }}>
+          <Text style={styles.detailDriverName}>{rider.name || "Unknown"}</Text>
+          <Text style={styles.detailDriverCar}>{rider.residence || ""}</Text>
+        </View>
+        {fareLabel && <Text style={styles.riderFare}>{fareLabel}</Text>}
+      </View>
+
+      {verified ? (
+        <View style={styles.verifiedRow}>
+          <Text style={styles.verifiedText}>Payment verified</Text>
+        </View>
+      ) : (
+        <View style={styles.codeInputRow}>
+          <TextInput
+            ref={inputRef}
+            style={styles.codeInput}
+            value={codeInput}
+            onChangeText={(t) => setCodeInput(t.replace(/[^0-9]/g, "").slice(0, 4))}
+            placeholder="0000"
+            placeholderTextColor={COLORS.gray300}
+            keyboardType="number-pad"
+            maxLength={4}
+          />
+          <TouchableOpacity
+            style={[styles.verifyButton, verifying && { opacity: 0.6 }]}
+            onPress={handleVerify}
+            disabled={verifying}
+            activeOpacity={0.85}
+          >
+            {verifying ? (
+              <ActivityIndicator color={COLORS.white} size="small" />
+            ) : (
+              <Text style={styles.verifyButtonText}>Verify</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const RideDetail = ({ group, onBack, onComplete, completingKey, userId }) => {
   const isCompleted = group.status === 'Completed';
   const isCompleting = completingKey === group.key;
+  const normalizedBackend = BACKEND_URL?.replace(/\/$/, "") ?? "";
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -187,21 +289,31 @@ const RideDetail = ({ group, onBack, onComplete, completingKey }) => {
         <Text style={styles.sectionTitle}>PASSENGERS</Text>
         <View style={{ gap: 12, marginBottom: 24 }}>
           {group.riders.map((rider, i) => (
-            <View key={i} style={styles.detailCardNoMarg}>
-              <View style={styles.detailDriverRow}>
-                <View style={styles.driverInfo}>
-                  {rider.image ? (
-                    <Image source={{ uri: rider.image }} style={styles.detailDriverAvatar} />
-                  ) : (
-                    <View style={[styles.detailDriverAvatar, { backgroundColor: COLORS.gray200 }]} />
-                  )}
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.detailDriverName}>{rider.name || 'Unknown'}</Text>
-                    <Text style={styles.detailDriverCar}>{rider.residence || 'No location given'}</Text>
+            isCompleted ? (
+              <View key={i} style={styles.detailCardNoMarg}>
+                <View style={styles.detailDriverRow}>
+                  <View style={styles.driverInfo}>
+                    {rider.image ? (
+                      <Image source={{ uri: rider.image }} style={styles.detailDriverAvatar} />
+                    ) : (
+                      <View style={[styles.detailDriverAvatar, { backgroundColor: COLORS.gray200 }]} />
+                    )}
+                    <View style={{ marginLeft: 12 }}>
+                      <Text style={styles.detailDriverName}>{rider.name || 'Unknown'}</Text>
+                      <Text style={styles.detailDriverCar}>{rider.residence || 'No location given'}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
+            ) : (
+              <View key={i} style={styles.detailCardNoMarg}>
+                <RiderPaymentRow
+                  rider={rider}
+                  userId={userId}
+                  normalizedBackend={normalizedBackend}
+                />
+              </View>
+            )
           ))}
         </View>
 
@@ -229,6 +341,7 @@ export default function ScheduledRidesDriver() {
   const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState(params.tab || 'upcoming');
   const [selectedRide, setSelectedRide] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [upcomingGroups, setUpcomingGroups] = useState([]);
@@ -236,6 +349,9 @@ export default function ScheduledRidesDriver() {
   const [completingKey, setCompletingKey] = useState(null);
 
   useEffect(() => {
+    AsyncStorage.getItem("@user").then((stored) => {
+      if (stored) setUserId(JSON.parse(stored).id);
+    });
     loadRides('upcoming');
     loadRides('history');
   }, []);
@@ -271,6 +387,8 @@ export default function ScheduledRidesDriver() {
       const g = map.get(key);
       if (ride.rider) {
         g.riders.push({
+          rideId: ride.id ? String(ride.id) : null,
+          riderId: ride.rider_id ?? null,
           name: ride.rider.name,
           image: ride.rider.picture_url,
           residence: ride.rider.residence,
@@ -368,6 +486,7 @@ export default function ScheduledRidesDriver() {
         onBack={() => setSelectedRide(null)}
         onComplete={completeRides}
         completingKey={completingKey}
+        userId={userId}
       />
     );
   }
@@ -522,4 +641,13 @@ const styles = StyleSheet.create({
   detailDriverCar: { fontSize: 12, color: COLORS.gray400, marginTop: 2 },
   actionButtonBlue: { backgroundColor: COLORS.blue, borderRadius: 18, paddingVertical: 16, alignItems: 'center', shadowColor: COLORS.blue, shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 4 },
   actionButtonDarkText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+  riderPayRow: { gap: 12 },
+  riderPayInfo: { flexDirection: 'row', alignItems: 'center' },
+  riderFare: { fontSize: 15, fontWeight: '800', color: COLORS.dark, marginLeft: 8 },
+  codeInputRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  codeInput: { flex: 1, borderWidth: 1.5, borderColor: COLORS.gray200, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 20, fontWeight: '800', color: COLORS.dark, letterSpacing: 6, textAlign: 'center', backgroundColor: COLORS.bg },
+  verifyButton: { backgroundColor: COLORS.blue, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 12 },
+  verifyButtonText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  verifiedText: { fontSize: 13, fontWeight: '700', color: '#16A34A' },
 });
